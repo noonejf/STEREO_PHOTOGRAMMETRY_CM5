@@ -1,0 +1,80 @@
+# =======================================================
+# Archivo .gitignore para Stereo Photogrammetry (Python/C++)
+# =======================================================
+
+# --- El Problema Principal (Archivos Grandes de Salida) ---
+# Ignora los directorios que contienen resultados generados,
+# como nubes de puntos, mallas, mapas de profundidad, etc.
+/data/results/
+/output/
+/build/
+/dist/
+
+# Ignora tipos de archivo de nube de puntos y mallas,
+# por si se generan en otras carpetas.
+*.ply
+*.pcd
+*.obj
+*.stl
+*.bin
+
+# --- Python ---
+# Bytecode compilado
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Entornos virtuales (Virtual environments)
+/venv/
+/env/
+/.venv/
+/.env/
+
+# Archivos de instalación y distribución
+.eggs/
+*.egg-info/
+*.egg
+build/
+dist/
+
+# --- C/C++ (Muy común para OpenCV y performance) ---
+# Archivos compilados
+*.o
+*.so
+*.a
+*.out
+*.exe
+
+# Archivos de build de CMake
+/CMakeCache.txt
+/CMakeFiles/
+/cmake_install.cmake
+/Makefile
+
+# --- Datasets (Imágenes de entrada) ---
+# DESCOMENTA las siguientes líneas si tus datasets de IMÁGENES
+# de entrada también son muy grandes y no quieres subirlos.
+# /data/input/
+# /data/raw/
+# *.png
+# *.jpg
+# *.jpeg
+# *.bmp
+# *.tif
+
+# --- Archivos de Sistema Operativo y Editor ---
+# macOS
+.DS_Store
+# Windows
+Thumbs.db
+# Linux / Editor
+*.swp
+*~
+
+# --- Configuraciones de IDE ---
+.vscode/
+.idea/
+
+# --- Archivos de Log y Temporales ---
+*.log
+*.tmp
