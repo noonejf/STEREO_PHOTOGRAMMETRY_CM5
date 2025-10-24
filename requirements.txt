@@ -6,7 +6,7 @@
 PyQt5
 
 # Computer Vision y procesamiento de imágenes
-opencv-python
+opencv-contrib-python
 numpy
 scipy
 

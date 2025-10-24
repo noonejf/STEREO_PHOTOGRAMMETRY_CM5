@@ -21,7 +21,7 @@ class CameraSettings:
     sensor_type: str = "IMX477"
     max_resolution: Tuple[int, int] = (4056, 3040)  # 12.3MP máximo
     preview_resolution: Tuple[int, int] = (1920, 1440)  # Para vista previa
-    capture_resolution: Tuple[int, int] = (3840, 2880)  # Para captura estéreo
+    capture_resolution: Tuple[int, int] = (1920, 1440)  # CAMBIO: Usar misma resolución que preview para evitar crop
     framerate: int = 15
     exposure_mode: str = "auto"
     awb_mode: str = "auto"
@@ -152,35 +152,29 @@ class CameraConfig:
 
         if operation == "preview":
             # --- LÓGICA DE PREVIEW ---
-            # Usa "libcamera-hello" o "rpicam-vid" (tu main_window usa rpicam-vid)
-            # PERO usa la preview_resolution (que ahora es 1920x1440)
-            # CORRECCIÓN: Usa rpicam-vid para consistencia con CameraPreviewWidget
+            # Usa rpicam-vid para streaming de preview
             cmd = f"rpicam-vid --camera {camera_id} -t 0 --nopreview --codec mjpeg --output -" # Salida a stdout
             cmd += f" --width {camera_settings.preview_resolution[0]}"
             cmd += f" --height {camera_settings.preview_resolution[1]}"
 
         elif operation == "capture":
-            # --- LÓGICA DE CAPTURA (PARA MODELO 3D - ALTA RESOLUCIÓN) ---
+            # --- LÓGICA DE CAPTURA (PARA MODELO 3D) ---
+            # Usar MISMA resolución que preview (1920x1440) porque funciona sin crop
             if not output_file:
                 output_file = f"capture_cam{camera_id}.jpg"
             cmd = f"libcamera-jpeg --camera {camera_id} -o {output_file}"
-
-            # Asegurarse de que usa capture_resolution (3840x2880)
             cmd += f" --width {camera_settings.capture_resolution[0]}"
             cmd += f" --height {camera_settings.capture_resolution[1]}"
-            cmd += f" -t {duration_ms}" # Mantener el timeout aquí
+            cmd += f" -t {duration_ms}"
 
         elif operation == "calibration":
-            # --- LÓGICA DE CALIBRACIÓN (USA PREVIEW_RESOLUTION) --- # <--- CAMBIO AQUÍ
+            # --- LÓGICA DE CALIBRACIÓN ---
             if not output_file:
                 output_file = f"calibration_cam{camera_id}.jpg"
             cmd = f"libcamera-jpeg --camera {camera_id} -o {output_file}"
-
-            # ✅ EL ARREGLO ESTÁ AQUÍ:
-            # Asegurarse de que usa preview_resolution (1920x1440)
-            cmd += f" --width {camera_settings.preview_resolution[0]}"  # <--- CAMBIADO
-            cmd += f" --height {camera_settings.preview_resolution[1]}" # <--- CAMBIADO
-            cmd += f" -t {duration_ms}" # Mantener el timeout aquí
+            cmd += f" --width {camera_settings.preview_resolution[0]}"
+            cmd += f" --height {camera_settings.preview_resolution[1]}"
+            cmd += f" -t {duration_ms}"
         else:
             raise ValueError(f"Operación desconocida: {operation}")
 

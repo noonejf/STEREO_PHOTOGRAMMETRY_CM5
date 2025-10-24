@@ -40,61 +40,6 @@ class StereoProcessor:
 
         logger.info("Procesador estéreo inicializado")
     
-    def _create_roi_mask(self, img_shape: Tuple[int, int], roi1: Tuple, roi2: Tuple) -> np.ndarray:
-        """
-        Crear máscara que combina las regiones válidas de ambas cámaras
-
-        Args:
-            img_shape: (height, width) de la imagen
-            roi1: (x, y, w, h) región válida de cámara izquierda
-            roi2: (x, y, w, h) región válida de cámara derecha
-
-        Returns:
-            Máscara booleana donde True = región válida
-        """
-        height, width = img_shape
-        mask = np.zeros((height, width), dtype=bool)
-
-        # Extraer ROIs
-        x1, y1, w1, h1 = roi1
-        x2, y2, w2, h2 = roi2
-
-        # Si ROI es inválido (ancho o alto = 0), usar imagen completa con margen
-        if w1 <= 0 or h1 <= 0 or w2 <= 0 or h2 <= 0:
-            logger.warning("⚠️ ROI inválido detectado, usando máscara con margen de bordes")
-            # Excluir 5% de los bordes para evitar artefactos
-            margin_x = int(width * 0.05)
-            margin_y = int(height * 0.05)
-            mask[margin_y:height-margin_y, margin_x:width-margin_x] = True
-            return mask
-
-        # Calcular intersección de ambos ROIs (región válida para ambas cámaras)
-        x_start = max(x1, x2)
-        y_start = max(y1, y2)
-        x_end = min(x1 + w1, x2 + w2)
-        y_end = min(y1 + h1, y2 + h2)
-
-        # Verificar que la intersección sea válida
-        if x_end > x_start and y_end > y_start:
-            # Aplicar un margen adicional de seguridad (2% interno)
-            margin_x = int((x_end - x_start) * 0.02)
-            margin_y = int((y_end - y_start) * 0.02)
-
-            x_safe = max(0, x_start + margin_x)
-            y_safe = max(0, y_start + margin_y)
-            x_end_safe = min(width, x_end - margin_x)
-            y_end_safe = min(height, y_end - margin_y)
-
-            mask[y_safe:y_end_safe, x_safe:x_end_safe] = True
-        else:
-            logger.warning("⚠️ ROIs no se superponen, usando máscara conservadora")
-            # Usar región central como fallback
-            margin_x = int(width * 0.1)
-            margin_y = int(height * 0.1)
-            mask[margin_y:height-margin_y, margin_x:width-margin_x] = True
-
-        return mask
-
     def _save_correspondence_debug(self, left_img, right_img, disparity, debug_path):
         """
         Guardar visualización de correspondencias de puntos entre imágenes
@@ -232,20 +177,35 @@ class StereoProcessor:
             img_shape = left_img.shape[:2][::-1]  # (width, height)
             
             # Calcular rectificación (capturando ROIs válidos)
+            # IMPORTANTE: alpha=1.0 para lentes SIN ojo de pez (conserva toda la imagen)
+            # alpha=0.0 recorta demasiado, alpha=1.0 conserva todos los píxeles originales
             R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
                 mtx_left, dist_left,
                 mtx_right, dist_right,
                 img_shape, R, T,
                 flags=cv2.CALIB_ZERO_DISPARITY,
-                alpha=0.0  # CAMBIADO: 0.9 -> 0.0 para maximizar área válida y minimizar bordes
+                alpha=1.0  # Para lentes normales SIN fisheye, usar 1.0 para conservar toda la imagen
             )
 
             logger.info(f"🔍 DEBUG ROI válido izquierdo: {roi1}")
             logger.info(f"🔍 DEBUG ROI válido derecho: {roi2}")
 
-            # Crear máscara de región válida
-            self.valid_roi_mask = self._create_roi_mask(img_shape[::-1], roi1, roi2)
-            logger.info(f"🔍 DEBUG Máscara ROI creada - Píxeles válidos: {np.sum(self.valid_roi_mask)}/{self.valid_roi_mask.size}")
+            # NO usar máscara ROI restrictiva - las cámaras NO tienen fisheye
+            # Solo crear una máscara básica para excluir pequeños bordes (5% máximo)
+            height, width = img_shape[::-1]
+            self.valid_roi_mask = np.ones((height, width), dtype=bool)
+
+            # Excluir solo un pequeño margen de bordes (5% en cada lado)
+            margin_y = int(height * 0.05)
+            margin_x = int(width * 0.05)
+
+            # Mantener todo excepto pequeño margen de bordes
+            self.valid_roi_mask[:margin_y, :] = False  # Top
+            self.valid_roi_mask[-margin_y:, :] = False  # Bottom
+            self.valid_roi_mask[:, :margin_x] = False  # Left
+            self.valid_roi_mask[:, -margin_x:] = False  # Right
+
+            logger.info(f"🔍 DEBUG Máscara ROI creada - Píxeles válidos: {np.sum(self.valid_roi_mask)}/{self.valid_roi_mask.size} ({100*np.sum(self.valid_roi_mask)/self.valid_roi_mask.size:.1f}%)")
 
             # Crear mapas
             left_map1, left_map2 = cv2.initUndistortRectifyMap(
@@ -578,70 +538,132 @@ class StereoProcessor:
             valid_disp = disparity[valid_mask]
             valid_depth = depth_map[valid_mask]
 
-            logger.info(f"🔍 DEBUG Creando puntos homogéneos...")
-            # Calcular coordenadas 3D usando Q
-            # Crear puntos homogéneos (evitar crear array gigante innecesario)
-            points_2d = np.column_stack([x_indices, y_indices, valid_disp, np.ones(num_valid, dtype=np.float32)])
-
             logger.info(f"🔍 DEBUG Transformando a 3D con matriz Q...")
-            # Transformar a 3D
-            points_3d_h = np.dot(Q, points_2d.T)
+            # OPTIMIZACIÓN DE MEMORIA: Procesar en lotes para evitar crear arrays gigantes
+            # En lugar de multiplicar Q por todos los puntos a la vez, procesamos por bloques
+            batch_size = 100000  # 100k puntos por batch (~15MB por batch vs GB completos)
+            num_batches = (num_valid + batch_size - 1) // batch_size
 
-            logger.info(f"🔍 DEBUG Convirtiendo de homogéneo a cartesiano...")
-            # Convertir de homogéneo a cartesiano
-            points_3d = points_3d_h[:3] / points_3d_h[3]
-            points_3d = points_3d.T
+            logger.info(f"🔍 DEBUG Procesando {num_valid} puntos en {num_batches} lotes de {batch_size}")
 
-            # Liberar memoria
-            del points_2d, points_3d_h
+            # Pre-allocate output array
+            points_3d = np.empty((num_valid, 3), dtype=np.float32)
+
+            for batch_idx in range(num_batches):
+                start_idx = batch_idx * batch_size
+                end_idx = min(start_idx + batch_size, num_valid)
+
+                # Procesar este lote
+                batch_x = x_indices[start_idx:end_idx]
+                batch_y = y_indices[start_idx:end_idx]
+                batch_disp = valid_disp[start_idx:end_idx]
+                batch_size_actual = end_idx - start_idx
+
+                # Crear puntos homogéneos para este lote
+                points_2d_batch = np.column_stack([
+                    batch_x,
+                    batch_y,
+                    batch_disp,
+                    np.ones(batch_size_actual, dtype=np.float32)
+                ])
+
+                # Transformar a 3D (Q @ points_2d_batch.T)
+                points_3d_h_batch = Q @ points_2d_batch.T
+
+                # Convertir de homogéneo a cartesiano
+                points_3d_batch = points_3d_h_batch[:3] / points_3d_h_batch[3]
+
+                # Guardar en array de salida
+                points_3d[start_idx:end_idx] = points_3d_batch.T
+
+                # Liberar memoria del lote
+                del points_2d_batch, points_3d_h_batch, points_3d_batch
+
+                if batch_idx % 10 == 0:
+                    logger.info(f"   Lote {batch_idx+1}/{num_batches} completado")
+
+            logger.info(f"🔍 DEBUG Transformación 3D completada para {num_valid} puntos")
             
-            logger.info(f"🔍 DEBUG Extrayendo colores...")
-            # Extraer colores de la imagen izquierda
-            if len(left_img.shape) == 3:
-                colors = left_img[valid_mask] / 255.0  # Normalizar a [0, 1]
-            else:
-                # Imagen en escala de grises, convertir a RGB
-                gray_colors = left_img[valid_mask] / 255.0
-                colors = np.column_stack([gray_colors, gray_colors, gray_colors])
-
             logger.info(f"🔍 DEBUG Filtrando puntos por profundidad y límites espaciales...")
 
-            # DEBUG: Mostrar estadísticas de coordenadas 3D
-            logger.info(f"🔍 DEBUG Estadísticas de points_3d (antes de filtros):")
-            logger.info(f"   X - Min: {np.min(points_3d[:, 0]):.2f}m, Max: {np.max(points_3d[:, 0]):.2f}m")
-            logger.info(f"   Y - Min: {np.min(points_3d[:, 1]):.2f}m, Max: {np.max(points_3d[:, 1]):.2f}m")
-            logger.info(f"   Z - Min: {np.min(points_3d[:, 2]):.2f}m, Max: {np.max(points_3d[:, 2]):.2f}m")
+            # DEBUG: Mostrar estadísticas de coordenadas 3D (muestreo para evitar consumo de memoria)
+            sample_size = min(100000, len(points_3d))
+            sample_indices = np.random.choice(len(points_3d), sample_size, replace=False)
+            logger.info(f"🔍 DEBUG Estadísticas de points_3d (muestra de {sample_size} puntos):")
+            logger.info(f"   X - Min: {np.min(points_3d[sample_indices, 0]):.2f}m, Max: {np.max(points_3d[sample_indices, 0]):.2f}m")
+            logger.info(f"   Y - Min: {np.min(points_3d[sample_indices, 1]):.2f}m, Max: {np.max(points_3d[sample_indices, 1]):.2f}m")
+            logger.info(f"   Z - Min: {np.min(points_3d[sample_indices, 2]):.2f}m, Max: {np.max(points_3d[sample_indices, 2]):.2f}m")
+            del sample_indices
 
-            # Filtrar usando valid_depth (profundidad real calculada)
-            depth_filter = (valid_depth > 0.3) & (valid_depth < 5.0)
+            # OPTIMIZACIÓN DE MEMORIA: Filtrar por lotes para evitar crear arrays gigantes
+            logger.info(f"🔍 DEBUG Aplicando filtros por lotes...")
+            filter_batch_size = 500000  # 500k puntos por batch
+            num_filter_batches = (num_valid + filter_batch_size - 1) // filter_batch_size
 
-            # Filtrar coordenadas 3D absurdas (causadas por disparidades muy bajas)
-            # Para escenas indoor a 1-5m, las coordenadas X,Y deben estar en rango razonable
-            # Con FOV de ~60°, a 5m de profundidad, X,Y máximo ≈ ±3m desde el centro
-            x_abs = np.abs(points_3d[:, 0])
-            y_abs = np.abs(points_3d[:, 1])
-            z_abs = np.abs(points_3d[:, 2])
+            # Pre-allocate máscara de filtro combinado
+            combined_filter = np.zeros(num_valid, dtype=bool)
 
-            # Filtro conservador: eliminar solo outliers extremos
-            x_filter = x_abs < 50.0  # Más restrictivo que antes
-            y_filter = y_abs < 50.0
-            z_filter = z_abs < 50.0  # Eliminar puntos a >50m en cualquier eje
+            for batch_idx in range(num_filter_batches):
+                start_idx = batch_idx * filter_batch_size
+                end_idx = min(start_idx + filter_batch_size, num_valid)
 
-            # Combinar todos los filtros
-            combined_filter = depth_filter & x_filter & y_filter & z_filter
+                # Extraer lote
+                batch_points = points_3d[start_idx:end_idx]
+                batch_depth = valid_depth[start_idx:end_idx]
+
+                # Aplicar filtros al lote (in-place donde sea posible)
+                batch_filter = (
+                    (batch_depth > 0.3) & (batch_depth < 5.0) &  # Profundidad válida
+                    (np.abs(batch_points[:, 0]) < 50.0) &        # X razonable
+                    (np.abs(batch_points[:, 1]) < 50.0) &        # Y razonable
+                    (np.abs(batch_points[:, 2]) < 50.0)          # Z razonable
+                )
+
+                # Guardar resultado en máscara combinada
+                combined_filter[start_idx:end_idx] = batch_filter
+
+                # Liberar memoria del lote
+                del batch_points, batch_depth, batch_filter
+
+                if batch_idx % 5 == 0:
+                    logger.info(f"   Filtrado lote {batch_idx+1}/{num_filter_batches}")
+
             num_after_filter = np.sum(combined_filter)
-            logger.info(f"🔍 DEBUG Puntos después de filtros: {num_after_filter}/{len(points_3d)}")
-            logger.info(f"   - Filtro profundidad (0.3-5.0m): {np.sum(depth_filter)} puntos")
-            logger.info(f"   - Filtro X (±50m): {np.sum(x_filter)} puntos")
-            logger.info(f"   - Filtro Y (±50m): {np.sum(y_filter)} puntos")
-            logger.info(f"   - Filtro Z (±50m): {np.sum(z_filter)} puntos")
+            logger.info(f"🔍 DEBUG Puntos después de filtros: {num_after_filter}/{num_valid} ({100*num_after_filter/num_valid:.1f}%)")
 
+            # Aplicar filtro a puntos 3D
+            logger.info(f"🔍 DEBUG Extrayendo puntos filtrados...")
             final_points = points_3d[combined_filter]
-            final_colors = colors[combined_filter]
-            final_confidence = confidence_map[valid_mask][combined_filter] if confidence_map is not None else None
+
+            # Liberar puntos 3D originales YA que no se necesitan más
+            del points_3d
+
+            # Extraer colores SOLO para puntos filtrados (ahorro de memoria)
+            logger.info(f"🔍 DEBUG Extrayendo colores para {num_after_filter} puntos válidos...")
+            # Obtener índices originales que pasaron el filtro
+            valid_indices_original = np.where(valid_mask)[0]
+            filtered_indices = valid_indices_original[combined_filter]
+
+            # Convertir índices lineales a (y, x)
+            img_height, img_width = left_img.shape[:2]
+            filtered_y = filtered_indices // img_width
+            filtered_x = filtered_indices % img_width
+
+            # Extraer colores directamente de la imagen
+            if len(left_img.shape) == 3:
+                final_colors = left_img[filtered_y, filtered_x] / 255.0
+            else:
+                gray_colors = left_img[filtered_y, filtered_x] / 255.0
+                final_colors = np.column_stack([gray_colors, gray_colors, gray_colors])
+
+            # Extraer confianza si existe
+            final_confidence = None
+            if confidence_map is not None:
+                final_confidence = confidence_map[filtered_y, filtered_x]
 
             # Liberar memoria
-            del points_3d, colors, valid_mask, y_indices, x_indices
+            del valid_mask, y_indices, x_indices, valid_depth, combined_filter
+            del valid_indices_original, filtered_indices, filtered_y, filtered_x
             
             point_cloud_result = {
                 'points': final_points,

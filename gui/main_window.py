@@ -312,7 +312,9 @@ class MainWindow(QMainWindow):
         self.btn_process_3d = QPushButton("⚙️ Procesar Últimas Capturas")
         self.btn_process_3d.setFixedHeight(40)
         self.btn_process_3d.clicked.connect(self.process_last_captures)
-        self.btn_process_3d.setEnabled(False)
+        # IMPORTANTE: Habilitar solo si el sistema está calibrado
+        # (El procesamiento 3D REQUIERE calibración válida)
+        self.btn_process_3d.setEnabled(self.is_calibrated)
         layout.addWidget(self.btn_process_3d)
         
         return group
@@ -495,6 +497,10 @@ class MainWindow(QMainWindow):
             if hasattr(self, 'btn_capture_3d'):
                 self.btn_capture_3d.setEnabled(True)
 
+            # Habilitar procesamiento 3D (requiere calibración)
+            if hasattr(self, 'btn_process_3d'):
+                self.btn_process_3d.setEnabled(True)
+
             # Actualizar estado
             self.is_calibrated = True
 
@@ -510,6 +516,10 @@ class MainWindow(QMainWindow):
             # Deshabilitar captura 3D
             if hasattr(self, 'btn_capture_3d'):
                 self.btn_capture_3d.setEnabled(False)
+
+            # Deshabilitar procesamiento 3D (requiere calibración)
+            if hasattr(self, 'btn_process_3d'):
+                self.btn_process_3d.setEnabled(False)
 
             # Actualizar estado
             self.is_calibrated = False

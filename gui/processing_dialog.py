@@ -10,11 +10,12 @@ import numpy as np
 from datetime import datetime
 from pathlib import Path
 
-from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
+from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                            QPushButton, QProgressBar, QTextEdit, QGroupBox,
                            QGridLayout, QMessageBox, QCheckBox, QSpinBox,
                            QDoubleSpinBox, QFrame, QApplication, QComboBox,
-                           QFileDialog, QTabWidget, QWidget, QScrollArea)
+                           QFileDialog, QTabWidget, QWidget, QScrollArea,
+                           QListWidget, QListWidgetItem)
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
 from PyQt5.QtGui import QPixmap, QImage, QFont, QPainter
 
@@ -442,7 +443,7 @@ class ProcessingDialog(QDialog):
         """Crear grupo de selección de imágenes"""
         group = QGroupBox("📁 Selección de Imágenes")
         layout = QVBoxLayout(group)
-        
+
         # Información de última captura
         self.capture_info_label = QLabel("Cargando información...")
         self.capture_info_label.setWordWrap(True)
@@ -455,24 +456,47 @@ class ProcessingDialog(QDialog):
             }
         """)
         layout.addWidget(self.capture_info_label)
-        
-        # Botones de selección manual
+
+        # NUEVO: Botón para seleccionar carpeta de captura completa
+        self.btn_select_capture_folder = QPushButton("📁 Seleccionar Sesión de Captura")
+        self.btn_select_capture_folder.setStyleSheet("""
+            QPushButton {
+                font-weight: bold;
+                background-color: #2196F3;
+                color: white;
+                padding: 10px;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+        """)
+        self.btn_select_capture_folder.clicked.connect(self.select_capture_session)
+        layout.addWidget(self.btn_select_capture_folder)
+
+        # Separador
+        separator = QLabel("─── o seleccionar imágenes individuales ───")
+        separator.setAlignment(Qt.AlignCenter)
+        separator.setStyleSheet("color: #999999; font-size: 9px; margin: 5px;")
+        layout.addWidget(separator)
+
+        # Botones de selección manual de imágenes individuales
         manual_layout = QHBoxLayout()
-        
+
         self.btn_select_left = QPushButton("📷 Seleccionar Izquierda")
         self.btn_select_left.clicked.connect(self.select_left_image)
         manual_layout.addWidget(self.btn_select_left)
-        
+
         self.btn_select_right = QPushButton("📷 Seleccionar Derecha")
         self.btn_select_right.clicked.connect(self.select_right_image)
         manual_layout.addWidget(self.btn_select_right)
-        
+
         layout.addLayout(manual_layout)
-        
+
         # Rutas seleccionadas
         self.selected_left_path = None
         self.selected_right_path = None
-        
+
         return group
     
     def create_algorithm_config_group(self):
@@ -653,52 +677,93 @@ class ProcessingDialog(QDialog):
             # Buscar último directorio de captura
             captures_dir = Path("data/captures")
             if not captures_dir.exists():
-                self.capture_info_label.setText("❌ No se encontraron capturas previas")
+                self.capture_info_label.setText(
+                    "⚠️ No hay capturas disponibles\n\n"
+                    "Para procesar imágenes, primero debes:\n"
+                    "1️⃣ Capturar una foto con 'Capturar para Modelo 3D'\n"
+                    "   o\n"
+                    "2️⃣ Usar el botón de abajo para seleccionar imágenes manualmente"
+                )
                 self.capture_info_label.setStyleSheet("""
                     QLabel {
-                        background-color: #FFEBEE;
-                        padding: 8px;
+                        background-color: #FFF3E0;
+                        padding: 10px;
                         border-radius: 4px;
-                        border: 1px solid #F44336;
-                        color: #C62828;
+                        border: 2px solid #FF9800;
+                        color: #E65100;
+                        font-weight: bold;
                     }
                 """)
+                self.btn_start.setEnabled(False)
                 return
-            
+
             # Buscar directorios de sesión
             session_dirs = [d for d in captures_dir.iterdir() if d.is_dir()]
             if not session_dirs:
-                self.capture_info_label.setText("❌ No se encontraron sesiones de captura")
+                self.capture_info_label.setText(
+                    "⚠️ No hay sesiones de captura guardadas\n\n"
+                    "Para procesar imágenes, primero debes:\n"
+                    "1️⃣ Capturar una foto con 'Capturar para Modelo 3D'\n"
+                    "   o\n"
+                    "2️⃣ Usar el botón de abajo para seleccionar imágenes manualmente"
+                )
+                self.capture_info_label.setStyleSheet("""
+                    QLabel {
+                        background-color: #FFF3E0;
+                        padding: 10px;
+                        border-radius: 4px;
+                        border: 2px solid #FF9800;
+                        color: #E65100;
+                        font-weight: bold;
+                    }
+                """)
+                self.btn_start.setEnabled(False)
                 return
-            
+
             # Obtener la más reciente
             latest_session = max(session_dirs, key=lambda d: d.stat().st_mtime)
-            
+
             # Buscar imágenes en la sesión
             left_images = list(latest_session.glob("left.jpg"))
             right_images = list(latest_session.glob("right.jpg"))
-            
+
             if left_images and right_images:
                 self.selected_left_path = str(left_images[0])
                 self.selected_right_path = str(right_images[0])
-                
+
                 # Obtener información de timestamp
                 capture_time = datetime.fromtimestamp(latest_session.stat().st_mtime)
-                
+
                 info_text = f"""✅ Última Captura Detectada
 📅 Fecha: {capture_time.strftime('%Y-%m-%d %H:%M:%S')}
 📁 Sesión: {latest_session.name}
 📷 Imágenes: Izquierda y Derecha disponibles
-🎯 Estado: Listo para procesar"""
-                
+🎯 Estado: Listo para procesar
+
+💡 Puedes seleccionar otra sesión con el botón de arriba"""
+
                 self.capture_info_label.setText(info_text)
                 self.btn_start.setEnabled(True)
             else:
-                self.capture_info_label.setText("⚠️ Sesión incompleta - Faltan imágenes")
-                
+                self.capture_info_label.setText(
+                    "⚠️ La última sesión está incompleta\n\n"
+                    "Usa el botón 'Seleccionar Sesión de Captura' para elegir otra sesión"
+                )
+                self.capture_info_label.setStyleSheet("""
+                    QLabel {
+                        background-color: #FFF3E0;
+                        padding: 10px;
+                        border-radius: 4px;
+                        border: 2px solid #FF9800;
+                        color: #E65100;
+                    }
+                """)
+                self.btn_start.setEnabled(False)
+
         except Exception as e:
             logger.error(f"Error cargando última captura: {e}")
             self.capture_info_label.setText(f"❌ Error: {e}")
+            self.btn_start.setEnabled(False)
     
     def select_left_image(self):
         """Seleccionar imagen izquierda manualmente"""
@@ -720,17 +785,148 @@ class ProcessingDialog(QDialog):
             self.selected_right_path = file_path
             self.update_manual_selection_display()
     
+    def select_capture_session(self):
+        """Seleccionar una sesión de captura completa"""
+        try:
+            # Buscar directorio de capturas
+            captures_dir = Path("data/captures")
+            if not captures_dir.exists():
+                QMessageBox.warning(
+                    self, "Sin Capturas",
+                    "No se encontró el directorio de capturas.\n\n"
+                    "Debes tomar al menos una foto con el botón 'Capturar para Modelo 3D' "
+                    "antes de poder procesar imágenes."
+                )
+                return
+
+            # Buscar directorios de sesión
+            session_dirs = sorted([d for d in captures_dir.iterdir() if d.is_dir()],
+                                 key=lambda d: d.stat().st_mtime, reverse=True)
+
+            if not session_dirs:
+                QMessageBox.warning(
+                    self, "Sin Sesiones",
+                    "No se encontraron sesiones de captura guardadas.\n\n"
+                    "Debes tomar al menos una foto con el botón 'Capturar para Modelo 3D' "
+                    "antes de poder procesar imágenes."
+                )
+                return
+
+            # Crear diálogo de selección
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Seleccionar Sesión de Captura")
+            dialog.setModal(True)
+            dialog.resize(500, 400)
+
+            layout = QVBoxLayout(dialog)
+
+            # Título
+            title = QLabel("📁 Selecciona una sesión de captura para procesar")
+            title.setFont(QFont("Arial", 12, QFont.Bold))
+            title.setAlignment(Qt.AlignCenter)
+            layout.addWidget(title)
+
+            # Lista de sesiones
+            list_widget = QListWidget()
+            list_widget.setFont(QFont("Courier New", 10))
+
+            for session_dir in session_dirs:
+                # Verificar que tenga imágenes izquierda y derecha
+                left_img = session_dir / "left.jpg"
+                right_img = session_dir / "right.jpg"
+
+                # Obtener fecha de captura
+                capture_time = datetime.fromtimestamp(session_dir.stat().st_mtime)
+                date_str = capture_time.strftime('%Y-%m-%d %H:%M:%S')
+
+                # Crear item con información
+                if left_img.exists() and right_img.exists():
+                    status_icon = "✅"
+                    status_text = "Completa"
+                else:
+                    status_icon = "⚠️"
+                    status_text = "Incompleta"
+
+                item_text = f"{status_icon} {session_dir.name}\n    📅 {date_str} | {status_text}"
+                item = QListWidgetItem(item_text)
+                item.setData(Qt.UserRole, session_dir)  # Guardar path en el item
+
+                # Deshabilitar si no está completa
+                if not (left_img.exists() and right_img.exists()):
+                    item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
+
+                list_widget.addItem(item)
+
+            layout.addWidget(list_widget)
+
+            # Información adicional
+            info_label = QLabel(f"📊 Total de sesiones: {len(session_dirs)}")
+            info_label.setStyleSheet("color: #666666; font-style: italic; padding: 5px;")
+            layout.addWidget(info_label)
+
+            # Botones
+            buttons_layout = QHBoxLayout()
+
+            btn_ok = QPushButton("✅ Seleccionar")
+            btn_ok.setDefault(True)
+            btn_ok.clicked.connect(dialog.accept)
+            buttons_layout.addWidget(btn_ok)
+
+            btn_cancel = QPushButton("❌ Cancelar")
+            btn_cancel.clicked.connect(dialog.reject)
+            buttons_layout.addWidget(btn_cancel)
+
+            layout.addLayout(buttons_layout)
+
+            # Ejecutar diálogo
+            if dialog.exec_() == QDialog.Accepted:
+                selected_items = list_widget.selectedItems()
+                if selected_items:
+                    selected_session = selected_items[0].data(Qt.UserRole)
+
+                    # Cargar imágenes de la sesión seleccionada
+                    self.selected_left_path = str(selected_session / "left.jpg")
+                    self.selected_right_path = str(selected_session / "right.jpg")
+
+                    # Actualizar display
+                    capture_time = datetime.fromtimestamp(selected_session.stat().st_mtime)
+
+                    info_text = f"""✅ Sesión Seleccionada
+📁 {selected_session.name}
+📅 Fecha: {capture_time.strftime('%Y-%m-%d %H:%M:%S')}
+📷 Imágenes: Izquierda y Derecha cargadas
+🎯 Estado: Listo para procesar"""
+
+                    self.capture_info_label.setText(info_text)
+                    self.capture_info_label.setStyleSheet("""
+                        QLabel {
+                            background-color: #E8F5E8;
+                            padding: 8px;
+                            border-radius: 4px;
+                            border: 1px solid #4CAF50;
+                        }
+                    """)
+                    self.btn_start.setEnabled(True)
+
+                    self.add_log_message(f"Sesión cargada: {selected_session.name}")
+                else:
+                    QMessageBox.information(self, "Sin Selección", "No seleccionaste ninguna sesión.")
+
+        except Exception as e:
+            logger.error(f"Error seleccionando sesión de captura: {e}")
+            QMessageBox.critical(self, "Error", f"Error al seleccionar sesión:\n{e}")
+
     def update_manual_selection_display(self):
         """Actualizar display de selección manual"""
         if self.selected_left_path and self.selected_right_path:
             left_name = Path(self.selected_left_path).name
             right_name = Path(self.selected_right_path).name
-            
+
             info_text = f"""📁 Selección Manual
 📷 Izquierda: {left_name}
 📷 Derecha: {right_name}
 🎯 Estado: Listo para procesar"""
-            
+
             self.capture_info_label.setText(info_text)
             self.capture_info_label.setStyleSheet("""
                 QLabel {
