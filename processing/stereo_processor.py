@@ -95,6 +95,51 @@ class StereoProcessor:
 
         return mask
 
+    def _save_correspondence_debug(self, left_img, right_img, disparity, debug_path):
+        """
+        Guardar visualización de correspondencias de puntos entre imágenes
+        Muestra cómo se matchean los puntos entre left y right
+        """
+        # Crear imagen combinada
+        h, w = left_img.shape[:2]
+        combined = np.zeros((h, w*2, 3), dtype=np.uint8)
+
+        if len(left_img.shape) == 2:
+            combined[:, :w] = cv2.cvtColor(left_img, cv2.COLOR_GRAY2BGR)
+            combined[:, w:] = cv2.cvtColor(right_img, cv2.COLOR_GRAY2BGR)
+        else:
+            combined[:, :w] = left_img
+            combined[:, w:] = right_img
+
+        # Tomar puntos de muestra (grid espaciado)
+        step = 80  # Espaciado entre puntos
+        colors = [(0, 255, 0), (255, 0, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
+
+        points_drawn = 0
+        for y in range(step, h-step, step):
+            for x in range(step, w-step, step):
+                d = disparity[y, x]
+                if d > 10.0:  # Solo puntos con disparidad válida
+                    # Punto en imagen izquierda
+                    cv2.circle(combined, (x, y), 4, colors[points_drawn % len(colors)], -1)
+
+                    # Punto correspondiente en imagen derecha (desplazado por disparidad)
+                    x_right = int(x - d) + w  # -d porque la disparidad es negativa en right
+                    if 0 <= x_right - w < w:
+                        cv2.circle(combined, (x_right, y), 4, colors[points_drawn % len(colors)], -1)
+
+                        # Dibujar línea conectando correspondencias
+                        cv2.line(combined, (x, y), (x_right, y), colors[points_drawn % len(colors)], 1)
+
+                        points_drawn += 1
+                        if points_drawn >= 50:  # Limitar a 50 puntos para no saturar
+                            break
+            if points_drawn >= 50:
+                break
+
+        cv2.imwrite(str(debug_path / "15_correspondences.jpg"), combined)
+        logger.info(f"🔍 DEBUG Correspondencias guardadas: {points_drawn} puntos")
+
     def setup_stereo_algorithms(self):
         """Configurar algoritmos de matching estéreo"""
 
@@ -496,9 +541,12 @@ class StereoProcessor:
             height, width = disparity.shape
             logger.info(f"🔍 DEBUG Nube de puntos - Tamaño imagen: {height}x{width} = {height*width} píxeles")
 
-            # Máscara de píxeles válidos
-            valid_mask = disparity > 0.1
-            logger.info(f"🔍 DEBUG Píxeles con disparidad > 0.1: {np.sum(valid_mask)}")
+            # Máscara de píxeles válidos - AUMENTADO umbral para evitar disparidades muy bajas
+            # Disparidades < 5 píxeles generan profundidades > 40m (absurdas para indoor)
+            # Con baseline=103mm y focal=2010px: Z = (baseline*focal)/disparity
+            # disparity=5 → Z≈4m, disparity=10 → Z≈2m
+            valid_mask = disparity > 10.0  # Aumentado de 0.1 a 10 para evitar outliers
+            logger.info(f"🔍 DEBUG Píxeles con disparidad > 10.0: {np.sum(valid_mask)}")
 
             # Aplicar filtro de confianza si está disponible
             if confidence_map is not None:
@@ -557,22 +605,36 @@ class StereoProcessor:
                 colors = np.column_stack([gray_colors, gray_colors, gray_colors])
 
             logger.info(f"🔍 DEBUG Filtrando puntos por profundidad y límites espaciales...")
-            # Filtrar puntos por rango de profundidad razonable (ajustado para interior)
-            depth_filter = (points_3d[:, 2] > 0.3) & (points_3d[:, 2] < 5.0)
 
-            # CRÍTICO: Filtrar puntos aberrantes en X e Y (debe ser proporcional a Z)
-            # Límite realista: X,Y no deberían exceder ±2*Z (basado en FOV de cámara ~60-80°)
-            z_values = points_3d[:, 2]
-            x_filter = np.abs(points_3d[:, 0]) < (2.0 * z_values + 1.0)  # +1m de margen
-            y_filter = np.abs(points_3d[:, 1]) < (2.0 * z_values + 1.0)
+            # DEBUG: Mostrar estadísticas de coordenadas 3D
+            logger.info(f"🔍 DEBUG Estadísticas de points_3d (antes de filtros):")
+            logger.info(f"   X - Min: {np.min(points_3d[:, 0]):.2f}m, Max: {np.max(points_3d[:, 0]):.2f}m")
+            logger.info(f"   Y - Min: {np.min(points_3d[:, 1]):.2f}m, Max: {np.max(points_3d[:, 1]):.2f}m")
+            logger.info(f"   Z - Min: {np.min(points_3d[:, 2]):.2f}m, Max: {np.max(points_3d[:, 2]):.2f}m")
+
+            # Filtrar usando valid_depth (profundidad real calculada)
+            depth_filter = (valid_depth > 0.3) & (valid_depth < 5.0)
+
+            # Filtrar coordenadas 3D absurdas (causadas por disparidades muy bajas)
+            # Para escenas indoor a 1-5m, las coordenadas X,Y deben estar en rango razonable
+            # Con FOV de ~60°, a 5m de profundidad, X,Y máximo ≈ ±3m desde el centro
+            x_abs = np.abs(points_3d[:, 0])
+            y_abs = np.abs(points_3d[:, 1])
+            z_abs = np.abs(points_3d[:, 2])
+
+            # Filtro conservador: eliminar solo outliers extremos
+            x_filter = x_abs < 50.0  # Más restrictivo que antes
+            y_filter = y_abs < 50.0
+            z_filter = z_abs < 50.0  # Eliminar puntos a >50m en cualquier eje
 
             # Combinar todos los filtros
-            combined_filter = depth_filter & x_filter & y_filter
+            combined_filter = depth_filter & x_filter & y_filter & z_filter
             num_after_filter = np.sum(combined_filter)
-            logger.info(f"🔍 DEBUG Puntos después de filtros (Z, X, Y): {num_after_filter}/{len(points_3d)}")
-            logger.info(f"   - Filtro Z: {np.sum(depth_filter)} puntos")
-            logger.info(f"   - Filtro X: {np.sum(x_filter)} puntos")
-            logger.info(f"   - Filtro Y: {np.sum(y_filter)} puntos")
+            logger.info(f"🔍 DEBUG Puntos después de filtros: {num_after_filter}/{len(points_3d)}")
+            logger.info(f"   - Filtro profundidad (0.3-5.0m): {np.sum(depth_filter)} puntos")
+            logger.info(f"   - Filtro X (±50m): {np.sum(x_filter)} puntos")
+            logger.info(f"   - Filtro Y (±50m): {np.sum(y_filter)} puntos")
+            logger.info(f"   - Filtro Z (±50m): {np.sum(z_filter)} puntos")
 
             final_points = points_3d[combined_filter]
             final_colors = colors[combined_filter]
@@ -623,16 +685,35 @@ class StereoProcessor:
                 debug_path = Path("data/results/debug")
                 debug_path.mkdir(parents=True, exist_ok=True)
 
-                # Guardar máscara ROI
+                # PASO 1: Guardar imágenes ORIGINALES
+                cv2.imwrite(str(debug_path / "01_left_original.jpg"), left_img)
+                cv2.imwrite(str(debug_path / "02_right_original.jpg"), right_img)
+
+                # PASO 2: Guardar imágenes RECTIFICADAS
+                cv2.imwrite(str(debug_path / "03_left_rectified.jpg"), left_rect)
+                cv2.imwrite(str(debug_path / "04_right_rectified.jpg"), right_rect)
+
+                # PASO 3: Dibujar líneas epipolares para verificar rectificación
+                left_epi = left_rect.copy()
+                right_epi = right_rect.copy()
+                for y in range(0, left_rect.shape[0], 100):  # Cada 100 píxeles
+                    cv2.line(left_epi, (0, y), (left_rect.shape[1], y), (0, 255, 0), 1)
+                    cv2.line(right_epi, (0, y), (right_rect.shape[1], y), (0, 255, 0), 1)
+                cv2.imwrite(str(debug_path / "05_left_epipolar_lines.jpg"), left_epi)
+                cv2.imwrite(str(debug_path / "06_right_epipolar_lines.jpg"), right_epi)
+
+                # PASO 4: Crear imagen side-by-side para comparar
+                side_by_side = np.hstack([left_rect, right_rect])
+                for y in range(0, side_by_side.shape[0], 100):
+                    cv2.line(side_by_side, (0, y), (side_by_side.shape[1], y), (0, 255, 0), 1)
+                cv2.imwrite(str(debug_path / "07_side_by_side_epipolar.jpg"), side_by_side)
+
+                # PASO 5: Guardar máscara ROI
                 if self.valid_roi_mask is not None:
                     mask_vis = (self.valid_roi_mask.astype(np.uint8) * 255)
-                    cv2.imwrite(str(debug_path / "roi_mask.png"), mask_vis)
-                    logger.info(f"🔍 DEBUG Máscara ROI guardada en {debug_path / 'roi_mask.png'}")
+                    cv2.imwrite(str(debug_path / "08_roi_mask.png"), mask_vis)
 
-                # Guardar imágenes rectificadas
-                cv2.imwrite(str(debug_path / "left_rectified.png"), left_rect)
-                cv2.imwrite(str(debug_path / "right_rectified.png"), right_rect)
-                logger.info(f"🔍 DEBUG Imágenes rectificadas guardadas en {debug_path}")
+                logger.info(f"🔍 DEBUG Imágenes de rectificación guardadas en {debug_path}")
 
             if progress_callback:
                 progress_callback(30, "Calculando disparidad...")
@@ -662,39 +743,115 @@ class StereoProcessor:
             if save_debug_images:
                 debug_path = Path("data/results/debug")
 
-                # === MAPA DE DISPARIDAD FINAL (suavizado) ===
+                # PASO 9: MAPA DE DISPARIDAD RAW (sin filtrar)
+                disp_map_raw = disparity_result.get('disparity_before_smoothing', disparity_result['disparity_map'])
+                disp_raw_vis = cv2.normalize(disp_map_raw, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+                disp_raw_color = cv2.applyColorMap(disp_raw_vis, cv2.COLORMAP_JET)
+                disp_raw_color[disp_map_raw <= 0] = [0, 0, 0]
+                cv2.imwrite(str(debug_path / "09_disparity_raw.png"), disp_raw_color)
+
+                # PASO 10: MAPA DE DISPARIDAD FINAL (suavizado)
                 disp_map = disparity_result['disparity_map']
                 disp_vis = cv2.normalize(disp_map, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
                 disp_color = cv2.applyColorMap(disp_vis, cv2.COLORMAP_JET)
                 disp_color[disp_map <= 0] = [0, 0, 0]
-                cv2.imwrite(str(debug_path / "disparity_map_final.png"), disp_color)
+                cv2.imwrite(str(debug_path / "10_disparity_final.png"), disp_color)
 
-                # === COMPARACIÓN: Antes vs Después del suavizado ===
-                if 'disparity_before_smoothing' in disparity_result:
-                    disp_before = disparity_result['disparity_before_smoothing']
-                    disp_before_vis = cv2.normalize(disp_before, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-                    disp_before_color = cv2.applyColorMap(disp_before_vis, cv2.COLORMAP_JET)
-                    disp_before_color[disp_before <= 0] = [0, 0, 0]
-                    cv2.imwrite(str(debug_path / "disparity_map_before_smooth.png"), disp_before_color)
+                # PASO 11: OVERLAY de disparidad sobre imagen original
+                # Redimensionar disparidad a escala de grises
+                disp_overlay = cv2.addWeighted(left_rect, 0.5, cv2.cvtColor(disp_color, cv2.COLOR_BGR2RGB), 0.5, 0)
+                cv2.imwrite(str(debug_path / "11_disparity_overlay.jpg"), disp_overlay)
 
-                    logger.info(f"🔍 DEBUG Guardado comparativo: antes/después de suavizado")
-
-                # === MAPA DE CONFIANZA ===
+                # PASO 12: MAPA DE CONFIANZA
                 conf_map = disparity_result.get('confidence_map')
                 if conf_map is not None:
                     conf_vis = (conf_map * 255).astype(np.uint8)
                     conf_color = cv2.applyColorMap(conf_vis, cv2.COLORMAP_HOT)
-                    cv2.imwrite(str(debug_path / "confidence_map.png"), conf_color)
-                    logger.info(f"🔍 DEBUG Mapa de confianza guardado")
+                    cv2.imwrite(str(debug_path / "12_confidence_map.png"), conf_color)
 
-                # === MAPA DE PROFUNDIDAD ===
+                # PASO 13: MAPA DE PROFUNDIDAD (depth en metros)
                 depth_map = depth_result['depth_map']
-                depth_vis = cv2.normalize(depth_map, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+                # Crear visualización con valores reales
+                depth_for_vis = depth_map.copy()
+                depth_for_vis[depth_map <= 0] = 0
+                depth_for_vis[depth_map > 5.0] = 0  # Limitar para visualización
+                depth_vis = cv2.normalize(depth_for_vis, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
                 depth_color = cv2.applyColorMap(depth_vis, cv2.COLORMAP_TURBO)
                 depth_color[depth_map <= 0] = [0, 0, 0]
-                cv2.imwrite(str(debug_path / "depth_map.png"), depth_color)
+                cv2.imwrite(str(debug_path / "13_depth_map.png"), depth_color)
 
-                logger.info(f"🔍 DEBUG Mapas de disparidad/profundidad/confianza guardados en {debug_path}")
+                # PASO 14: HISTOGRAMA de disparidad
+                import matplotlib.pyplot as plt
+                plt.figure(figsize=(10, 6))
+                valid_disp = disp_map[disp_map > 0]
+                plt.hist(valid_disp, bins=100, color='blue', alpha=0.7)
+                plt.xlabel('Disparidad (píxeles)')
+                plt.ylabel('Frecuencia')
+                plt.title(f'Histograma de Disparidad\nMin: {np.min(valid_disp):.2f}, Max: {np.max(valid_disp):.2f}, Mean: {np.mean(valid_disp):.2f}')
+                plt.grid(True, alpha=0.3)
+                plt.savefig(str(debug_path / "14_disparity_histogram.png"))
+                plt.close()
+
+                # PASO 15: VISUALIZACIÓN de correspondencias (sample)
+                # Tomar algunos puntos de la mano y mostrar correspondencias
+                self._save_correspondence_debug(left_rect, right_rect, disp_map, debug_path)
+
+                # Crear README explicando cada imagen
+                readme_content = """# DEBUG - Proceso de Reconstrucción 3D Paso a Paso
+
+## Orden de Procesamiento:
+
+01_left_original.jpg       - Imagen original IZQUIERDA (sin rectificar)
+02_right_original.jpg      - Imagen original DERECHA (sin rectificar)
+
+03_left_rectified.jpg      - Imagen izquierda RECTIFICADA (distorsión corregida)
+04_right_rectified.jpg     - Imagen derecha RECTIFICADA (distorsión corregida)
+
+05_left_epipolar_lines.jpg - Imagen izquierda con LÍNEAS EPIPOLARES
+06_right_epipolar_lines.jpg- Imagen derecha con LÍNEAS EPIPOLARES
+                             (Las líneas verdes deben estar a la misma altura en ambas)
+
+07_side_by_side_epipolar.jpg - Comparación lado a lado con líneas epipolares
+                                (Verifica que objetos están a la misma altura)
+
+08_roi_mask.png             - MÁSCARA DE REGIÓN VÁLIDA
+                              (Blanco=válido, Negro=bordes descartados)
+
+09_disparity_raw.png        - MAPA DE DISPARIDAD SIN FILTRAR
+                              (Rojo=cerca, Azul=lejos, Negro=sin dato)
+
+10_disparity_final.png      - MAPA DE DISPARIDAD FINAL (suavizado)
+                              (Rojo=cerca, Azul=lejos, Negro=sin dato)
+
+11_disparity_overlay.jpg    - OVERLAY: Disparidad sobre imagen original
+                              (Ayuda a ver qué objeto tiene qué profundidad)
+
+12_confidence_map.png       - MAPA DE CONFIANZA
+                              (Amarillo/Blanco=alta confianza, Negro=baja)
+
+13_depth_map.png            - MAPA DE PROFUNDIDAD en metros
+                              (Colores representan distancia real en metros)
+
+14_disparity_histogram.png  - HISTOGRAMA DE DISPARIDAD
+                              (Distribución de valores de disparidad)
+
+15_correspondences.jpg      - CORRESPONDENCIAS ENTRE IMÁGENES
+                              (Muestra cómo se matchean puntos entre left/right)
+                              Las líneas conectan el MISMO punto en ambas imágenes.
+                              La longitud de la línea = disparidad
+
+## Cómo Interpretar:
+
+- Si las líneas epipolares NO están alineadas → Problema de rectificación
+- Si el mapa de disparidad es muy ruidoso → Problema de matching/textura
+- Si las correspondencias no tienen sentido → Problema de calibración
+- Si la profundidad está invertida → Problema con matriz Q o baseline
+"""
+                with open(debug_path / "README.txt", "w", encoding='utf-8') as f:
+                    f.write(readme_content)
+
+                logger.info(f"🔍 DEBUG Todos los mapas guardados en {debug_path}")
+                logger.info(f"🔍 DEBUG Lee {debug_path / 'README.txt'} para entender cada imagen")
 
             if progress_callback:
                 progress_callback(100, "Procesamiento completado")

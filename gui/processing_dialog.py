@@ -49,10 +49,10 @@ class ProcessingWorkerThread(QThread):
             self.progress_update.emit(5, "Cargando imágenes...")
             left_img = cv2.imread(self.processing_params['left_image'])
             right_img = cv2.imread(self.processing_params['right_image'])
-            
+
             if left_img is None or right_img is None:
                 raise RuntimeError("No se pudieron cargar las imágenes")
-            
+
             self.log_message.emit(f"Imágenes cargadas: {left_img.shape}", "INFO")
             
             # Procesar par estéreo

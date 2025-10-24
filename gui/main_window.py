@@ -50,22 +50,24 @@ class CountdownThread(QThread):
 
 class MainWindow(QMainWindow):
     """Ventana principal del sistema de fotogrametría estéreo"""
-    
-    def __init__(self, camera_config):
+
+    def __init__(self, camera_config, cameras_available=True):
         super().__init__()
         self.camera_config = camera_config
         self.stereo_camera = None
         self.countdown_thread = None
-        
+        self.cameras_available = cameras_available  # Nueva bandera
+
         # Estado de la aplicación
         self.is_calibrated = camera_config.is_calibrated()
         self.preview_active = False
-        
+
         self.init_ui()
         self.setup_camera_system()
         self.setup_connections()
-        
-        logger.info("Ventana principal inicializada")
+        self.update_ui_for_camera_availability()  # Actualizar UI según disponibilidad de cámaras
+
+        logger.info(f"Ventana principal inicializada (Cámaras: {'Disponibles' if cameras_available else 'No disponibles'})")
     
     def init_ui(self):
         """Inicializar interfaz de usuario"""
@@ -389,6 +391,11 @@ class MainWindow(QMainWindow):
     
     def setup_camera_system(self):
         """Inicializar sistema de cámaras"""
+        if not self.cameras_available:
+            self.log_message("Sistema en modo de solo procesamiento (sin cámaras)", "WARNING")
+            self.status_camera_label.setText("Cámaras: No disponibles")
+            return
+
         try:
             self.stereo_camera = StereoCamera(self.camera_config)
             self.log_message("Sistema de cámaras inicializado")
@@ -396,7 +403,35 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.log_message(f"Error inicializando cámaras: {e}", "ERROR")
             self.status_camera_label.setText("Cámaras: Error")
+            self.cameras_available = False
     
+    def update_ui_for_camera_availability(self):
+        """Actualizar UI según disponibilidad de cámaras"""
+        if not self.cameras_available:
+            # Deshabilitar funciones que REQUIEREN cámaras
+            self.btn_start_preview.setEnabled(False)
+            self.btn_stop_preview.setEnabled(False)
+            self.btn_capture_3d.setEnabled(False)
+
+            # Agregar texto informativo
+            self.btn_start_preview.setText("▶ Vista Previa (No disponible)")
+            self.btn_capture_3d.setText("📸 Captura (No disponible)")
+
+            # MANTENER calibración habilitada - puede procesar sesiones existentes
+            self.btn_calibrate.setEnabled(True)
+            self.btn_calibrate.setText("🎯 Calibrar (Procesar Sesión)")
+
+            # IMPORTANTE: Habilitar procesamiento 3D si hay calibración
+            if self.is_calibrated:
+                self.btn_process_3d.setEnabled(True)
+                self.log_message("Modo de solo procesamiento activado - puedes procesar capturas y calibración existentes")
+            else:
+                # Mostrar mensaje informativo
+                self.log_message(
+                    "Sin cámaras: Puedes recalibrar usando sesiones existentes o transferir calibración de Raspberry Pi",
+                    "WARNING"
+                )
+
     def setup_connections(self):
         """Configurar conexiones de señales"""
         # Conexiones de vista previa
@@ -551,13 +586,8 @@ class MainWindow(QMainWindow):
     def start_calibration(self):
         """Iniciar proceso de calibración"""
         try:
-            # Verificar que las cámaras estén disponibles
-            if not self.stereo_camera:
-                QMessageBox.warning(self, "Advertencia",
-                                  "Sistema de cámaras no inicializado")
-                return
-
             # Mostrar diálogo de calibración
+            # (El diálogo decidirá si puede tomar fotos o solo procesar sesiones existentes)
             dialog = CalibrationDialog(self.camera_config, self.stereo_camera, self)
             result = dialog.exec_()
 

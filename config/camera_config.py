@@ -93,24 +93,31 @@ class CameraConfig:
         else:
             logger.warning("⚠️ No se encontró calibración previa. Se requiere calibración.")
 
-        # Verificar disponibilidad de libcamera
-        self._verify_libcamera()
+        # Verificar disponibilidad de libcamera (opcional - no falla si no hay cámaras)
+        self.cameras_available = self._verify_libcamera()
     
-    def _verify_libcamera(self):
-        """Verificar que libcamera funciona y detecta las cámaras"""
+    def _verify_libcamera(self) -> bool:
+        """Verificar que libcamera funciona y detecta las cámaras.
+        Retorna True si las cámaras están disponibles, False si no."""
         try:
             result = os.popen("libcamera-hello --list-cameras 2>/dev/null").read()
-            
+
             if "No cameras available" in result or len(result.strip()) == 0:
-                raise RuntimeError("No se detectaron cámaras con libcamera")
-            
+                logger.warning("No se detectaron cámaras con libcamera (modo de solo procesamiento)")
+                return False
+
             # Verificar que hay al menos 2 cámaras
             camera_count = result.count(": imx477") + result.count(": IMX477")
             if camera_count < 2:
-                raise RuntimeError(f"Solo se detectaron {camera_count} cámaras. Se necesitan 2.")
-                
+                logger.warning(f"Solo se detectaron {camera_count} cámaras. Se necesitan 2 para captura estéreo.")
+                return False
+
+            logger.info(f"✅ {camera_count} cámaras detectadas y listas")
+            return True
+
         except Exception as e:
-            raise RuntimeError(f"Error verificando libcamera: {e}")
+            logger.warning(f"No se pudo verificar libcamera: {e} (modo de solo procesamiento)")
+            return False
     
     def get_capture_settings_for_op(self, operation: str) -> Dict[str, Any]:
         """Obtener resolución y framerate según la operación"""

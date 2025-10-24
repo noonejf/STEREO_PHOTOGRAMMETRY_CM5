@@ -26,57 +26,37 @@ from config.camera_config import CameraConfig
 def check_system_requirements():
     """Verificar que el sistema tiene todos los requisitos"""
     requirements = []
-    
-    # Verificar libcamera
+    warnings = []
+
+    # Verificar libcamera (opcional - solo para captura)
     if os.system("which libcamera-hello > /dev/null 2>&1") != 0:
-        requirements.append("libcamera-hello no encontrado. Instala libcamera-apps")
-    
-    # Verificar Python OpenCV
+        if sys.platform != "win32":  # En Linux/Raspberry Pi es importante
+            warnings.append("libcamera-hello no encontrado. Las funciones de captura estarán deshabilitadas.")
+        # En Windows, no es un problema - solo procesaremos
+
+    # Verificar Python OpenCV (REQUERIDO)
     try:
         import cv2
         logging.info(f"OpenCV version: {cv2.__version__}")
     except ImportError:
-        requirements.append("OpenCV no instalado. Instala python3-opencv")
-    
-    # Verificar PyQt5
+        requirements.append("OpenCV no instalado. Instala python3-opencv o opencv-python")
+
+    # Verificar PyQt5 (REQUERIDO)
     try:
         from PyQt5 import QtCore
         logging.info(f"PyQt5 version: {QtCore.PYQT_VERSION_STR}")
     except ImportError:
-        requirements.append("PyQt5 no instalado. Instala python3-pyqt5")
-    
-    # Verificar numpy
+        requirements.append("PyQt5 no instalado. Instala python3-pyqt5 o PyQt5")
+
+    # Verificar numpy (REQUERIDO)
     try:
         import numpy
         logging.info(f"NumPy version: {numpy.__version__}")
     except ImportError:
-        requirements.append("NumPy no instalado. Instala python3-numpy")
-    
-    return requirements
+        requirements.append("NumPy no instalado. Instala python3-numpy o numpy")
 
-def check_cameras():
-    """Verificar que las cámaras estén conectadas"""
-    try:
-        # Verificar listado de cámaras con libcamera
-        result = os.popen("libcamera-hello --list-cameras 2>/dev/null").read()
-        
-        if "No cameras available" in result:
-            return ["No se detectaron cámaras"]
-        
-        # Contar cámaras disponibles
-        camera_count = result.count(": imx477")  # CORRECTO
-        if camera_count == 0:
-            # Método alternativo de conteo
-            camera_count = result.count(": imx477") + result.count(": IMX477")
-        
-        if camera_count < 2:
-            return [f"Solo se detectaron {camera_count} cámaras. Se necesitan 2 para estéreo"]
-        
-        logging.info(f"Cámaras detectadas: {camera_count}")
-        return []
-        
-    except Exception as e:
-        return [f"Error verificando cámaras: {str(e)}"]
+    return requirements, warnings
+
 
 def create_directories():
     """Crear directorios necesarios"""
@@ -110,50 +90,55 @@ def main():
     app.setStyle("Fusion")
     
     # Verificar requisitos del sistema
-    missing_req = check_system_requirements()
+    missing_req, warnings = check_system_requirements()
+
+    # Mostrar errores críticos (OpenCV, PyQt5, NumPy)
     if missing_req:
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Critical)
         msg.setWindowTitle("Requisitos Faltantes")
-        msg.setText("Faltan los siguientes requisitos del sistema:")
+        msg.setText("Faltan los siguientes requisitos críticos del sistema:")
         msg.setDetailedText("\n".join(missing_req))
         msg.exec_()
         logger.error(f"Requisitos faltantes: {missing_req}")
         return 1
-    
-    # Verificar cámaras
-    camera_issues = check_cameras()
-    if camera_issues:
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Warning)
-        msg.setWindowTitle("Problemas con Cámaras")
-        msg.setText("Se detectaron problemas con las cámaras:")
-        msg.setDetailedText("\n".join(camera_issues))
-        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-        msg.setDefaultButton(QMessageBox.Cancel)
-        
-        if msg.exec_() == QMessageBox.Cancel:
-            logger.error(f"Problemas con cámaras: {camera_issues}")
-            return 1
-    
+
+    # Mostrar advertencias (libcamera) pero continuar
+    if warnings:
+        logger.warning(f"Advertencias del sistema: {warnings}")
+
     logger.info("Verificaciones del sistema completadas")
-    
+
     # Cargar configuración de cámaras
     try:
         camera_config = CameraConfig()
-        logger.info("Configuración de cámaras cargada")
+        cameras_available = camera_config.cameras_available
+        logger.info(f"Configuración cargada (Cámaras: {'Disponibles' if cameras_available else 'No disponibles'})")
+
+        # Mostrar diálogo si no hay cámaras disponibles
+        if not cameras_available:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Information)
+            msg.setWindowTitle("Modo de Solo Procesamiento")
+            msg.setText("Sistema iniciado en modo de solo procesamiento")
+            msg.setInformativeText(
+                "No se detectaron cámaras. Podrás procesar capturas existentes pero no realizar nuevas capturas.\n\n"
+                "Este modo es ideal para procesar fotos tomadas en Raspberry Pi desde una computadora más potente."
+            )
+            msg.exec_()
+
     except Exception as e:
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Critical)
         msg.setWindowTitle("Error de Configuración")
-        msg.setText(f"Error cargando configuración: {str(e)}")
+        msg.setText(f"Error crítico cargando configuración: {str(e)}")
         msg.exec_()
         logger.error(f"Error configuración: {str(e)}")
         return 1
     
     # Crear ventana principal
     try:
-        main_window = MainWindow(camera_config)
+        main_window = MainWindow(camera_config, cameras_available=cameras_available)
         main_window.show()
         logger.info("Ventana principal creada y mostrada")
     except Exception as e:

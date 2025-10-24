@@ -390,7 +390,7 @@ class CameraCalibrator:
                 mtx_right, dist_right,
                 img_shape, R, T_meters,  # ← USAR T EN METROS
                 flags=cv2.CALIB_ZERO_DISPARITY,
-                alpha=0.9
+                alpha=-1  # CAMBIADO: -1 = recortar agresivamente para evitar distorsión (recomendado con T_z != 0)
             )
 
             logger.info(f"✅ Matriz Q generada con unidades en METROS")

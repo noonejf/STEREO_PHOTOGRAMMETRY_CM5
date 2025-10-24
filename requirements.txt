@@ -3,33 +3,32 @@
 # O mejor aún: sudo apt install python3-[paquete] cuando esté disponible
 
 # GUI Framework
-PyQt5>=5.12.0
+PyQt5
 
 # Computer Vision y procesamiento de imágenes
-opencv-python>=4.5.0
-numpy>=1.19.0
-scipy>=1.6.0
+opencv-python
+numpy
+scipy
 
 # Manipulación de imágenes avanzada
-scikit-image>=0.18.0
-Pillow>=8.0.0
+scikit-image
+Pillow
 
 # Procesamiento de datos científicos
-matplotlib>=3.3.0
-pandas>=1.2.0
+matplotlib
+pandas
 
 # Para nubes de puntos 3D
-open3d-python>=0.12.0
-
+open3d-python
 # Para manipulación de archivos de configuración
-PyYAML>=5.4.0
+PyYAML
 
 # Logging avanzado
-colorlog>=6.6.0
+colorlog
 
 # Para interfaz con libcamera (opcional si no funciona el acceso directo)
 # picamera2  # Se instala con: sudo apt install python3-picamera2
 
 # Utilidades adicionales
-tqdm>=4.60.0  # Barras de progreso
-psutil>=5.8.0  # Monitoreo del sistema
+tqdm  # Barras de progreso
+psutil # Monitoreo del sistema

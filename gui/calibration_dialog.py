@@ -71,20 +71,21 @@ class CalibrationProcessingThread(QThread):
 
 class CalibrationDialog(QDialog):
     """Diálogo principal de calibración (Lógica de bucle interactivo)"""
-    
+
     def __init__(self, camera_config, stereo_camera, parent=None):
         super().__init__(parent)
         self.camera_config = camera_config
         self.stereo_camera = stereo_camera
+        self.cameras_available = stereo_camera is not None
         self.processing_thread = None
         self.countdown_timer = QTimer(self)
         self.countdown_seconds = 0
-        
+
         self.images_to_capture = 0
         self.images_captured = 0
         self.capture_session_dir = None
         self.is_capturing = False
-        
+
         self.init_ui()
         self.load_current_calibration_status()
         
@@ -216,20 +217,30 @@ class CalibrationDialog(QDialog):
     
     def create_buttons(self):
         layout = QHBoxLayout()
+
+        # Botón para captura nueva (solo si hay cámaras)
         self.btn_start = QPushButton("🚀 Iniciar Calibración")
         self.btn_start.setFixedHeight(45)
         self.btn_start.setStyleSheet("QPushButton { font-size: 14px; font-weight: bold; background-color: #4CAF50; color: white; border: none; border-radius: 5px; } QPushButton:hover { background-color: #45a049; } QPushButton:disabled { background-color: #CCCCCC; color: #666666; }")
         self.btn_start.clicked.connect(self.start_calibration)
+        self.btn_start.setEnabled(self.cameras_available)  # Solo habilitar si hay cámaras
         layout.addWidget(self.btn_start)
-        
+
+        # Botón para procesar sesión existente (siempre disponible)
+        self.btn_process_existing = QPushButton("📂 Procesar Sesión Existente")
+        self.btn_process_existing.setFixedHeight(45)
+        self.btn_process_existing.setStyleSheet("QPushButton { font-size: 14px; font-weight: bold; background-color: #2196F3; color: white; border: none; border-radius: 5px; } QPushButton:hover { background-color: #1976D2; } QPushButton:disabled { background-color: #CCCCCC; color: #666666; }")
+        self.btn_process_existing.clicked.connect(self.process_existing_session)
+        layout.addWidget(self.btn_process_existing)
+
         self.btn_cancel = QPushButton("❌ Cancelar")
         self.btn_cancel.setFixedHeight(45)
         self.btn_cancel.clicked.connect(self.cancel_calibration)
         self.btn_cancel.setEnabled(False)
         layout.addWidget(self.btn_cancel)
-        
+
         layout.addStretch()
-        
+
         self.btn_close = QPushButton("✅ Cerrar")
         self.btn_close.setFixedHeight(45)
         self.btn_close.clicked.connect(self.close)
@@ -420,7 +431,10 @@ class CalibrationDialog(QDialog):
     # --- Funciones de Ayuda (Preview y UI) ---
 
     def start_preview_for_positioning(self):
-        """Inicia el preview en la ventana principal."""
+        """Inicia el preview en la ventana principal (solo si hay cámaras)."""
+        if not self.cameras_available:
+            return  # No intentar preview si no hay cámaras
+
         try:
             main_window = self.parent()
             if hasattr(main_window, 'start_preview'):
@@ -463,16 +477,17 @@ class CalibrationDialog(QDialog):
     
     def reset_ui_after_calibration(self):
         """Restaurar UI después de un fallo o cancelación."""
-        self.btn_start.setEnabled(True)
+        self.btn_start.setEnabled(self.cameras_available)  # Solo habilitar si hay cámaras
+        self.btn_process_existing.setEnabled(True)  # Siempre disponible
         self.btn_cancel.setEnabled(False)
         self.is_capturing = False
-        
+
         self.progress_bar.setVisible(False)
         self.progress_message.setVisible(False)
         self.set_countdown_style("Listo para (re)iniciar", "Mueve este diálogo para ver la vista previa", 0)
-        
+
         # --- CORRECCIÓN ---
-        # Vuelve a iniciar el preview para que la app no se quede congelada
+        # Vuelve a iniciar el preview para que la app no se quede congelada (solo si hay cámaras)
         self.start_preview_for_positioning()
         # --- FIN CORRECCIÓN ---
     
@@ -495,6 +510,79 @@ class CalibrationDialog(QDialog):
         # Asegurarse de que el preview se restaure
         self.start_preview_for_positioning()
 
+    def process_existing_session(self):
+        """Procesar una sesión de calibración existente"""
+        from PyQt5.QtWidgets import QFileDialog
+
+        # Buscar sesiones de calibración disponibles
+        calibration_dir = Path("data/calibration")
+        if not calibration_dir.exists():
+            QMessageBox.warning(self, "Error",
+                              "No se encontró el directorio de calibración")
+            return
+
+        # Encontrar sesiones (directorios que empiecen con "calibration_")
+        sessions = []
+        for item in calibration_dir.iterdir():
+            if item.is_dir() and item.name.startswith("calibration_") and not item.name.endswith("_BACKUP"):
+                # Verificar que tenga contenido de calibración
+                has_pairs = any(item.glob("calib_pair_*"))
+                if has_pairs:
+                    sessions.append(item)
+
+        if not sessions:
+            QMessageBox.warning(self, "Sin Sesiones",
+                              "No se encontraron sesiones de calibración.\n\n"
+                              "Primero debes capturar fotos de calibración en la Raspberry Pi.")
+            return
+
+        # Mostrar diálogo de selección
+        from PyQt5.QtWidgets import QInputDialog
+
+        session_names = [s.name for s in sorted(sessions, reverse=True)]  # Más reciente primero
+        session_name, ok = QInputDialog.getItem(
+            self, "Seleccionar Sesión",
+            "Selecciona la sesión de calibración a procesar:",
+            session_names, 0, False
+        )
+
+        if not ok or not session_name:
+            return
+
+        # Encontrar el directorio de la sesión seleccionada
+        selected_session = calibration_dir / session_name
+
+        # Confirmar
+        num_pairs = len(list(selected_session.glob("calib_pair_*")))
+        msg = QMessageBox.question(
+            self, "Confirmar Procesamiento",
+            f"Sesión: {session_name}\n"
+            f"Pares de imágenes: {num_pairs}\n\n"
+            f"¿Procesar esta sesión para recalibrar el sistema?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+
+        if msg != QMessageBox.Yes:
+            return
+
+        # Preparar UI
+        self.add_log_message(f"Procesando sesión: {session_name}", "INFO")
+        self.btn_process_existing.setEnabled(False)
+        self.btn_start.setEnabled(False)
+        self.btn_cancel.setEnabled(True)
+        self.progress_bar.setVisible(True)
+        self.progress_message.setVisible(True)
+        self.progress_bar.setValue(0)
+
+        # Iniciar procesamiento en hilo separado
+        self.processing_thread = CalibrationProcessingThread(
+            self.camera_config, selected_session
+        )
+        self.processing_thread.progress_update.connect(self.update_progress)
+        self.processing_thread.log_message.connect(self.add_log_message)
+        self.processing_thread.calibration_complete.connect(self.on_calibration_complete)
+        self.processing_thread.start()
+
     def closeEvent(self, event):
         """Manejar cierre del diálogo."""
         if self.is_capturing:
@@ -509,7 +597,9 @@ class CalibrationDialog(QDialog):
             else:
                 event.ignore()
         else:
-            self.start_preview_for_positioning() # Asegurarse de que el preview corra al cerrar
+            # Solo iniciar preview si hay cámaras disponibles
+            if self.cameras_available:
+                self.start_preview_for_positioning()
             event.accept()
 
 if __name__ == "__main__":
