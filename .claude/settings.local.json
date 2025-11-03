@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(python verify_thesis_changes.py:*)",
+      "Bash(python -c:*)"
     ],
     "deny": [],
     "ask": []

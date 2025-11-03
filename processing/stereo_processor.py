@@ -89,34 +89,39 @@ class StereoProcessor:
         """Configurar algoritmos de matching estéreo"""
 
         # Algoritmo SGBM (Semi-Global Block Matching) - Recomendado
-        # OPTIMIZADO: Para superficies con poca textura (piel, paredes lisas)
+        # CONFIGURACIÓN BASADA EN TESIS: Parámetros conservadores para superficies lisas
         self.sgbm = cv2.StereoSGBM_create(
             minDisparity=0,
-            numDisparities=160,       # Aumentado para capturar objetos cercanos (0.3m-5m)
-            blockSize=11,             # AUMENTADO: 7→11 para ventanas más grandes (mejor en superficies lisas)
-            P1=8 * 3 * 11**2,        # Ajustado para blockSize=11
-            P2=32 * 3 * 11**2,       # Ajustado para blockSize=11 (penaliza discontinuidades)
-            disp12MaxDiff=1,          # REDUCIDO: 2→1 para verificación más estricta
-            uniquenessRatio=5,        # REDUCIDO: 15→5 para permitir más matches en superficies lisas
-            speckleWindowSize=200,    # AUMENTADO: 150→200 para filtrar regiones ruidosas más grandes
-            speckleRange=2,           # MUY REDUCIDO: 16→2 (solo tolera variación de 2 píxeles en speckles)
-            preFilterCap=31,          # REDUCIDO: 63→31 para pre-filtro más suave
+            numDisparities=64,        # REDUCIDO: 160→64 (rango 0.3-5m, reduce ruido)
+            blockSize=15,             # AUMENTADO: 11→15 (ventanas grandes para superficies lisas)
+            P1=8 * 3 * 15**2,        # Ajustado para blockSize=15
+            P2=32 * 3 * 15**2,       # Ajustado para blockSize=15 (penaliza discontinuidades)
+            disp12MaxDiff=1,          # Verificación estricta izq-der
+            uniquenessRatio=0,        # DESACTIVADO: permite más matches en superficies lisas (como tesis)
+            speckleWindowSize=100,    # REDUCIDO: 200→100 para evitar eliminar objetos pequeños
+            speckleRange=8,           # AUMENTADO: 2→8 (tolera variación natural en superficies curvas)
+            preFilterCap=61,          # AUMENTADO: 31→61 (como tesis)
             mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY  # Modo de cálculo
         )
-        
+
         # Algoritmo BM (Block Matching) - Más rápido pero menos preciso
         self.bm = cv2.StereoBM_create(
             numDisparities=96,
             blockSize=15
         )
-        
+
         # Filtro WLS para post-procesamiento
         self.wls_filter = cv2.ximgproc.createDisparityWLSFilter(self.sgbm)
-        self.wls_filter.setLambda(8000.0)
+        self.wls_filter.setLambda(3000.0)  # REDUCIDO: 8000→3000 (menos suavizado, preserva bordes)
         self.wls_filter.setSigmaColor(1.2)
-        
+
         # Crear matcher derecho para verificación cruzada
         self.right_matcher = cv2.ximgproc.createRightMatcher(self.sgbm)
+
+        # CRÍTICO: Configurar speckleWindowSize DESPUÉS de createRightMatcher
+        # (bug de OpenCV: createRightMatcher resetea algunos parámetros a 0)
+        self.sgbm.setSpeckleWindowSize(100)
+        self.sgbm.setSpeckleRange(8)
         
         logger.info("Algoritmos de matching estéreo configurados")
     
@@ -138,12 +143,13 @@ class StereoProcessor:
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         left_enhanced = clahe.apply(left_gray)
         right_enhanced = clahe.apply(right_gray)
-        
-        # Suavizado ligero para reducir ruido
-        left_smooth = cv2.bilateralFilter(left_enhanced, 5, 50, 50)
-        right_smooth = cv2.bilateralFilter(right_enhanced, 5, 50, 50)
-        
-        return left_smooth, right_smooth
+
+        # ELIMINADO: bilateralFilter que suavizaba demasiado las texturas finas
+        # Para superficies lisas (piel), es mejor preservar toda la textura disponible
+        # left_smooth = cv2.bilateralFilter(left_enhanced, 5, 50, 50)
+        # right_smooth = cv2.bilateralFilter(right_enhanced, 5, 50, 50)
+
+        return left_enhanced, right_enhanced
     
     def rectify_images(self, left_img: np.ndarray, right_img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """Rectificar imágenes usando calibración estéreo"""
@@ -177,14 +183,14 @@ class StereoProcessor:
             img_shape = left_img.shape[:2][::-1]  # (width, height)
             
             # Calcular rectificación (capturando ROIs válidos)
-            # IMPORTANTE: alpha=1.0 para lentes SIN ojo de pez (conserva toda la imagen)
-            # alpha=0.0 recorta demasiado, alpha=1.0 conserva todos los píxeles originales
+            # IMPORTANTE: alpha=0.0 para recortar bordes distorsionados (como tesis)
+            # alpha=0.0 sacrifica área pero elimina píxeles con distorsión geométrica
             R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
                 mtx_left, dist_left,
                 mtx_right, dist_right,
                 img_shape, R, T,
                 flags=cv2.CALIB_ZERO_DISPARITY,
-                alpha=1.0  # Para lentes normales SIN fisheye, usar 1.0 para conservar toda la imagen
+                alpha=0.0  # CAMBIADO: Recortar bordes distorsionados (como tesis, evita artefactos)
             )
 
             logger.info(f"🔍 DEBUG ROI válido izquierdo: {roi1}")
@@ -252,8 +258,8 @@ class StereoProcessor:
                 disparity_left[~self.valid_roi_mask] = 0
                 logger.info(f"   Píxeles enmascarados: {np.sum(~self.valid_roi_mask)}")
 
-            # Calcular estadísticas solo sobre píxeles válidos
-            valid_mask = disparity_left > 0
+            # Calcular estadísticas solo sobre píxeles válidos (umbral mínimo reducido)
+            valid_mask = disparity_left > 0.5  # REDUCIDO: 0→0.5 (mantiene más puntos válidos)
             valid_disp = disparity_left[valid_mask]
 
             disparity_result = {
@@ -501,12 +507,12 @@ class StereoProcessor:
             height, width = disparity.shape
             logger.info(f"🔍 DEBUG Nube de puntos - Tamaño imagen: {height}x{width} = {height*width} píxeles")
 
-            # Máscara de píxeles válidos - AUMENTADO umbral para evitar disparidades muy bajas
-            # Disparidades < 5 píxeles generan profundidades > 40m (absurdas para indoor)
+            # Máscara de píxeles válidos - REDUCIDO umbral siguiendo enfoque de la tesis
+            # La tesis acepta disparidades desde 1 píxel para capturar objetos lejanos
             # Con baseline=103mm y focal=2010px: Z = (baseline*focal)/disparity
-            # disparity=5 → Z≈4m, disparity=10 → Z≈2m
-            valid_mask = disparity > 10.0  # Aumentado de 0.1 a 10 para evitar outliers
-            logger.info(f"🔍 DEBUG Píxeles con disparidad > 10.0: {np.sum(valid_mask)}")
+            # disparity=1 → Z≈20m, disparity=5 → Z≈4m, disparity=10 → Z≈2m
+            valid_mask = disparity > 1.0  # REDUCIDO: 10.0→1.0 (como tesis, más inclusivo)
+            logger.info(f"🔍 DEBUG Píxeles con disparidad > 1.0: {np.sum(valid_mask)}")
 
             # Aplicar filtro de confianza si está disponible
             if confidence_map is not None:
