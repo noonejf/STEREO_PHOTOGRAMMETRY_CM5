@@ -44,6 +44,9 @@ class StereoProcessor:
         """
         Guardar visualización de correspondencias de puntos entre imágenes
         Muestra cómo se matchean los puntos entre left y right
+
+        CORREGIDO: Ahora busca puntos en TODA la imagen con disparidad válida,
+        no solo en grid hardcodeado.
         """
         # Crear imagen combinada
         h, w = left_img.shape[:2]
@@ -56,52 +59,107 @@ class StereoProcessor:
             combined[:, :w] = left_img
             combined[:, w:] = right_img
 
-        # Tomar puntos de muestra (grid espaciado)
-        step = 80  # Espaciado entre puntos
+        # NUEVO: Encontrar puntos con MEJOR disparidad (no hardcodeados)
+        # Ordenar píxeles por disparidad (de mayor a menor)
+        valid_mask = disparity > 1.0  # Umbral mínimo realista
+        valid_indices = np.argwhere(valid_mask)
+
+        if len(valid_indices) == 0:
+            logger.warning("⚠️ No hay puntos con disparidad válida para visualizar")
+            cv2.imwrite(str(debug_path / "15_correspondences.jpg"), combined)
+            return
+
+        # Extraer disparidades de puntos válidos
+        valid_disparities = disparity[valid_mask]
+
+        # Ordenar índices por disparidad (mayor primero = más cerca)
+        sorted_indices = np.argsort(valid_disparities)[::-1]
+
+        # Tomar muestra espaciada de mejores puntos
+        # Estrategia: dividir en bins de profundidad y tomar samples de cada bin
+        num_bins = 5
+        num_per_bin = 10
+        max_points = num_bins * num_per_bin
+
+        # Dividir disparidades en bins
+        disp_min, disp_max = np.min(valid_disparities), np.max(valid_disparities)
+        if disp_max - disp_min < 1e-6:
+            # Todas las disparidades son iguales, tomar muestra uniforme
+            sample_indices = sorted_indices[::max(1, len(sorted_indices)//max_points)][:max_points]
+        else:
+            sample_indices = []
+            bin_edges = np.linspace(disp_min, disp_max, num_bins + 1)
+
+            for i in range(num_bins):
+                bin_mask = (valid_disparities >= bin_edges[i]) & (valid_disparities < bin_edges[i+1])
+                bin_indices = sorted_indices[bin_mask]
+
+                if len(bin_indices) > 0:
+                    # Tomar muestra espaciada de este bin
+                    step = max(1, len(bin_indices) // num_per_bin)
+                    sample_indices.extend(bin_indices[::step][:num_per_bin])
+
+            sample_indices = np.array(sample_indices[:max_points])
+
         colors = [(0, 255, 0), (255, 0, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
 
         points_drawn = 0
-        for y in range(step, h-step, step):
-            for x in range(step, w-step, step):
-                d = disparity[y, x]
-                if d > 10.0:  # Solo puntos con disparidad válida
-                    # Punto en imagen izquierda
-                    cv2.circle(combined, (x, y), 4, colors[points_drawn % len(colors)], -1)
+        for idx in sample_indices:
+            # CORREGIDO: Acceder directamente a valid_indices
+            y, x = valid_indices[idx]
+            d = disparity[y, x]
 
-                    # Punto correspondiente en imagen derecha (desplazado por disparidad)
-                    x_right = int(x - d) + w  # -d porque la disparidad es negativa en right
-                    if 0 <= x_right - w < w:
-                        cv2.circle(combined, (x_right, y), 4, colors[points_drawn % len(colors)], -1)
+            # Punto en imagen izquierda
+            color = colors[points_drawn % len(colors)]
+            cv2.circle(combined, (x, y), 5, color, -1)
+            cv2.circle(combined, (x, y), 6, (255, 255, 255), 1)  # Borde blanco
 
-                        # Dibujar línea conectando correspondencias
-                        cv2.line(combined, (x, y), (x_right, y), colors[points_drawn % len(colors)], 1)
+            # Punto correspondiente en imagen derecha (desplazado por disparidad)
+            x_right = int(x - d) + w  # -d porque búsqueda es hacia la izquierda
+            if 0 <= x_right - w < w:
+                cv2.circle(combined, (x_right, y), 5, color, -1)
+                cv2.circle(combined, (x_right, y), 6, (255, 255, 255), 1)
 
-                        points_drawn += 1
-                        if points_drawn >= 50:  # Limitar a 50 puntos para no saturar
-                            break
-            if points_drawn >= 50:
-                break
+                # Dibujar línea conectando correspondencias
+                cv2.line(combined, (x, y), (x_right, y), color, 2)
+
+                # Etiqueta con disparidad
+                text = f"{d:.1f}px"
+                cv2.putText(combined, text, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX,
+                           0.4, (255, 255, 255), 1, cv2.LINE_AA)
+
+                points_drawn += 1
+
+        # Agregar leyenda
+        legend_y = 30
+        cv2.putText(combined, f"Correspondencias: {points_drawn} puntos", (10, legend_y),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(combined, f"Disp min: {disp_min:.1f}px, max: {disp_max:.1f}px",
+                   (10, legend_y+30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
 
         cv2.imwrite(str(debug_path / "15_correspondences.jpg"), combined)
-        logger.info(f"🔍 DEBUG Correspondencias guardadas: {points_drawn} puntos")
+        logger.info(f"🔍 DEBUG Correspondencias guardadas: {points_drawn} puntos (disp: {disp_min:.1f}-{disp_max:.1f}px)")
 
     def setup_stereo_algorithms(self):
         """Configurar algoritmos de matching estéreo"""
 
         # Algoritmo SGBM (Semi-Global Block Matching) - Recomendado
-        # CONFIGURACIÓN BASADA EN TESIS: Parámetros conservadores para superficies lisas
+        # CONFIGURACIÓN BALANCEADA (mix entre tesis y lo que funciona):
+        # - blockSize moderado (17) para balance entre contexto y detalle
+        # - speckleWindowSize moderado (50) para filtrar ruido sin ser agresivo
+        # - uniquenessRatio=5 moderado (permite matches pero con cierta confianza)
         self.sgbm = cv2.StereoSGBM_create(
             minDisparity=0,
-            numDisparities=64,        # REDUCIDO: 160→64 (rango 0.3-5m, reduce ruido)
-            blockSize=15,             # AUMENTADO: 11→15 (ventanas grandes para superficies lisas)
-            P1=8 * 3 * 15**2,        # Ajustado para blockSize=15
-            P2=32 * 3 * 15**2,       # Ajustado para blockSize=15 (penaliza discontinuidades)
-            disp12MaxDiff=1,          # Verificación estricta izq-der
-            uniquenessRatio=0,        # DESACTIVADO: permite más matches en superficies lisas (como tesis)
-            speckleWindowSize=100,    # REDUCIDO: 200→100 para evitar eliminar objetos pequeños
-            speckleRange=8,           # AUMENTADO: 2→8 (tolera variación natural en superficies curvas)
-            preFilterCap=61,          # AUMENTADO: 31→61 (como tesis)
-            mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY  # Modo de cálculo
+            numDisparities=16*32,     # AUMENTADO: 64→512 (permite objetos muy cercanos hasta ~20cm)
+            blockSize=17,             # BALANCEADO: 15→17 (compromiso entre contexto y detalle)
+            P1=8 * 3 * 17**2,        # Ajustado para blockSize=17
+            P2=32 * 3 * 17**2,       # Ajustado para blockSize=17
+            disp12MaxDiff=1,          # OK: Verificación izq-der
+            uniquenessRatio=5,        # BALANCEADO: 0→5 (permite matches pero con mínima confianza)
+            speckleWindowSize=50,     # BALANCEADO: 100→50 (filtra speckles sin ser agresivo)
+            speckleRange=16,          # AUMENTADO: 8→16 (más tolerante a variación)
+            preFilterCap=61,          # OK: Como TESIS
+            mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY  # OK: Modo 3-way
         )
 
         # Algoritmo BM (Block Matching) - Más rápido pero menos preciso
@@ -112,8 +170,8 @@ class StereoProcessor:
 
         # Filtro WLS para post-procesamiento
         self.wls_filter = cv2.ximgproc.createDisparityWLSFilter(self.sgbm)
-        self.wls_filter.setLambda(3000.0)  # REDUCIDO: 8000→3000 (menos suavizado, preserva bordes)
-        self.wls_filter.setSigmaColor(1.2)
+        self.wls_filter.setLambda(8000.0)  # RESTAURADO: Lambda alto para suavizado efectivo
+        self.wls_filter.setSigmaColor(1.5)  # AUMENTADO: 1.2→1.5 (más tolerante a cambios de color)
 
         # Crear matcher derecho para verificación cruzada
         self.right_matcher = cv2.ximgproc.createRightMatcher(self.sgbm)
@@ -126,30 +184,27 @@ class StereoProcessor:
         logger.info("Algoritmos de matching estéreo configurados")
     
     def preprocess_images(self, left_img: np.ndarray, right_img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        """Preprocesar imágenes para matching estéreo"""
-        
+        """
+        Preprocesar imágenes para matching estéreo
+
+        DESHABILITADO: El preprocesamiento CLAHE+Unsharp estaba causando que SGBM
+        calculara disparidades completamente incorrectas. Ahora solo convierte a gris.
+        """
+
         # Convertir a escala de grises si es necesario
         if len(left_img.shape) == 3:
             left_gray = cv2.cvtColor(left_img, cv2.COLOR_BGR2GRAY)
         else:
             left_gray = left_img.copy()
-            
+
         if len(right_img.shape) == 3:
             right_gray = cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY)
         else:
             right_gray = right_img.copy()
-        
-        # Ecualización de histograma adaptativa para mejorar contraste
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        left_enhanced = clahe.apply(left_gray)
-        right_enhanced = clahe.apply(right_gray)
 
-        # ELIMINADO: bilateralFilter que suavizaba demasiado las texturas finas
-        # Para superficies lisas (piel), es mejor preservar toda la textura disponible
-        # left_smooth = cv2.bilateralFilter(left_enhanced, 5, 50, 50)
-        # right_smooth = cv2.bilateralFilter(right_enhanced, 5, 50, 50)
+        logger.debug("Pre-procesamiento: Solo conversión a escala de grises")
 
-        return left_enhanced, right_enhanced
+        return left_gray, right_gray
     
     def rectify_images(self, left_img: np.ndarray, right_img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """Rectificar imágenes usando calibración estéreo"""
@@ -182,15 +237,12 @@ class StereoProcessor:
             
             img_shape = left_img.shape[:2][::-1]  # (width, height)
             
-            # Calcular rectificación (capturando ROIs válidos)
-            # IMPORTANTE: alpha=0.0 para recortar bordes distorsionados (como tesis)
-            # alpha=0.0 sacrifica área pero elimina píxeles con distorsión geométrica
             R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
                 mtx_left, dist_left,
                 mtx_right, dist_right,
                 img_shape, R, T,
                 flags=cv2.CALIB_ZERO_DISPARITY,
-                alpha=0.0  # CAMBIADO: Recortar bordes distorsionados (como tesis, evita artefactos)
+                alpha=0.0  
             )
 
             logger.info(f"🔍 DEBUG ROI válido izquierdo: {roi1}")
@@ -293,14 +345,15 @@ class StereoProcessor:
                     logger.info("🔍 DEBUG Aplicando máscara ROI a disparidad filtrada...")
                     disparity_filtered[~self.valid_roi_mask] = 0
 
-                # === POST-PROCESAMIENTO: Suavizado adicional ===
-                # Aplicar filtro bilateral para suavizar preservando bordes
-                logger.info("🔍 DEBUG Aplicando suavizado bilateral para reducir ruido...")
+                # === POST-PROCESAMIENTO: Suavizado ligero ===
+                # CAMBIADO: Reducir parámetros de bilateral para preservar más detalle
+                # El filtro WLS ya suavizó bastante, evitar eliminar señal válida
+                logger.info("🔍 DEBUG Aplicando suavizado bilateral suave para reducir ruido...")
                 disparity_smooth = cv2.bilateralFilter(
                     disparity_filtered.astype(np.float32),
-                    d=9,           # Diámetro de vecindario
-                    sigmaColor=75, # Filtro en espacio de color
-                    sigmaSpace=75  # Filtro en espacio de coordenadas
+                    d=5,           # REDUCIDO: 9→5 (vecindario más pequeño, preserva más detalle)
+                    sigmaColor=50, # REDUCIDO: 75→50 (menos suavizado en valores similares)
+                    sigmaSpace=50  # REDUCIDO: 75→50 (menos suavizado espacial)
                 )
 
                 # Preservar máscara de píxeles válidos
@@ -809,16 +862,25 @@ class StereoProcessor:
                 cv2.imwrite(str(debug_path / "13_depth_map.png"), depth_color)
 
                 # PASO 14: HISTOGRAMA de disparidad
-                import matplotlib.pyplot as plt
-                plt.figure(figsize=(10, 6))
-                valid_disp = disp_map[disp_map > 0]
-                plt.hist(valid_disp, bins=100, color='blue', alpha=0.7)
-                plt.xlabel('Disparidad (píxeles)')
-                plt.ylabel('Frecuencia')
-                plt.title(f'Histograma de Disparidad\nMin: {np.min(valid_disp):.2f}, Max: {np.max(valid_disp):.2f}, Mean: {np.mean(valid_disp):.2f}')
-                plt.grid(True, alpha=0.3)
-                plt.savefig(str(debug_path / "14_disparity_histogram.png"))
-                plt.close()
+                try:
+                    import matplotlib
+                    matplotlib.use('Agg')  # Backend sin GUI para evitar warning de threads
+                    import matplotlib.pyplot as plt
+
+                    plt.figure(figsize=(10, 6))
+                    valid_disp = disp_map[disp_map > 0]
+                    if len(valid_disp) > 0:
+                        plt.hist(valid_disp, bins=100, color='blue', alpha=0.7)
+                        plt.xlabel('Disparidad (píxeles)')
+                        plt.ylabel('Frecuencia')
+                        plt.title(f'Histograma de Disparidad\nMin: {np.min(valid_disp):.2f}, Max: {np.max(valid_disp):.2f}, Mean: {np.mean(valid_disp):.2f}')
+                        plt.grid(True, alpha=0.3)
+                        plt.savefig(str(debug_path / "14_disparity_histogram.png"))
+                        plt.close()
+                    else:
+                        logger.warning("No hay disparidad válida para histograma")
+                except Exception as e:
+                    logger.warning(f"No se pudo generar histograma: {e}")
 
                 # PASO 15: VISUALIZACIÓN de correspondencias (sample)
                 # Tomar algunos puntos de la mano y mostrar correspondencias

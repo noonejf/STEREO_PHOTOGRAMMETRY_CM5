@@ -3,7 +3,8 @@
     "allow": [
       "Bash(tree:*)",
       "Bash(python verify_thesis_changes.py:*)",
-      "Bash(python -c:*)"
+      "Bash(python -c:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []
