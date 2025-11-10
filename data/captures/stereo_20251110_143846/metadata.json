@@ -1,0 +1,38 @@
+{
+    "capture_name": "stereo_20251110_143846",
+    "timestamp": "2025-11-10T14:38:49.620308",
+    "left_camera": {
+        "id": 0,
+        "file": "data/captures/stereo_20251110_143846/left.jpg",
+        "resolution": [
+            1440,
+            1920,
+            3
+        ],
+        "size_bytes": 89854,
+        "capture_time": 3.079127788543701
+    },
+    "right_camera": {
+        "id": 1,
+        "file": "data/captures/stereo_20251110_143846/right.jpg",
+        "resolution": [
+            1440,
+            1920,
+            3
+        ],
+        "size_bytes": 87713,
+        "capture_time": 3.0631985664367676
+    },
+    "synchronization": {
+        "time_difference_ms": 10.548830032348633,
+        "quality": "EXCELENTE",
+        "acceptable": true
+    },
+    "camera_config": {
+        "baseline_mm": 100.0,
+        "capture_resolution_used": [
+            1920,
+            1440
+        ]
+    }
+}
