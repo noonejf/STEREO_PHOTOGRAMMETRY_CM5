@@ -1,0 +1,10 @@
+{
+  "method": "Top-Hat",
+  "dilate": 2,
+  "erode": 0,
+  "close": 0,
+  "cleanup_enabled": true,
+  "cleanup_area_percent": 10,
+  "tophat_ksize": 25,
+  "tophat_thresh": 36
+}

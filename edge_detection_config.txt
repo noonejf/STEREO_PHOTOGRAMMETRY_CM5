@@ -1,0 +1,9 @@
+Configuración de Detección de Bordes
+==================================================
+
+method: Top-Hat
+dilate: 3
+erode: 0
+close: 0
+tophat_ksize: 25
+tophat_thresh: 40

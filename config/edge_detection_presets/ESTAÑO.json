@@ -1,0 +1,10 @@
+{
+  "method": "Sobel",
+  "dilate": 3,
+  "erode": 0,
+  "close": 0,
+  "cleanup_enabled": true,
+  "cleanup_area_percent": 10,
+  "sobel_ksize": 3,
+  "sobel_thresh": 17
+}

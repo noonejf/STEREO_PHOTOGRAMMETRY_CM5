@@ -1,0 +1,158 @@
+Calculando Distance Transform para ancho adaptativo...
+
+======================================================================
+SMART WIRE TRACKER (CON BACKTRACKING)
+======================================================================
+  [+] Bifurcación en (np.int64(1117), np.int64(582)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1121), np.int64(564)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1354), np.int64(625)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1356), np.int64(642)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1351), np.int64(658)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1343), np.int64(674)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1334), np.int64(690)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1308), np.int64(716)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1295), np.int64(729)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1281), np.int64(741)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1267), np.int64(753)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1182), np.int64(767)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1083), np.int64(602)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1068), np.int64(614))...
+  [<] Retrocediendo a (np.int64(1186), np.int64(782))...
+  [<] Retrocediendo a (np.int64(1261), np.int64(769))...
+  [+] Bifurcación en (np.int64(1261), np.int64(769)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1244), np.int64(774)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1228), np.int64(773)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1240), np.int64(761))...
+  [<] Retrocediendo a (np.int64(1239), np.int64(763))...
+  [+] Bifurcación en (np.int64(1239), np.int64(763)). Opciones: 3. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1223), np.int64(769)). Opciones: 3. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1084), np.int64(612)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1067), np.int64(611))...
+  [<] Retrocediendo a (np.int64(1213), np.int64(781))...
+  [+] Bifurcación en (np.int64(1198), np.int64(772)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1083), np.int64(602)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1068), np.int64(614))...
+  [<] Retrocediendo a (np.int64(1184), np.int64(779))...
+  [<] Retrocediendo a (np.int64(1240), np.int64(776))...
+  [+] Bifurcación en (np.int64(1240), np.int64(776)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1084), np.int64(610)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1080), np.int64(556)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1061), np.int64(551))...
+  [+] Bifurcación en (np.int64(1055), np.int64(568)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1046), np.int64(583)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1050), np.int64(597)). Opciones: 3. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1046), np.int64(613)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1053), np.int64(625)). Opciones: 4. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1056), np.int64(641)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1054), np.int64(658)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1056), np.int64(675)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1054), np.int64(692)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1050), np.int64(709)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1056), np.int64(723)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1092), np.int64(795)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1099), np.int64(808)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1232), np.int64(838)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1263), np.int64(824)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1278), np.int64(815)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1293), np.int64(804)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1320), np.int64(779)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=100:
+      opt (np.int64(1345), np.int64(753)): lateral=-2.7px, forward=18.2px
+      opt (np.int64(1352), np.int64(761)): lateral=8.0px, forward=18.3px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1333), np.int64(767)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1399), np.int64(681)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1406), np.int64(665)). Opciones: 2. Guardando checkpoint.
+  Iter 200: Path len 122
+  [+] Bifurcación en (np.int64(1193), np.int64(454)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1177), np.int64(450)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1161), np.int64(457)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1148), np.int64(469)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1133), np.int64(478)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1119), np.int64(489)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1103), np.int64(498)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1111), np.int64(509))...
+  [<] Retrocediendo a (np.int64(1111), np.int64(506))...
+  [+] Bifurcación en (np.int64(1111), np.int64(506)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1098), np.int64(516)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1099), np.int64(498))...
+  [<] Retrocediendo a (np.int64(1097), np.int64(503))...
+  [+] Bifurcación en (np.int64(1097), np.int64(503)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1090), np.int64(483)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1134), np.int64(426)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1149), np.int64(415)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1156), np.int64(401)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1169), np.int64(389)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1184), np.int64(380)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=150:
+      opt (np.int64(1218), np.int64(373)): lateral=7.8px, forward=15.4px
+      opt (np.int64(1218), np.int64(383)): lateral=15.8px, forward=9.4px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1218), np.int64(383)): lateral_dist=15.8px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1201), np.int64(376)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1218), np.int64(373)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1417), np.int64(506)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1438), np.int64(707)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1432), np.int64(724)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1425), np.int64(740)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1393), np.int64(783)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1380), np.int64(796)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1366), np.int64(807)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1339), np.int64(832)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1323), np.int64(843)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1259), np.int64(873)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1241), np.int64(877)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1223), np.int64(879)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1170), np.int64(883)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(941), np.int64(537)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(942), np.int64(518)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(944), np.int64(499)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(949), np.int64(483)). Opciones: 3. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(953), np.int64(468)). Opciones: 3. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(966), np.int64(465))...
+  [+] Bifurcación en (np.int64(966), np.int64(465)). Opciones: 3. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(970), np.int64(449)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(975), np.int64(433)). Opciones: 3. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(982), np.int64(419)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(991), np.int64(406)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(998), np.int64(391)). Opciones: 3. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1010), np.int64(384)). Opciones: 3. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1017), np.int64(368)). Opciones: 3. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1028), np.int64(361)). Opciones: 4. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1039), np.int64(351)). Opciones: 3. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1055), np.int64(342)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1071), np.int64(334)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1088), np.int64(328)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1105), np.int64(326)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1122), np.int64(326)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1281), np.int64(354)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1552), np.int64(666)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1551), np.int64(683)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1545), np.int64(700)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1509), np.int64(762)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1501), np.int64(778)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1490), np.int64(791)). Opciones: 3. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1480), np.int64(806)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1470), np.int64(821)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1471), np.int64(840))...
+  [+] Bifurcación en (np.int64(1462), np.int64(856)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1451), np.int64(868)). Opciones: 3. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1440), np.int64(881)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1425), np.int64(883)). Opciones: 4. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=300:
+      opt (np.int64(1395), np.int64(897)): lateral=8.1px, forward=13.9px
+      opt (np.int64(1401), np.int64(883)): lateral=15.6px, forward=0.7px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1401), np.int64(883)): lateral_dist=15.6px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1411), np.int64(895)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1395), np.int64(897)). Opciones: 3. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1377), np.int64(896)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1364), np.int64(906)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1347), np.int64(915)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1331), np.int64(924)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1315), np.int64(932)). Opciones: 2. Guardando checkpoint.
+
+[OK] LLEGADA EXITOSA al END en iteración 390
+
+[FIN] Path: 308 pts | Cobertura: 98.5%
+Imagen guardada en data/results/debug/smart_wire_path.png

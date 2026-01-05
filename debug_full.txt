@@ -1,0 +1,597 @@
+Calculando Distance Transform para ancho adaptativo...
+
+======================================================================
+SMART WIRE TRACKER (CON BACKTRACKING)
+======================================================================
+    [DEBUG] Detectando paralelas en path_len=11, pos=(np.int64(1117), np.int64(582)):
+      opt (np.int64(1121), np.int64(564)): lateral=13.5px, forward=12.5px
+      opt (np.int64(1130), np.int64(569)): lateral=18.1px, forward=3.3px
+    [DEBUG] Encontrados 1 grupos paralelos: [2]
+  [+] Bifurcación en (np.int64(1117), np.int64(582)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=12, pos=(np.int64(1121), np.int64(564)):
+      opt (np.int64(1132), np.int64(551)): lateral=13.7px, forward=10.1px
+      opt (np.int64(1138), np.int64(559)): lateral=17.7px, forward=0.9px
+    [DEBUG] Encontrados 1 grupos paralelos: [2]
+  [+] Bifurcación en (np.int64(1121), np.int64(564)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=30, pos=(np.int64(1354), np.int64(625)):
+      opt (np.int64(1356), np.int64(642)): lateral=6.2px, forward=16.0px
+      opt (np.int64(1346), np.int64(642)): lateral=15.0px, forward=11.3px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1346), np.int64(642)): lateral_dist=15.0px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1354), np.int64(625)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=31, pos=(np.int64(1356), np.int64(642)):
+      opt (np.int64(1361), np.int64(659)): lateral=0.9px, forward=17.7px
+      opt (np.int64(1351), np.int64(658)): lateral=10.0px, forward=13.4px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1356), np.int64(642)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=32, pos=(np.int64(1351), np.int64(658)):
+      opt (np.int64(1353), np.int64(676)): lateral=0.3px, forward=18.1px
+      opt (np.int64(1343), np.int64(674)): lateral=10.0px, forward=14.9px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1351), np.int64(658)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=33, pos=(np.int64(1343), np.int64(674)):
+      opt (np.int64(1345), np.int64(693)): lateral=-3.7px, forward=18.7px
+      opt (np.int64(1334), np.int64(690)): lateral=7.5px, forward=16.8px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1343), np.int64(674)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=34, pos=(np.int64(1334), np.int64(690)):
+      opt (np.int64(1334), np.int64(709)): lateral=-5.6px, forward=18.2px
+      opt (np.int64(1323), np.int64(705)): lateral=6.1px, forward=17.6px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1334), np.int64(690)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=36, pos=(np.int64(1308), np.int64(716)):
+      opt (np.int64(1304), np.int64(734)): lateral=-7.5px, forward=16.8px
+      opt (np.int64(1295), np.int64(729)): lateral=2.7px, forward=18.2px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1308), np.int64(716)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=37, pos=(np.int64(1295), np.int64(729)):
+      opt (np.int64(1290), np.int64(748)): lateral=-8.7px, forward=17.6px
+      opt (np.int64(1281), np.int64(741)): lateral=2.7px, forward=18.2px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1295), np.int64(729)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=38, pos=(np.int64(1281), np.int64(741)):
+      opt (np.int64(1277), np.int64(759)): lateral=-10.2px, forward=15.4px
+      opt (np.int64(1267), np.int64(753)): lateral=1.1px, forward=18.4px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1281), np.int64(741)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=39, pos=(np.int64(1267), np.int64(753)):
+      opt (np.int64(1261), np.int64(769)): lateral=-8.2px, forward=15.0px
+      opt (np.int64(1252), np.int64(763)): lateral=2.2px, forward=17.9px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1267), np.int64(753)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=44, pos=(np.int64(1182), np.int64(767)):
+      opt (np.int64(1186), np.int64(782)): lateral=-15.2px, forward=-3.1px
+      opt (np.int64(1166), np.int64(760)): lateral=7.9px, forward=15.6px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1186), np.int64(782)): lateral_dist=15.2px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1182), np.int64(767)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=56, pos=(np.int64(1083), np.int64(602)):
+      opt (np.int64(1068), np.int64(614)): lateral=-16.7px, forward=-9.5px
+      opt (np.int64(1082), np.int64(584)): lateral=1.8px, forward=17.9px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1068), np.int64(614)): lateral_dist=16.7px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1083), np.int64(602)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1068), np.int64(614))...
+  [<] Retrocediendo a (np.int64(1186), np.int64(782))...
+  [<] Retrocediendo a (np.int64(1261), np.int64(769))...
+    [DEBUG] Detectando paralelas en path_len=41, pos=(np.int64(1261), np.int64(769)):
+      opt (np.int64(1244), np.int64(774)): lateral=9.7px, forward=14.8px
+      opt (np.int64(1246), np.int64(766)): lateral=13.4px, forward=7.4px
+    [DEBUG] Encontrados 1 grupos paralelos: [2]
+  [+] Bifurcación en (np.int64(1261), np.int64(769)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=42, pos=(np.int64(1244), np.int64(774)):
+      opt (np.int64(1228), np.int64(773)): lateral=11.4px, forward=11.3px
+      opt (np.int64(1239), np.int64(763)): lateral=11.5px, forward=-3.6px
+    [DEBUG] Encontrados 1 grupos paralelos: [2]
+  [+] Bifurcación en (np.int64(1244), np.int64(774)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=43, pos=(np.int64(1228), np.int64(773)):
+      opt (np.int64(1240), np.int64(761)): lateral=5.2px, forward=-16.2px
+      opt (np.int64(1211), np.int64(772)): lateral=8.6px, forward=14.7px
+    [DEBUG] Encontrados 1 grupos paralelos: [2]
+  [+] Bifurcación en (np.int64(1228), np.int64(773)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1240), np.int64(761))...
+  [<] Retrocediendo a (np.int64(1239), np.int64(763))...
+  [+] Bifurcación en (np.int64(1239), np.int64(763)). Opciones: 3. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1223), np.int64(769)). Opciones: 3. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=59, pos=(np.int64(1084), np.int64(612)):
+      opt (np.int64(1067), np.int64(611)): lateral=-16.4px, forward=4.6px
+      opt (np.int64(1082), np.int64(594)): lateral=1.9px, forward=18.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1067), np.int64(611)): lateral_dist=16.4px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1084), np.int64(612)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1067), np.int64(611))...
+  [<] Retrocediendo a (np.int64(1213), np.int64(781))...
+    [DEBUG] Detectando paralelas en path_len=48, pos=(np.int64(1198), np.int64(772)):
+      opt (np.int64(1184), np.int64(779)): lateral=-3.8px, forward=15.2px
+      opt (np.int64(1181), np.int64(767)): lateral=8.5px, forward=15.5px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1198), np.int64(772)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=61, pos=(np.int64(1083), np.int64(602)):
+      opt (np.int64(1068), np.int64(614)): lateral=-16.7px, forward=-9.5px
+      opt (np.int64(1082), np.int64(584)): lateral=1.8px, forward=17.9px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1068), np.int64(614)): lateral_dist=16.7px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1083), np.int64(602)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1068), np.int64(614))...
+  [<] Retrocediendo a (np.int64(1184), np.int64(779))...
+  [<] Retrocediendo a (np.int64(1240), np.int64(776))...
+    [DEBUG] Detectando paralelas en path_len=47, pos=(np.int64(1240), np.int64(776)):
+      opt (np.int64(1253), np.int64(768)): lateral=-10.9px, forward=10.7px
+      opt (np.int64(1221), np.int64(778)): lateral=6.5px, forward=-17.9px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1253), np.int64(768)): lateral_dist=10.9px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1240), np.int64(776)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=62, pos=(np.int64(1084), np.int64(610)):
+      opt (np.int64(1066), np.int64(613)): lateral=-18.2px, forward=0.9px
+      opt (np.int64(1082), np.int64(592)): lateral=1.9px, forward=18.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1066), np.int64(613)): lateral_dist=18.2px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1084), np.int64(610)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=65, pos=(np.int64(1080), np.int64(556)):
+      opt (np.int64(1061), np.int64(551)): lateral=-18.6px, forward=6.3px
+      opt (np.int64(1075), np.int64(540)): lateral=-3.9px, forward=16.3px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1061), np.int64(551)): lateral_dist=18.6px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1080), np.int64(556)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1061), np.int64(551))...
+    [DEBUG] Detectando paralelas en path_len=68, pos=(np.int64(1055), np.int64(568)):
+      opt (np.int64(1046), np.int64(583)): lateral=-16.6px, forward=5.5px
+      opt (np.int64(1056), np.int64(584)): lateral=-15.4px, forward=-4.4px
+    [DEBUG] Encontrados 1 grupos paralelos: [2]
+  [+] Bifurcación en (np.int64(1055), np.int64(568)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=69, pos=(np.int64(1046), np.int64(583)):
+      opt (np.int64(1050), np.int64(597)): lateral=-13.5px, forward=5.6px
+      opt (np.int64(1058), np.int64(589)): lateral=-12.2px, forward=-5.7px
+    [DEBUG] Encontrados 1 grupos paralelos: [2]
+  [+] Bifurcación en (np.int64(1046), np.int64(583)). Opciones: 2. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1050), np.int64(597)). Opciones: 3. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=71, pos=(np.int64(1046), np.int64(613)):
+      opt (np.int64(1059), np.int64(613)): lateral=-12.6px, forward=-3.1px
+      opt (np.int64(1053), np.int64(625)): lateral=-9.6px, forward=10.0px
+    [DEBUG] Encontrados 1 grupos paralelos: [2]
+  [+] Bifurcación en (np.int64(1046), np.int64(613)). Opciones: 2. Guardando checkpoint.
+    [PARALELAS] Penalizando opt (np.int64(1039), np.int64(632)): lateral_dist=13.7px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1053), np.int64(625)). Opciones: 4. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=73, pos=(np.int64(1056), np.int64(641)):
+      opt (np.int64(1064), np.int64(657)): lateral=-5.2px, forward=17.1px
+      opt (np.int64(1054), np.int64(658)): lateral=4.9px, forward=16.4px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1056), np.int64(641)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=74, pos=(np.int64(1054), np.int64(658)):
+      opt (np.int64(1056), np.int64(675)): lateral=-0.9px, forward=17.1px
+      opt (np.int64(1047), np.int64(675)): lateral=8.1px, forward=16.5px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1054), np.int64(658)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=75, pos=(np.int64(1056), np.int64(675)):
+      opt (np.int64(1064), np.int64(692)): lateral=-5.2px, forward=18.1px
+      opt (np.int64(1054), np.int64(692)): lateral=4.7px, forward=16.5px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1056), np.int64(675)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=76, pos=(np.int64(1054), np.int64(692)):
+      opt (np.int64(1063), np.int64(706)): lateral=-8.8px, forward=14.1px
+      opt (np.int64(1050), np.int64(709)): lateral=4.3px, forward=16.9px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1054), np.int64(692)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=77, pos=(np.int64(1050), np.int64(709)):
+      opt (np.int64(1063), np.int64(712)): lateral=-13.2px, forward=1.8px
+      opt (np.int64(1056), np.int64(723)): lateral=-7.2px, forward=13.4px
+    [DEBUG] Encontrados 1 grupos paralelos: [2]
+  [+] Bifurcación en (np.int64(1050), np.int64(709)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=78, pos=(np.int64(1056), np.int64(723)):
+      opt (np.int64(1063), np.int64(707)): lateral=-7.5px, forward=-15.8px
+      opt (np.int64(1061), np.int64(739)): lateral=-4.5px, forward=16.1px
+    [DEBUG] Encontrados 1 grupos paralelos: [2]
+  [+] Bifurcación en (np.int64(1056), np.int64(723)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=83, pos=(np.int64(1092), np.int64(795)):
+      opt (np.int64(1099), np.int64(808)): lateral=0.2px, forward=14.8px
+      opt (np.int64(1090), np.int64(814)): lateral=11.0px, forward=15.7px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1090), np.int64(814)): lateral_dist=11.0px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1092), np.int64(795)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=84, pos=(np.int64(1099), np.int64(808)):
+      opt (np.int64(1111), np.int64(817)): lateral=-5.7px, forward=13.9px
+      opt (np.int64(1086), np.int64(810)): lateral=12.2px, forward=-4.9px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1086), np.int64(810)): lateral_dist=12.2px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1099), np.int64(808)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=93, pos=(np.int64(1232), np.int64(838)):
+      opt (np.int64(1248), np.int64(832)): lateral=-5.3px, forward=16.3px
+      opt (np.int64(1249), np.int64(842)): lateral=4.8px, forward=16.8px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1232), np.int64(838)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=95, pos=(np.int64(1263), np.int64(824)):
+      opt (np.int64(1278), np.int64(815)): lateral=-4.2px, forward=17.0px
+      opt (np.int64(1280), np.int64(825)): lateral=6.0px, forward=16.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1263), np.int64(824)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=96, pos=(np.int64(1278), np.int64(815)):
+      opt (np.int64(1293), np.int64(804)): lateral=-4.2px, forward=18.1px
+      opt (np.int64(1297), np.int64(813)): lateral=5.6px, forward=18.3px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1278), np.int64(815)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=97, pos=(np.int64(1293), np.int64(804)):
+      opt (np.int64(1307), np.int64(792)): lateral=-3.7px, forward=18.1px
+      opt (np.int64(1311), np.int64(801)): lateral=6.1px, forward=17.2px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1293), np.int64(804)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=99, pos=(np.int64(1320), np.int64(779)):
+      opt (np.int64(1333), np.int64(767)): lateral=-1.4px, forward=17.6px
+      opt (np.int64(1338), np.int64(776)): lateral=8.8px, forward=16.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1320), np.int64(779)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=100, pos=(np.int64(1333), np.int64(767)):
+      opt (np.int64(1345), np.int64(753)): lateral=-2.7px, forward=18.2px
+      opt (np.int64(1352), np.int64(761)): lateral=8.0px, forward=18.3px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1333), np.int64(767)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=106, pos=(np.int64(1399), np.int64(681)):
+      opt (np.int64(1406), np.int64(665)): lateral=-3.9px, forward=17.0px
+      opt (np.int64(1414), np.int64(671)): lateral=6.1px, forward=17.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1399), np.int64(681)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=107, pos=(np.int64(1406), np.int64(665)):
+      opt (np.int64(1409), np.int64(647)): lateral=-7.3px, forward=16.7px
+      opt (np.int64(1418), np.int64(651)): lateral=2.4px, forward=18.3px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1406), np.int64(665)). Opciones: 2. Guardando checkpoint.
+  Iter 200: Path len 122
+    [DEBUG] Detectando paralelas en path_len=127, pos=(np.int64(1193), np.int64(454)):
+      opt (np.int64(1176), np.int64(460)): lateral=-13.7px, forward=11.7px
+      opt (np.int64(1177), np.int64(450)): lateral=-4.6px, forward=15.9px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1176), np.int64(460)): lateral_dist=13.7px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1193), np.int64(454)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=128, pos=(np.int64(1177), np.int64(450)):
+      opt (np.int64(1166), np.int64(465)): lateral=-18.5px, forward=1.9px
+      opt (np.int64(1161), np.int64(457)): lateral=-14.2px, forward=10.2px
+    [DEBUG] Encontrados 1 grupos paralelos: [2]
+  [+] Bifurcación en (np.int64(1177), np.int64(450)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=129, pos=(np.int64(1161), np.int64(457)):
+      opt (np.int64(1157), np.int64(475)): lateral=-18.4px, forward=-0.9px
+      opt (np.int64(1148), np.int64(469)): lateral=-15.0px, forward=9.3px
+    [DEBUG] Encontrados 1 grupos paralelos: [2]
+  [+] Bifurcación en (np.int64(1161), np.int64(457)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=130, pos=(np.int64(1148), np.int64(469)):
+      opt (np.int64(1141), np.int64(485)): lateral=-15.1px, forward=8.8px
+      opt (np.int64(1133), np.int64(478)): lateral=-7.2px, forward=16.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1141), np.int64(485)): lateral_dist=15.1px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1148), np.int64(469)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=131, pos=(np.int64(1133), np.int64(478)):
+      opt (np.int64(1127), np.int64(496)): lateral=-14.5px, forward=12.3px
+      opt (np.int64(1119), np.int64(489)): lateral=-5.0px, forward=17.1px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1127), np.int64(496)): lateral_dist=14.5px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1133), np.int64(478)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=132, pos=(np.int64(1119), np.int64(489)):
+      opt (np.int64(1111), np.int64(506)): lateral=-9.6px, forward=16.1px
+      opt (np.int64(1103), np.int64(498)): lateral=1.5px, forward=18.3px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1119), np.int64(489)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=133, pos=(np.int64(1103), np.int64(498)):
+      opt (np.int64(1111), np.int64(509)): lateral=-13.6px, forward=-0.2px
+      opt (np.int64(1098), np.int64(511)): lateral=-7.7px, forward=11.6px
+    [DEBUG] Encontrados 1 grupos paralelos: [2]
+  [+] Bifurcación en (np.int64(1103), np.int64(498)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1111), np.int64(509))...
+  [<] Retrocediendo a (np.int64(1111), np.int64(506))...
+    [DEBUG] Detectando paralelas en path_len=134, pos=(np.int64(1111), np.int64(506)):
+      opt (np.int64(1098), np.int64(516)): lateral=2.1px, forward=16.3px
+      opt (np.int64(1097), np.int64(503)): lateral=12.0px, forward=7.8px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1097), np.int64(503)): lateral_dist=12.0px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1111), np.int64(506)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=135, pos=(np.int64(1098), np.int64(516)):
+      opt (np.int64(1082), np.int64(518)): lateral=10.4px, forward=12.3px
+      opt (np.int64(1099), np.int64(498)): lateral=11.5px, forward=-13.9px
+    [DEBUG] Encontrados 1 grupos paralelos: [2]
+  [+] Bifurcación en (np.int64(1098), np.int64(516)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1099), np.int64(498))...
+  [<] Retrocediendo a (np.int64(1097), np.int64(503))...
+    [DEBUG] Detectando paralelas en path_len=136, pos=(np.int64(1097), np.int64(503)):
+      opt (np.int64(1087), np.int64(516)): lateral=-5.6px, forward=15.4px
+      opt (np.int64(1106), np.int64(493)): lateral=3.6px, forward=-13.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1097), np.int64(503)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=141, pos=(np.int64(1090), np.int64(483)):
+      opt (np.int64(1100), np.int64(468)): lateral=8.6px, forward=15.8px
+      opt (np.int64(1105), np.int64(493)): lateral=15.8px, forward=-8.6px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1105), np.int64(493)): lateral_dist=15.8px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1090), np.int64(483)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=145, pos=(np.int64(1134), np.int64(426)):
+      opt (np.int64(1141), np.int64(409)): lateral=-4.8px, forward=17.7px
+      opt (np.int64(1149), np.int64(415)): lateral=5.2px, forward=17.9px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1134), np.int64(426)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=146, pos=(np.int64(1149), np.int64(415)):
+      opt (np.int64(1156), np.int64(401)): lateral=-4.4px, forward=15.0px
+      opt (np.int64(1166), np.int64(406)): lateral=6.4px, forward=18.1px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1149), np.int64(415)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=147, pos=(np.int64(1156), np.int64(401)):
+      opt (np.int64(1169), np.int64(389)): lateral=2.1px, forward=17.6px
+      opt (np.int64(1174), np.int64(398)): lateral=11.8px, forward=13.9px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1174), np.int64(398)): lateral_dist=11.8px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1156), np.int64(401)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=148, pos=(np.int64(1169), np.int64(389)):
+      opt (np.int64(1184), np.int64(380)): lateral=4.9px, forward=16.8px
+      opt (np.int64(1187), np.int64(389)): lateral=13.2px, forward=12.2px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1187), np.int64(389)): lateral_dist=13.2px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1169), np.int64(389)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=149, pos=(np.int64(1184), np.int64(380)):
+      opt (np.int64(1201), np.int64(376)): lateral=8.6px, forward=15.2px
+      opt (np.int64(1202), np.int64(386)): lateral=16.6px, forward=9.2px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1202), np.int64(386)): lateral_dist=16.6px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1184), np.int64(380)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=150, pos=(np.int64(1201), np.int64(376)):
+      opt (np.int64(1218), np.int64(373)): lateral=7.8px, forward=15.4px
+      opt (np.int64(1218), np.int64(383)): lateral=15.8px, forward=9.4px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1218), np.int64(383)): lateral_dist=15.8px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1201), np.int64(376)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=151, pos=(np.int64(1218), np.int64(373)):
+      opt (np.int64(1235), np.int64(373)): lateral=7.0px, forward=15.5px
+      opt (np.int64(1234), np.int64(383)): lateral=15.7px, forward=10.5px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1234), np.int64(383)): lateral_dist=15.7px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1218), np.int64(373)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=167, pos=(np.int64(1417), np.int64(506)):
+      opt (np.int64(1422), np.int64(522)): lateral=6.1px, forward=15.6px
+      opt (np.int64(1413), np.int64(523)): lateral=13.8px, forward=10.7px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1413), np.int64(523)): lateral_dist=13.8px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1417), np.int64(506)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=179, pos=(np.int64(1438), np.int64(707)):
+      opt (np.int64(1442), np.int64(726)): lateral=-4.6px, forward=18.9px
+      opt (np.int64(1432), np.int64(724)): lateral=5.5px, forward=17.2px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1438), np.int64(707)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=180, pos=(np.int64(1432), np.int64(724)):
+      opt (np.int64(1435), np.int64(741)): lateral=-5.2px, forward=16.5px
+      opt (np.int64(1425), np.int64(740)): lateral=4.8px, forward=16.8px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1432), np.int64(724)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=181, pos=(np.int64(1425), np.int64(740)):
+      opt (np.int64(1424), np.int64(759)): lateral=-3.4px, forward=18.7px
+      opt (np.int64(1415), np.int64(755)): lateral=6.2px, forward=16.9px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1425), np.int64(740)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=184, pos=(np.int64(1393), np.int64(783)):
+      opt (np.int64(1388), np.int64(801)): lateral=-5.8px, forward=17.8px
+      opt (np.int64(1380), np.int64(796)): lateral=3.7px, forward=18.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1393), np.int64(783)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=185, pos=(np.int64(1380), np.int64(796)):
+      opt (np.int64(1374), np.int64(814)): lateral=-6.6px, forward=17.8px
+      opt (np.int64(1366), np.int64(807)): lateral=4.0px, forward=17.3px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1380), np.int64(796)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=186, pos=(np.int64(1366), np.int64(807)):
+      opt (np.int64(1363), np.int64(825)): lateral=-10.2px, forward=15.2px
+      opt (np.int64(1353), np.int64(820)): lateral=0.5px, forward=18.4px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1366), np.int64(807)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=188, pos=(np.int64(1339), np.int64(832)):
+      opt (np.int64(1331), np.int64(850)): lateral=-8.0px, forward=18.0px
+      opt (np.int64(1323), np.int64(843)): lateral=2.6px, forward=19.2px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1339), np.int64(832)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=189, pos=(np.int64(1323), np.int64(843)):
+      opt (np.int64(1315), np.int64(860)): lateral=-8.0px, forward=17.0px
+      opt (np.int64(1308), np.int64(853)): lateral=1.8px, forward=17.9px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1323), np.int64(843)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=193, pos=(np.int64(1259), np.int64(873)):
+      opt (np.int64(1244), np.int64(886)): lateral=-5.4px, forward=19.1px
+      opt (np.int64(1241), np.int64(877)): lateral=4.0px, forward=18.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1259), np.int64(873)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=194, pos=(np.int64(1241), np.int64(877)):
+      opt (np.int64(1227), np.int64(889)): lateral=-6.6px, forward=17.2px
+      opt (np.int64(1223), np.int64(879)): lateral=4.2px, forward=17.6px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1241), np.int64(877)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=195, pos=(np.int64(1223), np.int64(879)):
+      opt (np.int64(1210), np.int64(891)): lateral=-8.3px, forward=15.6px
+      opt (np.int64(1206), np.int64(883)): lateral=0.4px, forward=17.5px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1223), np.int64(879)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=198, pos=(np.int64(1170), np.int64(883)):
+      opt (np.int64(1151), np.int64(885)): lateral=-0.4px, forward=19.1px
+      opt (np.int64(1154), np.int64(876)): lateral=8.3px, forward=15.4px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1170), np.int64(883)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=224, pos=(np.int64(941), np.int64(537)):
+      opt (np.int64(942), np.int64(518)): lateral=3.9px, forward=18.6px
+      opt (np.int64(953), np.int64(522)): lateral=14.1px, forward=13.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(953), np.int64(522)): lateral_dist=14.1px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(941), np.int64(537)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=225, pos=(np.int64(942), np.int64(518)):
+      opt (np.int64(944), np.int64(499)): lateral=3.5px, forward=18.8px
+      opt (np.int64(955), np.int64(504)): lateral=14.1px, forward=12.9px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(955), np.int64(504)): lateral_dist=14.1px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(942), np.int64(518)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=226, pos=(np.int64(944), np.int64(499)):
+      opt (np.int64(949), np.int64(483)): lateral=5.0px, forward=16.0px
+      opt (np.int64(959), np.int64(489)): lateral=15.0px, forward=10.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(959), np.int64(489)): lateral_dist=15.0px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(944), np.int64(499)). Opciones: 2. Guardando checkpoint.
+    [PARALELAS] Penalizando opt (np.int64(963), np.int64(475)): lateral_dist=13.0px (umbral=10.8px)
+    [PARALELAS] Penalizando opt (np.int64(960), np.int64(493)): lateral_dist=12.0px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(949), np.int64(483)). Opciones: 3. Guardando checkpoint.
+    [PARALELAS] Penalizando opt (np.int64(966), np.int64(465)): lateral_dist=12.3px (umbral=10.8px)
+    [PARALELAS] Penalizando opt (np.int64(963), np.int64(477)): lateral_dist=11.4px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(953), np.int64(468)). Opciones: 3. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(966), np.int64(465))...
+    [PARALELAS] Penalizando opt (np.int64(948), np.int64(458)): lateral_dist=18.9px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(966), np.int64(465)). Opciones: 3. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=231, pos=(np.int64(970), np.int64(449)):
+      opt (np.int64(953), np.int64(447)): lateral=-15.5px, forward=-7.2px
+      opt (np.int64(975), np.int64(433)): lateral=-4.2px, forward=16.2px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(953), np.int64(447)): lateral_dist=15.5px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(970), np.int64(449)). Opciones: 2. Guardando checkpoint.
+    [PARALELAS] Penalizando opt (np.int64(960), np.int64(435)): lateral_dist=11.6px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(975), np.int64(433)). Opciones: 3. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=233, pos=(np.int64(982), np.int64(419)):
+      opt (np.int64(967), np.int64(420)): lateral=-11.9px, forward=-9.2px
+      opt (np.int64(991), np.int64(406)): lateral=0.3px, forward=15.8px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(967), np.int64(420)): lateral_dist=11.9px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(982), np.int64(419)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=234, pos=(np.int64(991), np.int64(406)):
+      opt (np.int64(998), np.int64(391)): lateral=0.6px, forward=16.5px
+      opt (np.int64(1005), np.int64(396)): lateral=9.0px, forward=14.7px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(991), np.int64(406)). Opciones: 2. Guardando checkpoint.
+    [PARALELAS] Penalizando opt (np.int64(985), np.int64(391)): lateral_dist=11.7px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(998), np.int64(391)). Opciones: 3. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1010), np.int64(384)). Opciones: 3. Guardando checkpoint.
+    [PARALELAS] Penalizando opt (np.int64(1030), np.int64(372)): lateral_dist=13.0px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1017), np.int64(368)). Opciones: 3. Guardando checkpoint.
+    [PARALELAS] Penalizando opt (np.int64(1016), np.int64(358)): lateral_dist=11.2px (umbral=10.8px)
+    [PARALELAS] Penalizando opt (np.int64(1042), np.int64(363)): lateral_dist=12.1px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1028), np.int64(361)). Opciones: 4. Guardando checkpoint.
+  [+] Bifurcación en (np.int64(1039), np.int64(351)). Opciones: 3. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=240, pos=(np.int64(1055), np.int64(342)):
+      opt (np.int64(1071), np.int64(334)): lateral=5.1px, forward=17.2px
+      opt (np.int64(1073), np.int64(345)): lateral=14.5px, forward=11.1px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1073), np.int64(345)): lateral_dist=14.5px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1055), np.int64(342)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=241, pos=(np.int64(1071), np.int64(334)):
+      opt (np.int64(1088), np.int64(328)): lateral=4.0px, forward=17.6px
+      opt (np.int64(1089), np.int64(340)): lateral=14.7px, forward=12.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1089), np.int64(340)): lateral_dist=14.7px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1071), np.int64(334)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=242, pos=(np.int64(1088), np.int64(328)):
+      opt (np.int64(1105), np.int64(326)): lateral=6.4px, forward=15.9px
+      opt (np.int64(1104), np.int64(336)): lateral=14.7px, forward=10.2px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1104), np.int64(336)): lateral_dist=14.7px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1088), np.int64(328)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=243, pos=(np.int64(1105), np.int64(326)):
+      opt (np.int64(1122), np.int64(326)): lateral=6.0px, forward=15.9px
+      opt (np.int64(1119), np.int64(336)): lateral=14.3px, forward=9.5px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1119), np.int64(336)): lateral_dist=14.3px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1105), np.int64(326)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=244, pos=(np.int64(1122), np.int64(326)):
+      opt (np.int64(1139), np.int64(326)): lateral=3.9px, forward=16.5px
+      opt (np.int64(1139), np.int64(336)): lateral=13.7px, forward=14.2px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1139), np.int64(336)): lateral_dist=13.7px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1122), np.int64(326)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=254, pos=(np.int64(1281), np.int64(354)):
+      opt (np.int64(1296), np.int64(359)): lateral=0.2px, forward=15.8px
+      opt (np.int64(1280), np.int64(367)): lateral=12.7px, forward=3.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1280), np.int64(367)): lateral_dist=12.7px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1281), np.int64(354)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=283, pos=(np.int64(1552), np.int64(666)):
+      opt (np.int64(1561), np.int64(682)): lateral=-4.7px, forward=17.7px
+      opt (np.int64(1551), np.int64(683)): lateral=5.2px, forward=16.2px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1552), np.int64(666)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=284, pos=(np.int64(1551), np.int64(683)):
+      opt (np.int64(1555), np.int64(701)): lateral=-1.2px, forward=18.4px
+      opt (np.int64(1545), np.int64(700)): lateral=8.6px, forward=15.9px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1551), np.int64(683)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=285, pos=(np.int64(1545), np.int64(700)):
+      opt (np.int64(1548), np.int64(717)): lateral=-3.0px, forward=17.0px
+      opt (np.int64(1538), np.int64(716)): lateral=7.0px, forward=16.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1545), np.int64(700)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=289, pos=(np.int64(1509), np.int64(762)):
+      opt (np.int64(1501), np.int64(778)): lateral=-1.1px, forward=17.9px
+      opt (np.int64(1491), np.int64(764)): lateral=14.6px, forward=10.8px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1491), np.int64(764)): lateral_dist=14.6px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1509), np.int64(762)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=290, pos=(np.int64(1501), np.int64(778)):
+      opt (np.int64(1503), np.int64(795)): lateral=-10.4px, forward=13.6px
+      opt (np.int64(1490), np.int64(791)): lateral=2.8px, forward=16.8px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1501), np.int64(778)). Opciones: 2. Guardando checkpoint.
+    [PARALELAS] Penalizando opt (np.int64(1508), np.int64(794)): lateral_dist=16.7px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1490), np.int64(791)). Opciones: 3. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=292, pos=(np.int64(1480), np.int64(806)):
+      opt (np.int64(1481), np.int64(824)): lateral=-10.8px, forward=14.5px
+      opt (np.int64(1470), np.int64(821)): lateral=0.1px, forward=18.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+  [+] Bifurcación en (np.int64(1480), np.int64(806)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=293, pos=(np.int64(1470), np.int64(821)):
+      opt (np.int64(1471), np.int64(840)): lateral=-11.3px, forward=15.3px
+      opt (np.int64(1459), np.int64(836)): lateral=0.9px, forward=18.6px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1471), np.int64(840)): lateral_dist=11.3px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1470), np.int64(821)). Opciones: 2. Guardando checkpoint.
+  [<] Retrocediendo a (np.int64(1471), np.int64(840))...
+    [DEBUG] Detectando paralelas en path_len=296, pos=(np.int64(1462), np.int64(856)):
+      opt (np.int64(1451), np.int64(868)): lateral=6.3px, forward=15.0px
+      opt (np.int64(1446), np.int64(859)): lateral=14.0px, forward=8.2px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1446), np.int64(859)): lateral_dist=14.0px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1462), np.int64(856)). Opciones: 2. Guardando checkpoint.
+    [PARALELAS] Penalizando opt (np.int64(1439), np.int64(857)): lateral_dist=15.2px (umbral=10.8px)
+    [PARALELAS] Penalizando opt (np.int64(1435), np.int64(873)): lateral_dist=13.0px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1451), np.int64(868)). Opciones: 3. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=298, pos=(np.int64(1440), np.int64(881)):
+      opt (np.int64(1425), np.int64(883)): lateral=13.0px, forward=7.7px
+      opt (np.int64(1430), np.int64(870)): lateral=13.5px, forward=-6.2px
+    [DEBUG] Encontrados 1 grupos paralelos: [2]
+  [+] Bifurcación en (np.int64(1440), np.int64(881)). Opciones: 2. Guardando checkpoint.
+    [PARALELAS] Penalizando opt (np.int64(1420), np.int64(868)): lateral_dist=14.4px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1425), np.int64(883)). Opciones: 4. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=300, pos=(np.int64(1411), np.int64(895)):
+      opt (np.int64(1395), np.int64(897)): lateral=8.1px, forward=13.9px
+      opt (np.int64(1401), np.int64(883)): lateral=15.6px, forward=0.7px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1401), np.int64(883)): lateral_dist=15.6px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1411), np.int64(895)). Opciones: 2. Guardando checkpoint.
+    [PARALELAS] Penalizando opt (np.int64(1402), np.int64(880)): lateral_dist=11.9px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1395), np.int64(897)). Opciones: 3. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=302, pos=(np.int64(1377), np.int64(896)):
+      opt (np.int64(1374), np.int64(912)): lateral=-14.9px, forward=6.6px
+      opt (np.int64(1364), np.int64(906)): lateral=-6.7px, forward=15.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1374), np.int64(912)): lateral_dist=14.9px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1377), np.int64(896)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=303, pos=(np.int64(1364), np.int64(906)):
+      opt (np.int64(1354), np.int64(923)): lateral=-12.4px, forward=15.4px
+      opt (np.int64(1347), np.int64(915)): lateral=-2.4px, forward=19.1px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1354), np.int64(923)): lateral_dist=12.4px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1364), np.int64(906)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=304, pos=(np.int64(1347), np.int64(915)):
+      opt (np.int64(1338), np.int64(932)): lateral=-13.5px, forward=13.7px
+      opt (np.int64(1331), np.int64(924)): lateral=-3.8px, forward=18.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1338), np.int64(932)): lateral_dist=13.5px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1347), np.int64(915)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=305, pos=(np.int64(1331), np.int64(924)):
+      opt (np.int64(1321), np.int64(940)): lateral=-10.9px, forward=15.4px
+      opt (np.int64(1315), np.int64(932)): lateral=-1.2px, forward=17.9px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1321), np.int64(940)): lateral_dist=10.9px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1331), np.int64(924)). Opciones: 2. Guardando checkpoint.
+    [DEBUG] Detectando paralelas en path_len=306, pos=(np.int64(1315), np.int64(932)):
+      opt (np.int64(1308), np.int64(949)): lateral=-11.2px, forward=14.6px
+      opt (np.int64(1300), np.int64(942)): lateral=-1.1px, forward=18.0px
+    [DEBUG] Encontrados 2 grupos paralelos: [1, 1]
+    [PARALELAS] Penalizando opt (np.int64(1308), np.int64(949)): lateral_dist=11.2px (umbral=10.8px)
+  [+] Bifurcación en (np.int64(1315), np.int64(932)). Opciones: 2. Guardando checkpoint.
+
+[OK] LLEGADA EXITOSA al END en iteración 390
+
+[FIN] Path: 308 pts | Cobertura: 98.5%
+Imagen guardada en data/results/debug/smart_wire_path.png
