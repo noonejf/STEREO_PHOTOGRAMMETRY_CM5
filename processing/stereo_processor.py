@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional, Tuple, Callable
 from datetime import datetime
 
 from utils.logger import get_logger, PerformanceLogger
+from processing.wire_matcher import WireMatcher
 
 logger = get_logger(__name__)
 
@@ -37,6 +38,9 @@ class StereoProcessor:
 
         # Máscara de región válida (se calcula en rectificación)
         self.valid_roi_mask = None
+
+        # Inicializar matcher guiado para cables
+        self.wire_matcher = None  # Se inicializa on-demand
 
         logger.info("Procesador estéreo inicializado")
     
@@ -144,10 +148,7 @@ class StereoProcessor:
         """Configurar algoritmos de matching estéreo"""
 
         # Algoritmo SGBM (Semi-Global Block Matching) - Recomendado
-        # CONFIGURACIÓN BALANCEADA (mix entre tesis y lo que funciona):
-        # - blockSize moderado (17) para balance entre contexto y detalle
-        # - speckleWindowSize moderado (50) para filtrar ruido sin ser agresivo
-        # - uniquenessRatio=5 moderado (permite matches pero con cierta confianza)
+        # CONFIGURACIÓN BASE - Sin modificaciones agresivas
         self.sgbm = cv2.StereoSGBM_create(
             minDisparity=0,
             numDisparities=16*32,     # AUMENTADO: 64→512 (permite objetos muy cercanos hasta ~20cm)
@@ -162,33 +163,127 @@ class StereoProcessor:
             mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY  # OK: Modo 3-way
         )
 
+        # CONFIGURACIÓN ESPECIALIZADA para objetos FINOS (cables, hilos)
+        # Usar blockSize pequeño para capturar detalles finos
+        self.sgbm_fine = cv2.StereoSGBM_create(
+            minDisparity=0,
+            numDisparities=16*32,     # Mismo rango de disparidad
+            blockSize=5,              # PEQUEÑO: 17→5 (crítico para cables finos)
+            P1=8 * 3 * 5**2,         # Ajustado para blockSize=5 (penalización pequeña)
+            P2=32 * 3 * 5**2,        # Ajustado para blockSize=5 (penalización moderada)
+            disp12MaxDiff=1,          # Verificación estricta
+            uniquenessRatio=10,       # AUMENTADO: 5→10 (más conservador con matches ambiguos)
+            speckleWindowSize=100,    # Filtrar ruido aislado
+            speckleRange=32,          # Tolerante a variación en cable
+            preFilterCap=63,          # Máximo rango para preservar detalles
+            mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY
+        )
+
         # Algoritmo BM (Block Matching) - Más rápido pero menos preciso
         self.bm = cv2.StereoBM_create(
             numDisparities=96,
             blockSize=15
         )
 
-        # Filtro WLS para post-procesamiento
+        # Filtro WLS para post-procesamiento (para SGBM estándar)
         self.wls_filter = cv2.ximgproc.createDisparityWLSFilter(self.sgbm)
         self.wls_filter.setLambda(8000.0)  # RESTAURADO: Lambda alto para suavizado efectivo
         self.wls_filter.setSigmaColor(1.5)  # AUMENTADO: 1.2→1.5 (más tolerante a cambios de color)
 
-        # Crear matcher derecho para verificación cruzada
-        self.right_matcher = cv2.ximgproc.createRightMatcher(self.sgbm)
+        # Filtro WLS para algoritmo fino (menos agresivo para preservar detalles)
+        self.wls_filter_fine = cv2.ximgproc.createDisparityWLSFilter(self.sgbm_fine)
+        self.wls_filter_fine.setLambda(4000.0)  # REDUCIDO: Menos suavizado para cables finos
+        self.wls_filter_fine.setSigmaColor(1.0)  # Preservar cambios de intensidad del cable
 
-        # CRÍTICO: Configurar speckleWindowSize DESPUÉS de createRightMatcher
-        # (bug de OpenCV: createRightMatcher resetea algunos parámetros a 0)
-        self.sgbm.setSpeckleWindowSize(100)
-        self.sgbm.setSpeckleRange(8)
+        # Crear matchers derechos para verificación cruzada
+        self.right_matcher = cv2.ximgproc.createRightMatcher(self.sgbm)
+        self.right_matcher_fine = cv2.ximgproc.createRightMatcher(self.sgbm_fine)
+
+        # CRÍTICO: NO necesitamos sobrescribir parámetros después de createRightMatcher
+        # Los valores ya están correctamente configurados en create() arriba
+        # (Eliminado código redundante que causaba inconsistencias)
         
         logger.info("Algoritmos de matching estéreo configurados")
     
-    def preprocess_images(self, left_img: np.ndarray, right_img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def detect_foreground_object_mask(self, img: np.ndarray, debug_name: str = "") -> np.ndarray:
+        """
+        Detectar objeto de interés en imagen con fondo uniforme oscuro
+
+        Estrategia para cable blanco en fondo oscuro:
+        1. Detección de bordes agresiva (el cable tiene bordes fuertes)
+        2. Umbralización por brillo (cable es mucho más brillante que fondo)
+        3. Morfología para conectar píxeles del cable
+        """
+
+        # Convertir a escala de grises
+        if len(img.shape) == 3:
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = img.copy()
+
+        # === ESTRATEGIA 1: Detección por BRILLO ===
+        # El cable blanco es MUCHO más brillante que el fondo morado
+        # Calcular umbral adaptativo basado en estadísticas
+        mean_intensity = np.mean(gray)
+        std_intensity = np.std(gray)
+
+        # Umbral: media + 2 desviaciones estándar (captura solo píxeles brillantes)
+        brightness_threshold = mean_intensity + 2.0 * std_intensity
+        mask_bright = gray > brightness_threshold
+
+        logger.info(f"🔍 DEBUG Máscara de brillo - Umbral: {brightness_threshold:.1f}, Píxeles: {np.sum(mask_bright)}")
+
+        # === ESTRATEGIA 2: Detección de BORDES ===
+        # Aplicar Canny para detectar bordes fuertes
+        # Reducir blur para preservar cables finos
+        blurred = cv2.GaussianBlur(gray, (3, 3), 0)  # Blur mínimo
+        edges = cv2.Canny(blurred, threshold1=30, threshold2=100, apertureSize=3)
+
+        # Dilatar bordes para crear región alrededor del cable
+        kernel_edges = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+        edges_dilated = cv2.dilate(edges, kernel_edges, iterations=2)
+
+        logger.info(f"🔍 DEBUG Máscara de bordes - Píxeles: {np.sum(edges_dilated > 0)}")
+
+        # === COMBINAR ESTRATEGIAS ===
+        # Union de máscara de brillo + bordes
+        mask_combined = (mask_bright | (edges_dilated > 0)).astype(np.uint8)
+
+        # === MORFOLOGÍA: Conectar componentes del cable ===
+        # Cerrar gaps pequeños en el cable
+        kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        mask_closed = cv2.morphologyEx(mask_combined, cv2.MORPH_CLOSE, kernel_close, iterations=2)
+
+        # Dilatar ligeramente para capturar región alrededor del cable
+        kernel_dilate = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        mask_final = cv2.dilate(mask_closed, kernel_dilate, iterations=1)
+
+        logger.info(f"🔍 DEBUG Máscara final - Píxeles: {np.sum(mask_final > 0)} ({100*np.sum(mask_final)/(mask_final.size):.2f}%)")
+
+        # Guardar máscara de debug si se proporciona nombre
+        if debug_name:
+            debug_path = Path("data/results/debug")
+            debug_path.mkdir(parents=True, exist_ok=True)
+            cv2.imwrite(str(debug_path / f"{debug_name}_object_mask.png"), mask_final * 255)
+
+            # Guardar visualización con máscara superpuesta
+            vis = img.copy()
+            if len(vis.shape) == 2:
+                vis = cv2.cvtColor(vis, cv2.COLOR_GRAY2BGR)
+            vis[mask_final > 0] = [0, 255, 0]  # Verde para objeto detectado
+            cv2.imwrite(str(debug_path / f"{debug_name}_object_overlay.jpg"),
+                       cv2.addWeighted(img if len(img.shape) == 3 else cv2.cvtColor(img, cv2.COLOR_GRAY2BGR),
+                                     0.7, vis, 0.3, 0))
+
+        return mask_final
+
+    def preprocess_images(self, left_img: np.ndarray, right_img: np.ndarray,
+                         use_edge_enhancement: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         """
         Preprocesar imágenes para matching estéreo
 
-        DESHABILITADO: El preprocesamiento CLAHE+Unsharp estaba causando que SGBM
-        calculara disparidades completamente incorrectas. Ahora solo convierte a gris.
+        Args:
+            use_edge_enhancement: Si True, realza bordes para mejorar matching en objetos finos
         """
 
         # Convertir a escala de grises si es necesario
@@ -202,7 +297,21 @@ class StereoProcessor:
         else:
             right_gray = right_img.copy()
 
-        logger.debug("Pre-procesamiento: Solo conversión a escala de grises")
+        if use_edge_enhancement:
+            # Realzar bordes usando gradiente morfológico
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+
+            # Gradiente morfológico = dilatación - erosión (resalta bordes)
+            left_grad = cv2.morphologyEx(left_gray, cv2.MORPH_GRADIENT, kernel)
+            right_grad = cv2.morphologyEx(right_gray, cv2.MORPH_GRADIENT, kernel)
+
+            # Combinar imagen original + gradiente (50/50)
+            left_gray = cv2.addWeighted(left_gray, 0.5, left_grad, 0.5, 0)
+            right_gray = cv2.addWeighted(right_gray, 0.5, right_grad, 0.5, 0)
+
+            logger.debug("Pre-procesamiento: Escala de grises + realce de bordes")
+        else:
+            logger.debug("Pre-procesamiento: Solo conversión a escala de grises")
 
         return left_gray, right_gray
     
@@ -249,15 +358,16 @@ class StereoProcessor:
             logger.info(f"🔍 DEBUG ROI válido derecho: {roi2}")
 
             # NO usar máscara ROI restrictiva - las cámaras NO tienen fisheye
-            # Solo crear una máscara básica para excluir pequeños bordes (5% máximo)
+            # Solo crear una máscara básica para excluir bordes mínimos (1% máximo)
             height, width = img_shape[::-1]
             self.valid_roi_mask = np.ones((height, width), dtype=bool)
 
-            # Excluir solo un pequeño margen de bordes (5% en cada lado)
-            margin_y = int(height * 0.05)
-            margin_x = int(width * 0.05)
+            # Excluir solo un margen MÍNIMO de bordes (1% en cada lado)
+            # Esto es suficiente para eliminar artefactos de rectificación sin perder datos útiles
+            margin_y = int(height * 0.01)  # REDUCIDO: 5% → 1%
+            margin_x = int(width * 0.01)   # REDUCIDO: 5% → 1%
 
-            # Mantener todo excepto pequeño margen de bordes
+            # Mantener casi toda la imagen
             self.valid_roi_mask[:margin_y, :] = False  # Top
             self.valid_roi_mask[-margin_y:, :] = False  # Bottom
             self.valid_roi_mask[:, :margin_x] = False  # Left
@@ -279,20 +389,51 @@ class StereoProcessor:
         
         return left_rectified, right_rectified
     
-    def compute_disparity(self, left_img: np.ndarray, right_img: np.ndarray, 
-                         algorithm: str = "SGBM", use_wls_filter: bool = True) -> Dict[str, Any]:
-        """Calcular mapa de disparidad"""
-        
+    def compute_disparity(self, left_img: np.ndarray, right_img: np.ndarray,
+                         algorithm: str = "SGBM", use_wls_filter: bool = True,
+                         use_object_mask: bool = False, use_edge_enhancement: bool = False,
+                         save_debug: bool = False) -> Dict[str, Any]:
+        """
+        Calcular mapa de disparidad
+
+        Args:
+            use_object_mask: Si True, detecta objetos brillantes y descarta fondo oscuro
+            use_edge_enhancement: Si True, realza bordes para objetos finos
+            save_debug: Guardar imágenes intermedias de debug
+        """
+
         with PerformanceLogger(f"Cálculo de disparidad ({algorithm})", logger):
-            
+
+            # Detectar máscara de objeto si se solicita
+            object_mask = None
+            if use_object_mask:
+                logger.info("🔍 Detectando objeto de interés en imágenes...")
+                left_mask = self.detect_foreground_object_mask(left_img, debug_name="left" if save_debug else "")
+                right_mask = self.detect_foreground_object_mask(right_img, debug_name="right" if save_debug else "")
+
+                # Combinar máscaras (intersección para ser conservador)
+                object_mask = (left_mask & right_mask).astype(bool)
+                logger.info(f"🔍 Máscara combinada: {np.sum(object_mask)} píxeles ({100*np.sum(object_mask)/object_mask.size:.2f}%)")
+
             # Preprocesar imágenes
-            left_processed, right_processed = self.preprocess_images(left_img, right_img)
-            
+            left_processed, right_processed = self.preprocess_images(left_img, right_img,
+                                                                     use_edge_enhancement=use_edge_enhancement)
+
             # Seleccionar algoritmo
             if algorithm.upper() == "SGBM":
                 matcher = self.sgbm
+                right_matcher = self.right_matcher
+                wls_filter = self.wls_filter
+            elif algorithm.upper() == "SGBM_FINE":
+                # Algoritmo especializado para objetos finos
+                matcher = self.sgbm_fine
+                right_matcher = self.right_matcher_fine
+                wls_filter = self.wls_filter_fine
+                logger.info("🔍 Usando SGBM_FINE (optimizado para cables/objetos delgados)")
             elif algorithm.upper() == "BM":
                 matcher = self.bm
+                right_matcher = None
+                wls_filter = None
             else:
                 raise ValueError(f"Algoritmo desconocido: {algorithm}")
             
@@ -301,14 +442,14 @@ class StereoProcessor:
             disparity_left = matcher.compute(left_processed, right_processed).astype(np.float32) / 16.0
 
             # CRÍTICO: Limpiar valores inválidos (negativos e infinitos)
-            disparity_left = np.clip(disparity_left, 0, 1000)  # Limitar a rango razonable
-            disparity_left[~np.isfinite(disparity_left)] = 0  # Reemplazar inf/nan con 0
+            disparity_left = np.clip(disparity_left, 0, 1000)
+            disparity_left[~np.isfinite(disparity_left)] = 0
 
-            # CRÍTICO: Aplicar máscara de región válida (elimina bordes con artefactos)
-            if self.valid_roi_mask is not None:
-                logger.info("🔍 DEBUG Aplicando máscara ROI a disparidad sin filtrar...")
-                disparity_left[~self.valid_roi_mask] = 0
-                logger.info(f"   Píxeles enmascarados: {np.sum(~self.valid_roi_mask)}")
+            # Aplicar máscara de objeto si existe (DESCARTAR FONDO COMPLETAMENTE)
+            if object_mask is not None:
+                logger.info("🔍 Aplicando máscara de objeto - Descartando fondo...")
+                disparity_left[~object_mask] = 0
+                logger.info(f"   Píxeles descartados (fondo): {np.sum(~object_mask)}")
 
             # Calcular estadísticas solo sobre píxeles válidos (umbral mínimo reducido)
             valid_mask = disparity_left > 0.5  # REDUCIDO: 0→0.5 (mantiene más puntos válidos)
@@ -325,14 +466,14 @@ class StereoProcessor:
             }
             
             # Aplicar filtro WLS si se solicita
-            if use_wls_filter and algorithm.upper() == "SGBM":
+            if use_wls_filter and algorithm.upper() in ["SGBM", "SGBM_FINE"]:
                 logger.info("Aplicando filtro WLS para suavizado")
-                
+
                 # Calcular disparidad derecha para verificación cruzada
-                disparity_right = self.right_matcher.compute(right_processed, left_processed).astype(np.float32) / 16.0
-                
-                # Aplicar filtro
-                disparity_filtered = self.wls_filter.filter(
+                disparity_right = right_matcher.compute(right_processed, left_processed).astype(np.float32) / 16.0
+
+                # Aplicar filtro (usar el filtro apropiado según el algoritmo)
+                disparity_filtered = wls_filter.filter(
                     disparity_left, left_processed, None, disparity_right
                 )
 
@@ -340,10 +481,10 @@ class StereoProcessor:
                 disparity_filtered = np.clip(disparity_filtered, 0, 1000)
                 disparity_filtered[~np.isfinite(disparity_filtered)] = 0
 
-                # CRÍTICO: Aplicar máscara ROI también al resultado filtrado
-                if self.valid_roi_mask is not None:
-                    logger.info("🔍 DEBUG Aplicando máscara ROI a disparidad filtrada...")
-                    disparity_filtered[~self.valid_roi_mask] = 0
+                # Aplicar máscara de objeto también a disparidad filtrada
+                if object_mask is not None:
+                    logger.info("🔍 Aplicando máscara de objeto a disparidad filtrada...")
+                    disparity_filtered[~object_mask] = 0
 
                 # === POST-PROCESAMIENTO: Suavizado ligero ===
                 # CAMBIADO: Reducir parámetros de bilateral para preservar más detalle
@@ -380,9 +521,245 @@ class StereoProcessor:
             disparity_result['confidence_map'] = confidence_map
             
             logger.info(f"Disparidad calculada - Píxeles válidos: {disparity_result['valid_pixels']}/{disparity_left.size}")
-            
+
             return disparity_result
-    
+
+    def compute_disparity_wire_guided(self,
+                                     left_img: np.ndarray,
+                                     right_img: np.ndarray,
+                                     wire_mask: np.ndarray,
+                                     patch_size: int = 9,
+                                     sample_step: int = 3,
+                                     ncc_threshold: float = 0.65,
+                                     max_disparity: int = 256,
+                                     save_debug: bool = False) -> Dict[str, Any]:
+        """
+        Calcular disparidad usando matching guiado para cables/objetos finos
+
+        Este método es especializado para objetos uniformes sin textura interna
+        (cables, hilos, alambres) donde SGBM falla por falta de features.
+
+        Args:
+            left_img: Imagen izquierda rectificada
+            right_img: Imagen derecha rectificada
+            wire_mask: Máscara binaria del cable (255=cable, 0=fondo)
+            patch_size: Tamaño del patch para correlación (debe ser impar)
+            sample_step: Muestreo del esqueleto (cada N píxeles)
+            ncc_threshold: Umbral de correlación NCC (0-1)
+            save_debug: Guardar imágenes de debug
+
+        Returns:
+            disparity_result: Dict con disparidad sparse y estadísticas
+        """
+
+        with PerformanceLogger("Matching guiado para cable", logger):
+
+            logger.info("🎯 Iniciando matching guiado para cable...")
+
+            # Inicializar WireMatcher si no existe
+            if self.wire_matcher is None:
+                self.wire_matcher = WireMatcher(
+                    patch_size=patch_size,
+                    max_disparity=max_disparity,
+                    sample_step=sample_step,
+                    ncc_threshold=ncc_threshold,
+                    cross_check=False  # Deshabilitado por ahora para velocidad
+                )
+            else:
+                # Actualizar parámetros si cambiaron
+                self.wire_matcher.patch_size = patch_size
+                self.wire_matcher.max_disparity = max_disparity
+                self.wire_matcher.sample_step = sample_step
+                self.wire_matcher.ncc_threshold = ncc_threshold
+                self.wire_matcher.half_patch = patch_size // 2
+
+            # Convertir imágenes a escala de grises
+            left_gray, right_gray = self.preprocess_images(left_img, right_img,
+                                                           use_edge_enhancement=False)
+
+            # 1. Extraer puntos de bordes del cable (SIN thinning para preservar bordes)
+            logger.info("📍 Extrayendo puntos de bordes del cable...")
+            skeleton_points = self.wire_matcher.extract_skeleton(wire_mask, sample_step, use_thinning=False)
+
+            if len(skeleton_points) == 0:
+                logger.error("❌ No se pudo extraer esqueleto del cable!")
+                return {
+                    'success': False,
+                    'algorithm': 'WIRE_GUIDED',
+                    'error': 'No skeleton points extracted'
+                }
+
+            # 2. Calcular disparidad sparse
+            logger.info("🔍 Buscando correspondencias...")
+            matching_result = self.wire_matcher.compute_disparity_sparse(
+                left_gray, right_gray, skeleton_points, save_debug=save_debug
+            )
+
+            if not matching_result['success']:
+                logger.error("❌ Matching guiado falló!")
+                return matching_result
+
+            # 3. Crear mapa de disparidad sparse
+            height, width = left_gray.shape
+            disparity_map_sparse = np.zeros((height, width), dtype=np.float32)
+
+            matches = matching_result['matches']
+            disparities = matching_result['disparities']
+
+            # Llenar mapa de disparidad con matches válidos
+            for (x_left, y_left, _), disp in zip(matches, disparities):
+                disparity_map_sparse[int(y_left), int(x_left)] = disp
+
+            # 4. Estadísticas
+            valid_pixels = np.sum(disparity_map_sparse > 0)
+
+            disparity_result = {
+                'success': True,
+                'algorithm': 'WIRE_GUIDED',
+                'disparity_map': disparity_map_sparse,
+                'shape': disparity_map_sparse.shape,
+                'min_disparity': matching_result['min_disparity'],
+                'max_disparity': matching_result['max_disparity'],
+                'mean_disparity': matching_result['mean_disparity'],
+                'median_disparity': matching_result['median_disparity'],
+                'std_disparity': matching_result['std_disparity'],
+                'valid_pixels': valid_pixels,
+                'num_matches': matching_result['num_matches'],
+                'match_ratio': matching_result['match_ratio'],
+                'mean_ncc_score': matching_result['mean_score'],
+                'matches': matches,
+                'disparities': disparities,
+                'scores': matching_result['scores'],
+                'filtered': False  # Es sparse, no necesita filtros adicionales
+            }
+
+            # 5. Crear mapa de confianza basado en scores NCC
+            confidence_map = np.zeros((height, width), dtype=np.float32)
+            scores = matching_result['scores']
+
+            for (x_left, y_left, _), score in zip(matches, scores):
+                confidence_map[int(y_left), int(x_left)] = score
+
+            disparity_result['confidence_map'] = confidence_map
+
+            logger.info(f"✓ Matching guiado completado:")
+            logger.info(f"  - Matches válidos: {valid_pixels}")
+            logger.info(f"  - Disparidad media: {disparity_result['mean_disparity']:.1f}px")
+            logger.info(f"  - Score NCC medio: {disparity_result['mean_ncc_score']:.3f}")
+
+            return disparity_result
+
+    def process_wire_masks(self,
+                          mask_left: np.ndarray,
+                          mask_right: np.ndarray,
+                          save_debug: bool = False) -> Dict[str, Any]:
+        """
+        Procesa máscaras de cables usando SmartWireTracker para generar paths precisos.
+        Detecta automáticamente endpoints y ejecuta tracking en ambas máscaras.
+
+        Args:
+            mask_left: Máscara binaria del cable izquierdo (255=cable, 0=fondo)
+            mask_right: Máscara binaria del cable derecho (255=cable, 0=fondo)
+            save_debug: Guardar imágenes de debug
+
+        Returns:
+            Dict con paths, endpoints, máscaras procesadas y cobertura
+        """
+        from processing.endpoint_detector import detect_wire_endpoints
+        from processing.smart_wire_tracker import SmartWireTracker
+
+        logger.info("🎯 Procesando máscaras de cables con SmartWireTracker...")
+
+        # Crear directorio de debug si no existe
+        if save_debug:
+            debug_dir = Path("data/results/debug")
+            debug_dir.mkdir(parents=True, exist_ok=True)
+
+        result = {
+            'success': False,
+            'left': {},
+            'right': {},
+            'debug_images': {}
+        }
+
+        try:
+            # === PASO 1: Detectar endpoints en máscara izquierda ===
+            logger.info("  Detectando endpoints en máscara izquierda...")
+            start_left, end_left = detect_wire_endpoints(
+                mask_left,
+                method="skeleton",
+                visualize=save_debug,
+                vis_output_path="data/results/debug/endpoints_left.png" if save_debug else None
+            )
+            logger.info(f"    Start LEFT: {start_left}, End LEFT: {end_left}")
+
+            # === PASO 2: Tracking en máscara izquierda ===
+            logger.info("  Ejecutando wire tracking en máscara izquierda...")
+            tracker_left = SmartWireTracker(mask_left, start_left, end_left)
+            track_result_left = tracker_left.track_wire(max_iterations=10000)
+
+            if save_debug:
+                tracker_left.visualize('data/results/debug/wire_path_left.png')
+
+            result['left'] = {
+                'start': start_left,
+                'end': end_left,
+                'path': track_result_left['path'],
+                'coverage': track_result_left['coverage'],
+                'success': track_result_left['success']
+            }
+
+            logger.info(f"    ✓ Path LEFT: {len(track_result_left['path'])} puntos, "
+                       f"Cobertura: {track_result_left['coverage']*100:.1f}%")
+
+            # === PASO 3: Detectar endpoints en máscara derecha ===
+            logger.info("  Detectando endpoints en máscara derecha...")
+            start_right, end_right = detect_wire_endpoints(
+                mask_right,
+                method="skeleton",
+                visualize=save_debug,
+                vis_output_path="data/results/debug/endpoints_right.png" if save_debug else None
+            )
+            logger.info(f"    Start RIGHT: {start_right}, End RIGHT: {end_right}")
+
+            # === PASO 4: Tracking en máscara derecha ===
+            logger.info("  Ejecutando wire tracking en máscara derecha...")
+            tracker_right = SmartWireTracker(mask_right, start_right, end_right)
+            track_result_right = tracker_right.track_wire(max_iterations=10000)
+
+            if save_debug:
+                tracker_right.visualize('data/results/debug/wire_path_right.png')
+
+            result['right'] = {
+                'start': start_right,
+                'end': end_right,
+                'path': track_result_right['path'],
+                'coverage': track_result_right['coverage'],
+                'success': track_result_right['success']
+            }
+
+            logger.info(f"    ✓ Path RIGHT: {len(track_result_right['path'])} puntos, "
+                       f"Cobertura: {track_result_right['coverage']*100:.1f}%")
+
+            # === PASO 5: Validación de resultados ===
+            if track_result_left['success'] and track_result_right['success']:
+                result['success'] = True
+                logger.info("✓ Wire tracking completado exitosamente en ambas máscaras")
+            else:
+                logger.warning("⚠️ Wire tracking falló en una o ambas máscaras")
+                if not track_result_left['success']:
+                    logger.warning("  - Fallo en máscara izquierda")
+                if not track_result_right['success']:
+                    logger.warning("  - Fallo en máscara derecha")
+
+        except Exception as e:
+            logger.error(f"❌ Error en process_wire_masks: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            result['error'] = str(e)
+
+        return result
+
     def compute_confidence_map(self, disparity: np.ndarray) -> np.ndarray:
         """
         Calcular mapa de confianza para la disparidad
@@ -424,8 +801,8 @@ class StereoProcessor:
         else:
             grad_normalized = np.zeros_like(disparity_grad)
 
-        # AUMENTADO: Penalización más agresiva de gradientes altos (reduce "vitiligo")
-        confidence *= (1.0 - grad_normalized * 0.8)  # Cambiado de 0.5 a 0.8
+        # Penalización moderada
+        confidence *= (1.0 - grad_normalized * 0.9)
 
         # === FILTRO 3: Varianza local (consistencia) ===
         # Calcular desviación estándar local en ventana 7x7
@@ -511,9 +888,8 @@ class StereoProcessor:
                 logger.error("❌ No hay píxeles válidos en disparidad!")
 
             # Filtrar profundidades fuera de rango razonable
-            # AJUSTADO: Rango realista para entorno interior pequeño
-            min_depth = 0.3   # 30cm mínimo (evita puntos muy cercanos inestables)
-            max_depth = 5.0   # 5m máximo (adecuado para cuarto pequeño)
+            min_depth = 0.2   # 20cm mínimo
+            max_depth = 5.0   # 3m máximo
 
             range_mask = (depth_map >= min_depth) & (depth_map <= max_depth)
             final_mask = valid_mask & range_mask
@@ -542,7 +918,7 @@ class StereoProcessor:
     
     def generate_point_cloud(self, left_img: np.ndarray, disparity: np.ndarray,
                            depth_map: np.ndarray, confidence_map: np.ndarray = None,
-                           min_confidence: float = 0.5) -> Dict[str, Any]:
+                           min_confidence: float = 0.5, filter_background_color: bool = True) -> Dict[str, Any]:
         """Generar nube de puntos 3D"""
 
         with PerformanceLogger("Generación de nube de puntos", logger):
@@ -560,11 +936,8 @@ class StereoProcessor:
             height, width = disparity.shape
             logger.info(f"🔍 DEBUG Nube de puntos - Tamaño imagen: {height}x{width} = {height*width} píxeles")
 
-            # Máscara de píxeles válidos - REDUCIDO umbral siguiendo enfoque de la tesis
-            # La tesis acepta disparidades desde 1 píxel para capturar objetos lejanos
-            # Con baseline=103mm y focal=2010px: Z = (baseline*focal)/disparity
-            # disparity=1 → Z≈20m, disparity=5 → Z≈4m, disparity=10 → Z≈2m
-            valid_mask = disparity > 1.0  # REDUCIDO: 10.0→1.0 (como tesis, más inclusivo)
+            # Máscara de píxeles válidos - umbral básico
+            valid_mask = disparity > 1.0
             logger.info(f"🔍 DEBUG Píxeles con disparidad > 1.0: {np.sum(valid_mask)}")
 
             # Aplicar filtro de confianza si está disponible
@@ -747,7 +1120,7 @@ class StereoProcessor:
     
     def process_stereo_pair(self, left_img: np.ndarray, right_img: np.ndarray,
                            algorithm: str = "SGBM", progress_callback: Callable = None,
-                           save_debug_images: bool = False) -> Dict[str, Any]:
+                           save_debug_images: bool = False, cable_mask: np.ndarray = None) -> Dict[str, Any]:
         """Procesar par estéreo completo"""
         
         processing_start = datetime.now()
@@ -798,10 +1171,51 @@ class StereoProcessor:
 
             if progress_callback:
                 progress_callback(30, "Calculando disparidad...")
-            
+
             # 2. Calcular disparidad
-            disparity_result = self.compute_disparity(left_rect, right_rect, algorithm, use_wls_filter=True)
-            
+            # Para objetos finos en fondo oscuro, usar configuración especializada
+            disparity_result = self.compute_disparity(
+                left_rect, right_rect,
+                algorithm=algorithm,
+                use_wls_filter=True,
+                use_object_mask=False,  # Deshabilitado por defecto, se puede habilitar vía parámetro
+                use_edge_enhancement=False,  # Deshabilitado por defecto
+                save_debug=save_debug_images
+            )
+
+            # APLICAR MÁSCARA DE CABLE si está configurada
+            if cable_mask is not None:
+                logger.info("🎯 Aplicando máscara de cable al mapa de disparidad...")
+
+                # Redimensionar máscara si es necesario (debería tener mismo tamaño que imagen rectificada)
+                if cable_mask.shape[:2] != disparity_result['disparity_map'].shape[:2]:
+                    cable_mask = cv2.resize(cable_mask,
+                                          (disparity_result['disparity_map'].shape[1],
+                                           disparity_result['disparity_map'].shape[0]),
+                                          interpolation=cv2.INTER_NEAREST)
+
+                # Descartar disparidad FUERA del cable (poner a 0)
+                disparity_before = np.sum(disparity_result['disparity_map'] > 0)
+                disparity_result['disparity_map'][cable_mask == 0] = 0
+
+                # También aplicar a mapa de confianza si existe
+                if 'confidence_map' in disparity_result and disparity_result['confidence_map'] is not None:
+                    disparity_result['confidence_map'][cable_mask == 0] = 0
+
+                disparity_after = np.sum(disparity_result['disparity_map'] > 0)
+                logger.info(f"   Píxeles válidos ANTES de máscara: {disparity_before}")
+                logger.info(f"   Píxeles válidos DESPUÉS de máscara: {disparity_after}")
+                logger.info(f"   Píxeles descartados (fondo): {disparity_before - disparity_after}")
+
+                # Guardar mapa con máscara aplicada
+                if save_debug_images:
+                    debug_path = Path("data/results/debug")
+                    disp_masked = disparity_result['disparity_map'].copy()
+                    disp_vis = cv2.normalize(disp_masked, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+                    disp_color = cv2.applyColorMap(disp_vis, cv2.COLORMAP_JET)
+                    disp_color[disp_masked <= 0] = [0, 0, 0]
+                    cv2.imwrite(str(debug_path / "10_disparity_with_cable_mask.png"), disp_color)
+
             if progress_callback:
                 progress_callback(60, "Convirtiendo a profundidad...")
             

@@ -32,10 +32,11 @@ class ProcessingWorkerThread(QThread):
     log_message = pyqtSignal(str, str)  # message, level
     intermediate_result = pyqtSignal(str, object)  # tipo, datos
     
-    def __init__(self, camera_config, processing_params):
+    def __init__(self, camera_config, processing_params, cable_masks=None):
         super().__init__()
         self.camera_config = camera_config
         self.processing_params = processing_params
+        self.cable_masks = cable_masks  # (mask_left, mask_right) o None
         self.should_stop = False
         
     def run(self):
@@ -55,13 +56,22 @@ class ProcessingWorkerThread(QThread):
                 raise RuntimeError("No se pudieron cargar las imágenes")
 
             self.log_message.emit(f"Imágenes cargadas: {left_img.shape}", "INFO")
-            
-            # Procesar par estéreo
+
+            # NO aplicar máscara a las imágenes, solo pasarla al procesador
+            # El procesador la aplicará DESPUÉS de calcular disparidad
+            cable_mask = None
+            if self.cable_masks is not None:
+                mask_left, mask_right = self.cable_masks
+                cable_mask = mask_left  # Usar máscara izquierda (ya están alineadas después de rectificación)
+                self.log_message.emit("✓ Máscara de cable configurada - se aplicará después de calcular disparidad", "INFO")
+
+            # Procesar par estéreo con máscara opcional
             result = processor.process_stereo_pair(
                 left_img, right_img,
                 algorithm=self.processing_params['algorithm'],
                 progress_callback=self.progress_callback,
-                save_debug_images=True  # ✅ Activar modo depuración
+                save_debug_images=True,
+                cable_mask=cable_mask  # Pasar máscara al procesador
             )
             
             if not result['success']:
@@ -474,28 +484,57 @@ class ProcessingDialog(QDialog):
         self.btn_select_capture_folder.clicked.connect(self.select_capture_session)
         layout.addWidget(self.btn_select_capture_folder)
 
-        # Separador
-        separator = QLabel("─── o seleccionar imágenes individuales ───")
-        separator.setAlignment(Qt.AlignCenter)
-        separator.setStyleSheet("color: #999999; font-size: 9px; margin: 5px;")
-        layout.addWidget(separator)
-
-        # Botones de selección manual de imágenes individuales
-        manual_layout = QHBoxLayout()
-
-        self.btn_select_left = QPushButton("📷 Seleccionar Izquierda")
-        self.btn_select_left.clicked.connect(self.select_left_image)
-        manual_layout.addWidget(self.btn_select_left)
-
-        self.btn_select_right = QPushButton("📷 Seleccionar Derecha")
-        self.btn_select_right.clicked.connect(self.select_right_image)
-        manual_layout.addWidget(self.btn_select_right)
-
-        layout.addLayout(manual_layout)
-
-        # Rutas seleccionadas
+        # Rutas seleccionadas (se llenan automáticamente al seleccionar sesión)
         self.selected_left_path = None
         self.selected_right_path = None
+        self.current_session_path = None
+
+        # NUEVO: Botón para configurar filtro de cable
+        separator2 = QLabel("─────────────────────────────")
+        separator2.setAlignment(Qt.AlignCenter)
+        separator2.setStyleSheet("color: #999999; font-size: 9px; margin: 5px;")
+        layout.addWidget(separator2)
+
+        self.btn_configure_cable_filter = QPushButton("🔧 Configurar Filtro de Cable")
+        self.btn_configure_cable_filter.setStyleSheet("""
+            QPushButton {
+                font-weight: bold;
+                background-color: #FF9800;
+                color: white;
+                padding: 12px;
+                border-radius: 5px;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #F57C00;
+            }
+            QPushButton:disabled {
+                background-color: #CCCCCC;
+                color: #666666;
+            }
+        """)
+        self.btn_configure_cable_filter.clicked.connect(self.open_cable_filter_config)
+        self.btn_configure_cable_filter.setEnabled(False)  # Deshabilitado hasta seleccionar imágenes
+        layout.addWidget(self.btn_configure_cable_filter)
+
+        # Estado del filtro de cable
+        self.cable_filter_configured = False
+        self.cable_mask_left = None
+        self.cable_mask_right = None
+        self.wire_tracking_result = None  # Resultado del SmartWireTracker
+
+        self.filter_status_label = QLabel("⚠️ Filtro no configurado")
+        self.filter_status_label.setStyleSheet("""
+            QLabel {
+                background-color: #FFF3E0;
+                padding: 6px;
+                border-radius: 3px;
+                border: 1px solid #FF9800;
+                color: #E65100;
+                font-size: 9px;
+            }
+        """)
+        layout.addWidget(self.filter_status_label)
 
         return group
     
@@ -765,26 +804,6 @@ class ProcessingDialog(QDialog):
             self.capture_info_label.setText(f"❌ Error: {e}")
             self.btn_start.setEnabled(False)
     
-    def select_left_image(self):
-        """Seleccionar imagen izquierda manualmente"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Seleccionar Imagen Izquierda",
-            "data/captures", "Imágenes (*.jpg *.jpeg *.png *.bmp)"
-        )
-        if file_path:
-            self.selected_left_path = file_path
-            self.update_manual_selection_display()
-    
-    def select_right_image(self):
-        """Seleccionar imagen derecha manualmente"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Seleccionar Imagen Derecha", 
-            "data/captures", "Imágenes (*.jpg *.jpeg *.png *.bmp)"
-        )
-        if file_path:
-            self.selected_right_path = file_path
-            self.update_manual_selection_display()
-    
     def select_capture_session(self):
         """Seleccionar una sesión de captura completa"""
         try:
@@ -887,6 +906,7 @@ class ProcessingDialog(QDialog):
                     # Cargar imágenes de la sesión seleccionada
                     self.selected_left_path = str(selected_session / "left.jpg")
                     self.selected_right_path = str(selected_session / "right.jpg")
+                    self.current_session_path = selected_session
 
                     # Actualizar display
                     capture_time = datetime.fromtimestamp(selected_session.stat().st_mtime)
@@ -898,6 +918,9 @@ class ProcessingDialog(QDialog):
 🎯 Estado: Listo para procesar"""
 
                     self.capture_info_label.setText(info_text)
+
+                    # Habilitar botón de configurar filtro
+                    self.btn_configure_cable_filter.setEnabled(True)
                     self.capture_info_label.setStyleSheet("""
                         QLabel {
                             background-color: #E8F5E8;
@@ -996,11 +1019,20 @@ class ProcessingDialog(QDialog):
             self.btn_start.setEnabled(False)
             self.btn_cancel.setEnabled(True)
             self.progress_bar.setValue(0)
-            
+
+            # Preparar máscaras de cable si están configuradas
+            cable_masks = None
+            if self.cable_filter_configured and self.cable_mask_left is not None and self.cable_mask_right is not None:
+                cable_masks = (self.cable_mask_left, self.cable_mask_right)
+                self.add_log_message("✓ Usando máscaras de cable configuradas", "INFO")
+            else:
+                self.add_log_message("⚠️ Sin máscara de cable - procesando imagen completa", "WARNING")
+
             # Crear y iniciar hilo de procesamiento
             self.processing_thread = ProcessingWorkerThread(
                 self.camera_config,
-                processing_params
+                processing_params,
+                cable_masks=cable_masks
             )
             
             # Conectar señales
@@ -1108,6 +1140,123 @@ class ProcessingDialog(QDialog):
         else:
             logger.info(message)
     
+    def open_cable_filter_config(self):
+        """Abrir GUI de configuración de filtro de cable"""
+        try:
+            # Cargar imágenes de la sesión
+            left_img = cv2.imread(self.selected_left_path)
+            right_img = cv2.imread(self.selected_right_path)
+
+            if left_img is None or right_img is None:
+                QMessageBox.warning(self, "Error", "No se pudieron cargar las imágenes de la sesión")
+                return
+
+            # Importar y abrir GUI de configuración con capacidad de switch
+            from edge_detection_tuner import open_cable_detection_tuner_with_switch
+
+            result = open_cable_detection_tuner_with_switch(
+                left_img, right_img,
+                self.selected_left_path, self.selected_right_path
+            )
+
+            if result is not None:
+                self.cable_mask_left, self.cable_mask_right = result
+                self.cable_filter_configured = True
+
+                # === NUEVO: Procesar máscaras con SmartWireTracker ===
+                self.add_log_message("🎯 Procesando máscaras con SmartWireTracker...", "INFO")
+
+                try:
+                    # Crear procesador temporal para usar process_wire_masks
+                    processor = StereoProcessor(self.camera_config)
+
+                    # Procesar máscaras con wire tracker
+                    wire_result = processor.process_wire_masks(
+                        self.cable_mask_left,
+                        self.cable_mask_right,
+                        save_debug=True
+                    )
+
+                    if wire_result['success']:
+                        # Guardar resultados del wire tracking
+                        self.wire_tracking_result = wire_result
+
+                        self.add_log_message(f"✓ Wire tracking exitoso:", "INFO")
+                        self.add_log_message(f"  LEFT: {len(wire_result['left']['path'])} puntos, "
+                                      f"Cobertura: {wire_result['left']['coverage']*100:.1f}%", "INFO")
+                        self.add_log_message(f"  RIGHT: {len(wire_result['right']['path'])} puntos, "
+                                      f"Cobertura: {wire_result['right']['coverage']*100:.1f}%", "INFO")
+
+                        # Actualizar label de estado
+                        self.filter_status_label.setText("✅ Filtro configurado + Wire tracking OK")
+                        self.filter_status_label.setStyleSheet("""
+                            QLabel {
+                                background-color: #E8F5E9;
+                                padding: 6px;
+                                border-radius: 3px;
+                                border: 1px solid #4CAF50;
+                                color: #2E7D32;
+                                font-size: 9px;
+                            }
+                        """)
+
+                        QMessageBox.information(self, "Éxito",
+                            f"Filtro de cable y wire tracking configurados correctamente.\n\n"
+                            f"LEFT: {len(wire_result['left']['path'])} puntos (Cov: {wire_result['left']['coverage']*100:.1f}%)\n"
+                            f"RIGHT: {len(wire_result['right']['path'])} puntos (Cov: {wire_result['right']['coverage']*100:.1f}%)\n\n"
+                            f"Imágenes de debug guardadas en data/results/debug/")
+                    else:
+                        self.add_log_message("⚠️ Wire tracking falló, usando solo máscaras básicas", "WARNING")
+                        self.wire_tracking_result = None
+
+                        # Actualizar label de estado
+                        self.filter_status_label.setText("⚠️ Filtro OK, Wire tracking falló")
+                        self.filter_status_label.setStyleSheet("""
+                            QLabel {
+                                background-color: #FFF3E0;
+                                padding: 6px;
+                                border-radius: 3px;
+                                border: 1px solid #FF9800;
+                                color: #E65100;
+                                font-size: 9px;
+                            }
+                        """)
+
+                        QMessageBox.warning(self, "Advertencia",
+                            "Máscaras creadas pero wire tracking falló.\n\n"
+                            "El procesamiento usará las máscaras básicas sin paths optimizados.")
+
+                except Exception as e:
+                    logger.error(f"Error en wire tracking: {e}")
+                    self.add_log_message(f"❌ Error en wire tracking: {e}", "ERROR")
+                    self.wire_tracking_result = None
+
+                    # Actualizar label de estado (máscaras OK pero sin tracking)
+                    self.filter_status_label.setText("✅ Filtro configurado (sin wire tracking)")
+                    self.filter_status_label.setStyleSheet("""
+                        QLabel {
+                            background-color: #E8F5E9;
+                            padding: 6px;
+                            border-radius: 3px;
+                            border: 1px solid #4CAF50;
+                            color: #2E7D32;
+                            font-size: 9px;
+                        }
+                    """)
+
+                    QMessageBox.information(self, "Éxito parcial",
+                        f"Filtro de cable configurado correctamente.\n\n"
+                        f"Wire tracking falló ({e}), pero las máscaras están disponibles.")
+
+            else:
+                QMessageBox.information(self, "Cancelado",
+                    "Configuración de filtro cancelada.")
+
+        except Exception as e:
+            logger.error(f"Error abriendo configuración de filtro: {e}")
+            QMessageBox.critical(self, "Error",
+                f"Error abriendo configuración de filtro:\n{e}")
+
     def closeEvent(self, event):
         """Manejar cierre del diálogo"""
         if self.processing_thread and self.processing_thread.isRunning():
@@ -1117,7 +1266,7 @@ class ProcessingDialog(QDialog):
                 "El procesamiento está en progreso. ¿Deseas cancelarlo y cerrar?",
                 QMessageBox.Yes | QMessageBox.No
             )
-            
+
             if msg == QMessageBox.Yes:
                 self.cancel_processing()
                 event.accept()
