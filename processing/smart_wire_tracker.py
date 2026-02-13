@@ -547,15 +547,19 @@ class SmartWireTracker:
         cv2.circle(base, self.start, 8, (0, 255, 0), -1) # Verde Start
         cv2.circle(base, self.end, 8, (0, 0, 255), -1)   # Rojo End
         
-        plt.figure(figsize=(14, 12))
-        plt.imshow(cv2.cvtColor(base, cv2.COLOR_BGR2RGB)) # Matplotlib usa RGB
+        # Usar backend no interactivo para evitar bloqueos desde threads
+        import matplotlib
+        matplotlib.use('Agg')  # Backend sin GUI
+
+        fig = plt.figure(figsize=(14, 12))
+        plt.imshow(cv2.cvtColor(base, cv2.COLOR_BGR2RGB))
         plt.axis('off')
-        
+
         coverage_pct = self._compute_coverage() * 100
         plt.title(f"Tracker Debug | Red=Covered Area | Blue=Path | Cov: {coverage_pct:.1f}%")
         plt.savefig(output_path)
         print(f"Imagen guardada en {output_path}")
-        plt.show()  # Cerrar en lugar de mostrar para no bloquear
+        plt.close(fig)  # Cerrar figura sin mostrar
 
 def main():
     """Test del tracker."""

@@ -256,13 +256,14 @@ def configure_opencv_logging():
     """Configurar logging de OpenCV para reducir ruido"""
     try:
         import cv2
-        # Reducir verbosidad de OpenCV
-        cv2.setLogLevel(0)  # Solo errores críticos
-        
+        # Reducir verbosidad de OpenCV (solo disponible en algunas versiones)
+        if hasattr(cv2, 'setLogLevel'):
+            cv2.setLogLevel(0)  # Solo errores críticos
+
         logger = get_logger(__name__)
         logger.debug(f"OpenCV logging configurado - Versión: {cv2.__version__}")
-        
-    except ImportError:
+
+    except (ImportError, AttributeError):
         pass
 
 # Configuración por defecto al importar el módulo

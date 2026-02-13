@@ -4,7 +4,15 @@
       "Bash(tree:*)",
       "Bash(python verify_thesis_changes.py:*)",
       "Bash(python -c:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(python -m venv:*)",
+      "Bash(venvScriptspip install -r requirements.txt)",
+      "Bash(venv\\\\Scripts\\\\pip.exe install -r requirements.txt)",
+      "Bash(./venv/Scripts/python.exe:*)",
+      "Bash(git checkout:*)",
+      "Bash(.venvScriptspython.exe -c \"\nimport cv2\nimport numpy as np\nfrom processing.endpoint_detector import EndpointDetector\n\n# Test con una máscara simple para verificar que funciona\nprint\\(''Testing endpoint detector...''\\)\n\n# Crear una máscara de prueba con forma de cable\nmask = np.zeros\\(\\(200, 300\\), dtype=np.uint8\\)\n# Cable principal de izquierda a derecha\ncv2.line\\(mask, \\(20, 100\\), \\(280, 100\\), 255, 5\\)\n# Pequeña rama en el centro \\(que NO debería ser detectada como endpoint\\)\ncv2.line\\(mask, \\(150, 100\\), \\(150, 50\\), 255, 5\\)\n\ndetector = EndpointDetector\\(mask\\)\nstart, end = detector.detect_endpoints\\(method=''skeleton''\\)\n\nprint\\(f''Start: {start}''\\)\nprint\\(f''End: {end}''\\)\n\n# Verificar que los endpoints están en los extremos del cable principal\n# y NO en la rama\nexpected_x = [20, 280]\nactual_x = sorted\\([start[0], end[0]]\\)\n\nif abs\\(actual_x[0] - 20\\) < 15 and abs\\(actual_x[1] - 280\\) < 15:\n    print\\(''OK - Endpoints detectados correctamente en los extremos del cable principal''\\)\nelse:\n    print\\(f''ERROR - Endpoints incorrectos. Esperado cerca de x=[20, 280], obtenido x={actual_x}''\\)\n\")",
+      "Bash(.venv\\\\Scripts\\\\python.exe:*)",
+      "Bash(cmd /c \"cd /d c:\\\\Users\\\\jf19s\\\\Desktop\\\\PROYECTOS\\\\ACTUALES\\\\STEREO_PHOTOGRAMMETRY_CM5_CLEAN && .venv\\\\Scripts\\\\python.exe -c \"\"import cv2; import numpy as np; from processing.endpoint_detector import EndpointDetector; print\\(''Testing...''\\); mask = np.zeros\\(\\(200, 300\\), dtype=np.uint8\\); cv2.line\\(mask, \\(20, 100\\), \\(280, 100\\), 255, 5\\); cv2.line\\(mask, \\(150, 100\\), \\(150, 50\\), 255, 5\\); detector = EndpointDetector\\(mask\\); start, end = detector.detect_endpoints\\(method=''skeleton''\\); print\\(f''Start: {start}''\\); print\\(f''End: {end}''\\); actual_x = sorted\\([start[0], end[0]]\\); print\\(''OK'' if abs\\(actual_x[0] - 20\\) < 15 and abs\\(actual_x[1] - 280\\) < 15 else ''ERROR''\\)\"\"\")"
     ],
     "deny": [],
     "ask": []

@@ -42,51 +42,136 @@ class EndpointDetector:
 
     def _detect_endpoints_skeleton(self) -> Tuple[Tuple[int, int], Tuple[int, int]]:
         """
-        Detecta endpoints usando skeleton y análisis de conectividad.
-        Un endpoint tiene exactamente 1 vecino en el skeleton.
+        Detecta endpoints usando skeleton y DISTANCIA GEODÉSICA.
+        Los endpoints reales son los que tienen el camino MÁS LARGO entre ellos
+        a lo largo del skeleton (no distancia euclidiana).
         """
         # Crear skeleton
         skeleton = self._create_skeleton()
+        skeleton_binary = (skeleton > 0).astype(np.uint8)
 
         # Contar vecinos de cada píxel del skeleton
-        kernel = np.ones((3, 3), np.uint8)
-        kernel[1, 1] = 0  # No contar el píxel central
+        kernel = np.ones((3, 3), np.float32)
+        kernel[1, 1] = 0
+        neighbors = cv2.filter2D(skeleton_binary.astype(np.float32), -1, kernel)
+        neighbors = neighbors * skeleton_binary
 
-        # Convolución para contar vecinos
-        neighbors = cv2.filter2D(skeleton.astype(np.uint8), -1, kernel)
-        neighbors = neighbors * skeleton  # Solo en píxeles del skeleton
-
-        # Endpoints tienen exactamente 1 vecino
-        endpoints = (neighbors == 255).astype(np.uint8)
-
-        # Obtener coordenadas de endpoints
-        endpoint_coords = np.column_stack(np.where(endpoints > 0))
+        # Endpoints del skeleton tienen exactamente 1 vecino
+        endpoints_mask = ((neighbors >= 0.9) & (neighbors <= 1.1)).astype(np.uint8)
+        endpoint_coords = np.column_stack(np.where(endpoints_mask > 0))
 
         if len(endpoint_coords) < 2:
-            # Fallback a método de contornos si no se encontraron endpoints
             print("⚠️ No se encontraron endpoints con skeleton, usando método de contornos...")
             return self._detect_endpoints_contour()
 
-        # Tomar los dos endpoints más alejados entre sí
-        if len(endpoint_coords) > 2:
-            # Calcular distancias entre todos los pares
-            max_dist = 0
-            best_pair = (endpoint_coords[0], endpoint_coords[1])
+        print(f"DEBUG: Encontrados {len(endpoint_coords)} endpoints candidatos")
 
-            for i in range(len(endpoint_coords)):
-                for j in range(i + 1, len(endpoint_coords)):
-                    dist = np.linalg.norm(endpoint_coords[i] - endpoint_coords[j])
-                    if dist > max_dist:
-                        max_dist = dist
-                        best_pair = (endpoint_coords[i], endpoint_coords[j])
+        # NUEVO ENFOQUE: Buscar el par con MAYOR DISTANCIA GEODÉSICA
+        # (camino más largo a lo largo del skeleton)
+        best_pair = None
+        max_geodesic_dist = 0
 
-            endpoint_coords = np.array(best_pair)
+        for i in range(len(endpoint_coords)):
+            for j in range(i + 1, len(endpoint_coords)):
+                ep1 = endpoint_coords[i]
+                ep2 = endpoint_coords[j]
+
+                # Calcular distancia geodésica (camino a lo largo del skeleton)
+                geodesic_dist = self._compute_geodesic_distance(skeleton_binary, ep1, ep2)
+
+                if geodesic_dist > max_geodesic_dist:
+                    max_geodesic_dist = geodesic_dist
+                    best_pair = (ep1, ep2)
+                    print(f"DEBUG: Nuevo mejor par - geodesic={geodesic_dist:.0f}, "
+                          f"({ep1[1]},{ep1[0]}) <-> ({ep2[1]},{ep2[0]})")
+
+        if best_pair is None:
+            print("⚠️ No se encontró par válido, usando contornos...")
+            return self._detect_endpoints_contour()
 
         # Convertir de (y, x) a (x, y)
-        start = (int(endpoint_coords[0][1]), int(endpoint_coords[0][0]))
-        end = (int(endpoint_coords[1][1]), int(endpoint_coords[1][0]))
+        start = (int(best_pair[0][1]), int(best_pair[0][0]))
+        end = (int(best_pair[1][1]), int(best_pair[1][0]))
+
+        print(f"DEBUG: Endpoints finales - geodesic_dist={max_geodesic_dist:.0f}px")
+        print(f"DEBUG: Start: {start}, End: {end}")
 
         return start, end
+
+    def _compute_geodesic_distance(self, skeleton: np.ndarray,
+                                    start: np.ndarray, end: np.ndarray) -> float:
+        """
+        Calcula la distancia geodésica (camino más corto a lo largo del skeleton)
+        entre dos puntos usando BFS.
+
+        Returns:
+            Distancia en píxeles, o 0 si no hay camino conectado.
+        """
+        from collections import deque
+
+        h, w = skeleton.shape
+        start_y, start_x = int(start[0]), int(start[1])
+        end_y, end_x = int(end[0]), int(end[1])
+
+        # BFS para encontrar camino más corto
+        visited = np.zeros((h, w), dtype=bool)
+        queue = deque([(start_y, start_x, 0)])  # (y, x, distance)
+        visited[start_y, start_x] = True
+
+        # 8-conectividad
+        neighbors_dy = [-1, -1, -1, 0, 0, 1, 1, 1]
+        neighbors_dx = [-1, 0, 1, -1, 1, -1, 0, 1]
+
+        while queue:
+            y, x, dist = queue.popleft()
+
+            # Llegamos al destino?
+            if y == end_y and x == end_x:
+                return dist
+
+            # Explorar vecinos
+            for dy, dx in zip(neighbors_dy, neighbors_dx):
+                ny, nx = y + dy, x + dx
+
+                if 0 <= ny < h and 0 <= nx < w:
+                    if skeleton[ny, nx] > 0 and not visited[ny, nx]:
+                        visited[ny, nx] = True
+                        # Distancia diagonal = sqrt(2), recta = 1
+                        step_dist = 1.414 if (dy != 0 and dx != 0) else 1.0
+                        queue.append((ny, nx, dist + step_dist))
+
+        # No hay camino conectado
+        return 0
+
+    def _count_circle_crossings(self, cx: int, cy: int, radius: int = 20) -> int:
+        """
+        Cuenta cuántas veces una circunferencia cruza la máscara.
+        - 2 cruces = endpoint real (cable entra y sale por el grosor)
+        - 4+ cruces = punto en medio del cable (cable pasa por ambos lados)
+        """
+        # Generar puntos de la circunferencia
+        num_points = 360
+        crossings = 0
+        prev_inside = None
+
+        for i in range(num_points + 1):
+            angle = 2 * np.pi * i / num_points
+            x = int(cx + radius * np.cos(angle))
+            y = int(cy + radius * np.sin(angle))
+
+            # Verificar si el punto está dentro de la imagen
+            if 0 <= y < self.mask_binary.shape[0] and 0 <= x < self.mask_binary.shape[1]:
+                inside = self.mask_binary[y, x] > 0
+            else:
+                inside = False
+
+            # Contar transiciones (cruces)
+            if prev_inside is not None and inside != prev_inside:
+                crossings += 1
+
+            prev_inside = inside
+
+        return crossings
 
     def _detect_endpoints_contour(self) -> Tuple[Tuple[int, int], Tuple[int, int]]:
         """

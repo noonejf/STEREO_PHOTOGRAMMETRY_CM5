@@ -31,22 +31,23 @@ class ProcessingWorkerThread(QThread):
     processing_complete = pyqtSignal(bool, dict)
     log_message = pyqtSignal(str, str)  # message, level
     intermediate_result = pyqtSignal(str, object)  # tipo, datos
-    
-    def __init__(self, camera_config, processing_params, cable_masks=None):
+
+    def __init__(self, camera_config, processing_params, cable_masks=None, wire_paths=None):
         super().__init__()
         self.camera_config = camera_config
         self.processing_params = processing_params
         self.cable_masks = cable_masks  # (mask_left, mask_right) o None
+        self.wire_paths = wire_paths    # {'left': [...], 'right': [...]} o None - YA CALCULADOS
         self.should_stop = False
         
     def run(self):
         """Ejecutar pipeline completo de procesamiento 3D"""
         try:
             self.log_message.emit("Iniciando procesamiento 3D...", "INFO")
-            
+
             # Inicializar procesador
             processor = StereoProcessor(self.camera_config)
-            
+
             # Cargar imágenes
             self.progress_update.emit(5, "Cargando imágenes...")
             left_img = cv2.imread(self.processing_params['left_image'])
@@ -57,23 +58,88 @@ class ProcessingWorkerThread(QThread):
 
             self.log_message.emit(f"Imágenes cargadas: {left_img.shape}", "INFO")
 
-            # NO aplicar máscara a las imágenes, solo pasarla al procesador
-            # El procesador la aplicará DESPUÉS de calcular disparidad
-            cable_mask = None
-            if self.cable_masks is not None:
-                mask_left, mask_right = self.cable_masks
-                cable_mask = mask_left  # Usar máscara izquierda (ya están alineadas después de rectificación)
-                self.log_message.emit("✓ Máscara de cable configurada - se aplicará después de calcular disparidad", "INFO")
+            # === DECIDIR QUÉ MÉTODO USAR ===
+            if self.wire_paths is not None:
+                # ============================================
+                # MÉTODO GEOMÉTRICO: Usar paths YA CALCULADOS
+                # NO vuelve a correr SmartWireTracker
+                # ============================================
+                self.log_message.emit("🎯 Usando PATHS GEOMÉTRICOS ya calculados", "INFO")
+                self.log_message.emit(f"   Path izquierdo: {len(self.wire_paths['left'])} puntos", "INFO")
+                self.log_message.emit(f"   Path derecho: {len(self.wire_paths['right'])} puntos", "INFO")
 
-            # Procesar par estéreo con máscara opcional
-            result = processor.process_stereo_pair(
-                left_img, right_img,
-                algorithm=self.processing_params['algorithm'],
-                progress_callback=self.progress_callback,
-                save_debug_images=True,
-                cable_mask=cable_mask  # Pasar máscara al procesador
-            )
-            
+                # Rectificar imágenes primero
+                self.progress_update.emit(10, "Rectificando imágenes...")
+                left_rect, right_rect = processor.rectify_images(left_img, right_img)
+
+                # Calcular disparidad DIRECTAMENTE desde los paths
+                self.progress_update.emit(30, "Calculando disparidad desde paths geométricos...")
+
+                image_shape = left_rect.shape[:2]
+                disparity_result = processor.compute_disparity_from_wire_paths(
+                    self.wire_paths['left'],
+                    self.wire_paths['right'],
+                    image_shape,
+                    save_debug=True
+                )
+
+                if not disparity_result['success']:
+                    raise RuntimeError("No se pudo calcular disparidad desde paths geométricos")
+
+                # Generar nube de puntos DIRECTAMENTE desde los matches
+                # (NO desde disparity_map que pierde puntos por colisión de píxeles)
+                self.progress_update.emit(70, "Generando nube de puntos 3D desde matches...")
+
+                point_cloud_result = processor.generate_point_cloud_from_matches(
+                    disparity_result['matches'],
+                    disparity_result['disparities'],
+                    left_rect
+                )
+
+                self.log_message.emit(f"☁️ Nube generada: {point_cloud_result['num_points']} puntos 3D", "INFO")
+
+                # Calcular profundidad para estadísticas (opcional)
+                depth_result = processor.disparity_to_depth(disparity_result['disparity_map'])
+
+                # Construir resultado final
+                result = {
+                    'success': True,
+                    'algorithm': 'GEOMETRIC_PATH',
+                    'disparity': disparity_result,
+                    'depth': depth_result,
+                    'point_cloud': point_cloud_result
+                }
+
+            elif self.cable_masks is not None:
+                # ============================================
+                # FALLBACK: Tiene máscara pero no paths
+                # Usar SGBM con máscara como filtro
+                # ============================================
+                mask_left, _ = self.cable_masks
+                self.log_message.emit("⚠️ Sin paths geométricos, usando SGBM + máscara", "WARNING")
+
+                result = processor.process_stereo_pair(
+                    left_img, right_img,
+                    algorithm=self.processing_params['algorithm'],
+                    progress_callback=self.progress_callback,
+                    save_debug_images=True,
+                    cable_mask=mask_left
+                )
+
+            else:
+                # ============================================
+                # MÉTODO TRADICIONAL: SGBM (sin nada)
+                # ============================================
+                self.log_message.emit("⚠️ Sin máscara de cable - usando SGBM tradicional", "WARNING")
+
+                result = processor.process_stereo_pair(
+                    left_img, right_img,
+                    algorithm=self.processing_params['algorithm'],
+                    progress_callback=self.progress_callback,
+                    save_debug_images=True,
+                    cable_mask=None
+                )
+
             if not result['success']:
                 raise RuntimeError(f"Error en procesamiento: {result.get('error')}")
             
@@ -521,7 +587,9 @@ class ProcessingDialog(QDialog):
         self.cable_filter_configured = False
         self.cable_mask_left = None
         self.cable_mask_right = None
-        self.wire_tracking_result = None  # Resultado del SmartWireTracker
+        self.cable_mask_left_rectified = None   # Máscaras rectificadas
+        self.cable_mask_right_rectified = None
+        self.wire_tracking_result = None  # Resultado del SmartWireTracker (paths en coordenadas rectificadas)
 
         self.filter_status_label = QLabel("⚠️ Filtro no configurado")
         self.filter_status_label.setStyleSheet("""
@@ -1020,11 +1088,22 @@ class ProcessingDialog(QDialog):
             self.btn_cancel.setEnabled(True)
             self.progress_bar.setValue(0)
 
-            # Preparar máscaras de cable si están configuradas
+            # Preparar máscaras y paths de cable si están configurados
             cable_masks = None
+            wire_paths = None
+
             if self.cable_filter_configured and self.cable_mask_left is not None and self.cable_mask_right is not None:
                 cable_masks = (self.cable_mask_left, self.cable_mask_right)
-                self.add_log_message("✓ Usando máscaras de cable configuradas", "INFO")
+
+                # Usar paths geométricos si ya fueron calculados
+                if self.wire_tracking_result is not None and self.wire_tracking_result.get('success'):
+                    wire_paths = {
+                        'left': self.wire_tracking_result['left']['path'],
+                        'right': self.wire_tracking_result['right']['path']
+                    }
+                    self.add_log_message("✓ Usando paths geométricos ya calculados", "INFO")
+                else:
+                    self.add_log_message("⚠️ Wire tracking no disponible, usando solo máscaras", "WARNING")
             else:
                 self.add_log_message("⚠️ Sin máscara de cable - procesando imagen completa", "WARNING")
 
@@ -1032,7 +1111,8 @@ class ProcessingDialog(QDialog):
             self.processing_thread = ProcessingWorkerThread(
                 self.camera_config,
                 processing_params,
-                cable_masks=cable_masks
+                cable_masks=cable_masks,
+                wire_paths=wire_paths  # Pasar paths ya calculados
             )
             
             # Conectar señales
@@ -1163,11 +1243,11 @@ class ProcessingDialog(QDialog):
                 self.cable_mask_left, self.cable_mask_right = result
                 self.cable_filter_configured = True
 
-                # === NUEVO: Procesar máscaras con SmartWireTracker ===
+                # === PROCESAR MÁSCARAS CON SmartWireTracker ===
                 self.add_log_message("🎯 Procesando máscaras con SmartWireTracker...", "INFO")
 
                 try:
-                    # Crear procesador temporal para usar process_wire_masks
+                    # Crear procesador
                     processor = StereoProcessor(self.camera_config)
 
                     # Procesar máscaras con wire tracker

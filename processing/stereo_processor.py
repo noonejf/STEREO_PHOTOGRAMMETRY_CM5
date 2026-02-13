@@ -760,6 +760,500 @@ class StereoProcessor:
 
         return result
 
+    def compute_disparity_from_wire_paths(self,
+                                          path_left: list,
+                                          path_right: list,
+                                          image_shape: Tuple[int, int],
+                                          save_debug: bool = False) -> Dict[str, Any]:
+        """
+        Calcula disparidad desde paths geométricos usando CORRESPONDENCIA PARAMÉTRICA.
+
+        Concepto clave:
+        - Ambos paths trazan el MISMO cable físico
+        - Punto 0 de ambos paths = inicio del cable
+        - Punto N de ambos paths = final del cable
+        - Punto i% del path izquierdo corresponde al punto i% del path derecho
+
+        NO usa coordenada Y para matching porque las imágenes pueden no estar rectificadas.
+
+        Args:
+            path_left: Lista de puntos (x, y) del cable en imagen izquierda
+            path_right: Lista de puntos (x, y) del cable en imagen derecha
+            image_shape: (height, width) de la imagen
+            save_debug: Guardar imágenes de debug
+
+        Returns:
+            Dict con mapa de disparidad y estadísticas
+        """
+        logger.info("🎯 Calculando disparidad desde paths geométricos (matching paramétrico)...")
+        logger.info(f"   Path izquierdo: {len(path_left)} puntos")
+        logger.info(f"   Path derecho: {len(path_right)} puntos")
+
+        height, width = image_shape
+
+        # Crear mapas vacíos
+        disparity_map = np.zeros((height, width), dtype=np.float32)
+        confidence_map = np.zeros((height, width), dtype=np.float32)
+
+        if len(path_left) < 2 or len(path_right) < 2:
+            logger.error("❌ Paths demasiado cortos para calcular disparidad")
+            return {
+                'success': False,
+                'algorithm': 'GEOMETRIC_PATH',
+                'error': 'Paths too short'
+            }
+
+        # Convertir a arrays numpy para interpolación
+        path_left_arr = np.array(path_left)
+        path_right_arr = np.array(path_right)
+
+        from scipy import interpolate
+
+        # VERIFICAR SI LOS PATHS ESTÁN EN LA MISMA DIRECCIÓN
+        # Comparar usando SOLO coordenada Y (porque X está desplazada por disparidad)
+        start_left = path_left_arr[0]
+        end_left = path_left_arr[-1]
+        start_right = path_right_arr[0]
+        end_right = path_right_arr[-1]
+
+        # Comparar Y del inicio izquierdo con Y del inicio/fin derecho
+        y_start_left = start_left[1]
+        y_end_left = end_left[1]
+        y_start_right = start_right[1]
+        y_end_right = end_right[1]
+
+        # Si el inicio izquierdo está más cerca (en Y) del FIN derecho, invertir
+        dist_same_dir = abs(y_start_left - y_start_right) + abs(y_end_left - y_end_right)
+        dist_opposite = abs(y_start_left - y_end_right) + abs(y_end_left - y_start_right)
+
+        logger.info(f"   Check dirección: same={dist_same_dir:.1f}, opposite={dist_opposite:.1f}")
+        logger.info(f"   Start LEFT Y={y_start_left:.1f}, End LEFT Y={y_end_left:.1f}")
+        logger.info(f"   Start RIGHT Y={y_start_right:.1f}, End RIGHT Y={y_end_right:.1f}")
+
+        if dist_opposite < dist_same_dir:
+            logger.info("⚠️ Paths en direcciones opuestas - invirtiendo path derecho")
+            path_right_arr = path_right_arr[::-1]
+        else:
+            logger.info("✓ Paths en la misma dirección")
+
+        # Calcular longitud de arco ACUMULADA para cada punto
+        def calc_cumulative_arc_length(path_arr):
+            diffs = np.diff(path_arr, axis=0)
+            segment_lengths = np.sqrt(np.sum(diffs**2, axis=1))
+            cumulative = np.zeros(len(path_arr))
+            cumulative[1:] = np.cumsum(segment_lengths)
+            return cumulative
+
+        arc_cum_left = calc_cumulative_arc_length(path_left_arr)
+        arc_cum_right = calc_cumulative_arc_length(path_right_arr)
+
+        arc_length_left = arc_cum_left[-1]
+        arc_length_right = arc_cum_right[-1]
+
+        logger.info(f"   Arc length LEFT: {arc_length_left:.1f} px")
+        logger.info(f"   Arc length RIGHT: {arc_length_right:.1f} px")
+        logger.info(f"   Diferencia: {abs(arc_length_left - arc_length_right):.1f} px ({100*abs(arc_length_left - arc_length_right)/max(arc_length_left, arc_length_right):.1f}%)")
+
+        # Usar la longitud de arco MENOR como referencia
+        # (así no extrapolamos más allá del cable real)
+        min_arc_length = min(arc_length_left, arc_length_right)
+        n_points = int(min_arc_length)
+        n_points = max(n_points, 1000)
+
+        logger.info(f"   -> {n_points} puntos a generar")
+
+        # Crear parámetro de arco normalizado [0, 1] para muestreo
+        arc_sample = np.linspace(0, min_arc_length, n_points)
+
+        # PARAMETRIZACIÓN POR LONGITUD DE ARCO (no uniforme en t)
+        # Esto asegura que punto N en left corresponde al mismo % de longitud que punto N en right
+
+        # Normalizar longitudes de arco a [0, 1]
+        arc_left_norm = arc_cum_left / arc_length_left
+        arc_right_norm = arc_cum_right / arc_length_right
+
+        # Interpolar usando longitud de arco normalizada como parámetro
+        interp_left_x = interpolate.interp1d(arc_left_norm, path_left_arr[:, 0], kind='linear', fill_value='extrapolate')
+        interp_left_y = interpolate.interp1d(arc_left_norm, path_left_arr[:, 1], kind='linear', fill_value='extrapolate')
+
+        interp_right_x = interpolate.interp1d(arc_right_norm, path_right_arr[:, 0], kind='linear', fill_value='extrapolate')
+        interp_right_y = interpolate.interp1d(arc_right_norm, path_right_arr[:, 1], kind='linear', fill_value='extrapolate')
+
+        # Muestrear ambos paths en los mismos % de longitud de arco
+        t_common = np.linspace(0, 1, n_points)  # 0% a 100% del cable
+
+        left_x_interp = interp_left_x(t_common)
+        left_y_interp = interp_left_y(t_common)
+        right_x_interp = interp_right_x(t_common)
+        right_y_interp = interp_right_y(t_common)
+
+        # Calcular disparidad para cada par de puntos correspondientes
+        matches = []
+        disparities = []
+        pixels_used = set()
+
+        # Contadores para debug
+        filtered_by_disp = 0
+        filtered_by_bounds = 0
+        all_disps = []  # Para análisis
+
+        for i in range(n_points):
+            x_left = left_x_interp[i]
+            y_left = left_y_interp[i]
+            x_right = right_x_interp[i]
+            y_right = right_y_interp[i]
+
+            # Disparidad = diferencia en X
+            disp = x_left - x_right
+            all_disps.append(disp)
+
+            # NO filtrar por disparidad - guardar TODOS los puntos válidos en bounds
+            x_int = int(round(x_left))
+            y_int = int(round(y_left))
+
+            if not (0 <= y_int < height and 0 <= x_int < width):
+                filtered_by_bounds += 1
+                continue
+
+            # Guardar en mapa de disparidad
+            disparity_map[y_int, x_int] = disp
+            confidence_map[y_int, x_int] = 1.0
+
+            # Guardar match
+            matches.append((x_left, y_left, x_right, y_right))
+            disparities.append(disp)
+            pixels_used.add((x_int, y_int))
+
+        # Análisis de disparidades
+        all_disps = np.array(all_disps)
+        logger.info(f"   - Puntos procesados: {n_points}")
+        logger.info(f"   - Filtrados por bounds: {filtered_by_bounds}")
+        logger.info(f"   - Píxeles únicos en mapa: {len(pixels_used)}")
+        logger.info(f"   - Matches totales: {len(matches)}")
+        logger.info(f"   - Disparidad ALL: min={all_disps.min():.1f}, max={all_disps.max():.1f}, mean={all_disps.mean():.1f}")
+
+        # Estadísticas
+        valid_disparities = np.array(disparities) if disparities else np.array([0])
+
+        result = {
+            'success': len(disparities) > 0,
+            'algorithm': 'GEOMETRIC_PATH',
+            'disparity_map': disparity_map,
+            'confidence_map': confidence_map,
+            'shape': (height, width),
+            'num_matches': len(matches),
+            'valid_pixels': len(disparities),
+            'min_disparity': float(np.min(valid_disparities)) if len(disparities) > 0 else 0,
+            'max_disparity': float(np.max(valid_disparities)) if len(disparities) > 0 else 0,
+            'mean_disparity': float(np.mean(valid_disparities)) if len(disparities) > 0 else 0,
+            'median_disparity': float(np.median(valid_disparities)) if len(disparities) > 0 else 0,
+            'std_disparity': float(np.std(valid_disparities)) if len(disparities) > 0 else 0,
+            'matches': matches,
+            'disparities': disparities
+        }
+
+        logger.info(f"✓ Disparidad geométrica calculada:")
+        logger.info(f"   - Matches válidos: {len(matches)}")
+        logger.info(f"   - Disparidad media: {result['mean_disparity']:.2f} px")
+        logger.info(f"   - Disparidad min/max: {result['min_disparity']:.1f} / {result['max_disparity']:.1f} px")
+
+        # Guardar debug si se solicita
+        if save_debug and len(disparities) > 0:
+            debug_path = Path("data/results/debug")
+            debug_path.mkdir(parents=True, exist_ok=True)
+
+            # Visualizar mapa de disparidad
+            disp_vis = cv2.normalize(disparity_map, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+            disp_color = cv2.applyColorMap(disp_vis, cv2.COLORMAP_JET)
+            disp_color[disparity_map <= 0] = [0, 0, 0]
+            cv2.imwrite(str(debug_path / "disparity_geometric.png"), disp_color)
+
+            # === DEBUG: Visualizar matching de puntos ===
+            # Crear imagen mostrando ambos paths y las correspondencias
+            debug_img = np.zeros((height, width * 2, 3), dtype=np.uint8)
+
+            # Dibujar path izquierdo (en azul) en la mitad izquierda
+            for i in range(len(left_x_interp) - 1):
+                pt1 = (int(left_x_interp[i]), int(left_y_interp[i]))
+                pt2 = (int(left_x_interp[i+1]), int(left_y_interp[i+1]))
+                cv2.line(debug_img, pt1, pt2, (255, 0, 0), 2)
+
+            # Dibujar path derecho (en verde) en la mitad derecha
+            for i in range(len(right_x_interp) - 1):
+                pt1 = (int(right_x_interp[i]) + width, int(right_y_interp[i]))
+                pt2 = (int(right_x_interp[i+1]) + width, int(right_y_interp[i+1]))
+                cv2.line(debug_img, pt1, pt2, (0, 255, 0), 2)
+
+            # Dibujar líneas de correspondencia cada N puntos
+            step = max(1, n_points // 20)  # ~20 líneas de correspondencia
+            for i in range(0, n_points, step):
+                pt_left = (int(left_x_interp[i]), int(left_y_interp[i]))
+                pt_right = (int(right_x_interp[i]) + width, int(right_y_interp[i]))
+                # Color basado en disparidad (rojo=alta, azul=baja)
+                disp = left_x_interp[i] - right_x_interp[i]
+                color = (0, 255, 255)  # Amarillo para las líneas de correspondencia
+                cv2.line(debug_img, pt_left, pt_right, color, 1)
+                # Marcar los puntos
+                cv2.circle(debug_img, pt_left, 5, (0, 0, 255), -1)
+                cv2.circle(debug_img, pt_right, 5, (0, 0, 255), -1)
+
+            # Marcar inicio y fin
+            cv2.circle(debug_img, (int(left_x_interp[0]), int(left_y_interp[0])), 10, (0, 255, 0), -1)  # Verde = inicio
+            cv2.circle(debug_img, (int(left_x_interp[-1]), int(left_y_interp[-1])), 10, (0, 0, 255), -1)  # Rojo = fin
+            cv2.circle(debug_img, (int(right_x_interp[0]) + width, int(right_y_interp[0])), 10, (0, 255, 0), -1)
+            cv2.circle(debug_img, (int(right_x_interp[-1]) + width, int(right_y_interp[-1])), 10, (0, 0, 255), -1)
+
+            cv2.imwrite(str(debug_path / "matching_debug.png"), debug_img)
+            logger.info(f"   DEBUG: Visualización de matching guardada en {debug_path}/matching_debug.png")
+
+            logger.info(f"   Debug guardado en {debug_path}")
+
+        return result
+
+    def generate_point_cloud_from_matches(self,
+                                          matches: list,
+                                          disparities: list,
+                                          left_img: np.ndarray) -> Dict[str, Any]:
+        """
+        Genera nube de puntos 3D DIRECTAMENTE desde los matches geométricos.
+
+        NO usa disparity_map (que pierde puntos por colisión de píxeles).
+        Cada match se convierte en un punto 3D.
+
+        Args:
+            matches: Lista de (x_left, y_left, x_right, y_right)
+            disparities: Lista de disparidades correspondientes
+            left_img: Imagen izquierda para extraer colores
+
+        Returns:
+            Dict con puntos 3D y colores
+        """
+        logger.info(f"☁️ Generando nube de puntos desde {len(matches)} matches geométricos...")
+
+        if len(matches) == 0:
+            return {
+                'success': False,
+                'error': 'No matches to convert',
+                'num_points': 0
+            }
+
+        # Obtener parámetros de calibración
+        Q = self.calibration_data.get('disparity_to_depth_matrix')
+        if Q is None:
+            # Calcular Q desde parámetros básicos
+            focal_length = self.calibration_data.get('focal_length', 2600)
+            baseline = self.calibration_data.get('baseline', 0.1)
+            cx = left_img.shape[1] / 2
+            cy = left_img.shape[0] / 2
+        else:
+            focal_length = Q[2, 3]
+            baseline = 1.0 / Q[3, 2] if Q[3, 2] != 0 else 0.1
+            cx = -Q[0, 3]
+            cy = -Q[1, 3]
+
+        logger.info(f"   Parámetros: focal={focal_length:.1f}, baseline={baseline:.4f}m, cx={cx:.1f}, cy={cy:.1f}")
+
+        # Convertir cada match a punto 3D
+        points_3d = []
+        colors = []
+
+        for (x_left, y_left, x_right, y_right), disp in zip(matches, disparities):
+            if disp <= 0:
+                continue
+
+            # Calcular profundidad Z
+            Z = (baseline * focal_length) / disp
+
+            # Calcular X e Y
+            X = (x_left - cx) * Z / focal_length
+            Y = (y_left - cy) * Z / focal_length
+
+            # Filtrar puntos con profundidad razonable (0.1m a 10m)
+            if 0.1 < Z < 10.0:
+                points_3d.append([X, Y, Z])
+
+                # Extraer color de la imagen
+                x_int = int(round(x_left))
+                y_int = int(round(y_left))
+                if 0 <= y_int < left_img.shape[0] and 0 <= x_int < left_img.shape[1]:
+                    if len(left_img.shape) == 3:
+                        b, g, r = left_img[y_int, x_int]
+                        colors.append([r, g, b])
+                    else:
+                        gray = left_img[y_int, x_int]
+                        colors.append([gray, gray, gray])
+                else:
+                    colors.append([255, 255, 255])  # Blanco por defecto
+
+        points_3d = np.array(points_3d)
+        colors = np.array(colors)
+
+        logger.info(f"✓ Nube de puntos generada: {len(points_3d)} puntos")
+        if len(points_3d) > 0:
+            logger.info(f"   X: [{points_3d[:, 0].min():.3f}, {points_3d[:, 0].max():.3f}] m")
+            logger.info(f"   Y: [{points_3d[:, 1].min():.3f}, {points_3d[:, 1].max():.3f}] m")
+            logger.info(f"   Z: [{points_3d[:, 2].min():.3f}, {points_3d[:, 2].max():.3f}] m")
+
+        return {
+            'success': True,
+            'points': points_3d,
+            'colors': colors,
+            'num_points': len(points_3d)
+        }
+
+    def process_wire_geometric(self,
+                               mask_left: np.ndarray,
+                               mask_right: np.ndarray,
+                               left_img: np.ndarray,
+                               right_img: np.ndarray,
+                               save_debug: bool = True,
+                               progress_callback: Callable = None) -> Dict[str, Any]:
+        """
+        Pipeline completo: máscaras → paths geométricos → disparidad → profundidad → nube de puntos.
+
+        Este es el método CORRECTO para procesar cables/hilos.
+
+        Args:
+            mask_left: Máscara binaria del cable izquierdo
+            mask_right: Máscara binaria del cable derecho
+            left_img: Imagen izquierda (para colores)
+            right_img: Imagen derecha
+            save_debug: Guardar imágenes de debug
+            progress_callback: Callback de progreso
+
+        Returns:
+            Dict con todos los resultados del procesamiento
+        """
+        from processing.endpoint_detector import detect_wire_endpoints
+        from processing.smart_wire_tracker import SmartWireTracker
+
+        logger.info("=" * 60)
+        logger.info("🚀 PROCESAMIENTO GEOMÉTRICO DE CABLE")
+        logger.info("=" * 60)
+
+        processing_start = datetime.now()
+
+        result = {
+            'success': False,
+            'algorithm': 'GEOMETRIC_PATH',
+            'wire_tracking': {},
+            'disparity': {},
+            'depth': {},
+            'point_cloud': {}
+        }
+
+        try:
+            # === PASO 1: Detectar endpoints y tracking en ambas máscaras ===
+            if progress_callback:
+                progress_callback(10, "Detectando endpoints...")
+
+            logger.info("📍 PASO 1: Detectando endpoints y tracking...")
+
+            # Máscara izquierda
+            start_left, end_left = detect_wire_endpoints(mask_left, method="skeleton")
+            tracker_left = SmartWireTracker(mask_left, start_left, end_left)
+            track_left = tracker_left.track_wire(max_iterations=10000)
+
+            if save_debug:
+                tracker_left.visualize('data/results/debug/wire_path_left.png')
+
+            logger.info(f"   LEFT: {len(track_left['path'])} puntos, cobertura {track_left['coverage']*100:.1f}%")
+
+            # Máscara derecha
+            if progress_callback:
+                progress_callback(20, "Tracking cable derecho...")
+
+            start_right, end_right = detect_wire_endpoints(mask_right, method="skeleton")
+            tracker_right = SmartWireTracker(mask_right, start_right, end_right)
+            track_right = tracker_right.track_wire(max_iterations=10000)
+
+            if save_debug:
+                tracker_right.visualize('data/results/debug/wire_path_right.png')
+
+            logger.info(f"   RIGHT: {len(track_right['path'])} puntos, cobertura {track_right['coverage']*100:.1f}%")
+
+            result['wire_tracking'] = {
+                'left': {
+                    'path': track_left['path'],
+                    'coverage': track_left['coverage'],
+                    'start': start_left,
+                    'end': end_left
+                },
+                'right': {
+                    'path': track_right['path'],
+                    'coverage': track_right['coverage'],
+                    'start': start_right,
+                    'end': end_right
+                }
+            }
+
+            # === PASO 2: Calcular disparidad desde paths geométricos ===
+            if progress_callback:
+                progress_callback(40, "Calculando disparidad geométrica...")
+
+            logger.info("📐 PASO 2: Calculando disparidad desde paths geométricos...")
+
+            image_shape = mask_left.shape[:2]
+            disparity_result = self.compute_disparity_from_wire_paths(
+                track_left['path'],
+                track_right['path'],
+                image_shape,
+                y_tolerance=5,
+                save_debug=save_debug
+            )
+
+            result['disparity'] = disparity_result
+
+            if not disparity_result['success']:
+                raise RuntimeError("No se pudo calcular disparidad desde paths")
+
+            # === PASO 3: Convertir disparidad a profundidad ===
+            if progress_callback:
+                progress_callback(60, "Calculando profundidad...")
+
+            logger.info("📏 PASO 3: Convirtiendo disparidad a profundidad...")
+
+            depth_result = self.disparity_to_depth(disparity_result['disparity_map'])
+            result['depth'] = depth_result
+
+            # === PASO 4: Generar nube de puntos 3D ===
+            if progress_callback:
+                progress_callback(80, "Generando nube de puntos 3D...")
+
+            logger.info("☁️ PASO 4: Generando nube de puntos 3D...")
+
+            point_cloud_result = self.generate_point_cloud(
+                left_img,
+                disparity_result['disparity_map'],
+                disparity_result['confidence_map'],
+                min_confidence=0.5
+            )
+
+            result['point_cloud'] = point_cloud_result
+
+            # === Finalizar ===
+            processing_time = (datetime.now() - processing_start).total_seconds()
+
+            result['success'] = True
+            result['processing_time_seconds'] = processing_time
+
+            logger.info("=" * 60)
+            logger.info(f"✅ PROCESAMIENTO COMPLETADO en {processing_time:.1f}s")
+            logger.info(f"   - Puntos 3D generados: {point_cloud_result.get('num_points', 0)}")
+            logger.info(f"   - Disparidad media: {disparity_result['mean_disparity']:.2f} px")
+            logger.info("=" * 60)
+
+            if progress_callback:
+                progress_callback(100, "Completado")
+
+        except Exception as e:
+            logger.error(f"❌ Error en procesamiento geométrico: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            result['error'] = str(e)
+
+        return result
+
     def compute_confidence_map(self, disparity: np.ndarray) -> np.ndarray:
         """
         Calcular mapa de confianza para la disparidad
