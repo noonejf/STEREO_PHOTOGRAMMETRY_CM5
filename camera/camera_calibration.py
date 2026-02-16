@@ -38,20 +38,34 @@ class CameraCalibrator:
             aruco_dict_id = getattr(cv2.aruco, dict_name)
             self.aruco_dict = cv2.aruco.getPredefinedDictionary(aruco_dict_id)
 
-            # Crear tablero ChArUco
-            self.charuco_board = cv2.aruco.CharucoBoard(
-                (self.charuco_squares_x, self.charuco_squares_y),
-                self.square_size / 1000.0,  # Convertir mm a metros para OpenCV
-                self.marker_size / 1000.0,   # Convertir mm a metros para OpenCV
-                self.aruco_dict
-            )
+            # Crear tablero y detector ChArUco (compatible con OpenCV 4.6 y 4.7+)
+            self._use_new_charuco_api = hasattr(cv2.aruco, 'CharucoDetector')
 
-            # Crear detector ChArUco (API nueva, estable en ARM)
-            charuco_params = cv2.aruco.CharucoParameters()
-            detector_params = cv2.aruco.DetectorParameters()
-            self.charuco_detector = cv2.aruco.CharucoDetector(
-                self.charuco_board, charuco_params, detector_params
-            )
+            if self._use_new_charuco_api:
+                # API nueva (OpenCV 4.7+)
+                self.charuco_board = cv2.aruco.CharucoBoard(
+                    (self.charuco_squares_x, self.charuco_squares_y),
+                    self.square_size / 1000.0,
+                    self.marker_size / 1000.0,
+                    self.aruco_dict
+                )
+                charuco_params = cv2.aruco.CharucoParameters()
+                detector_params = cv2.aruco.DetectorParameters()
+                self.charuco_detector = cv2.aruco.CharucoDetector(
+                    self.charuco_board, charuco_params, detector_params
+                )
+                logger.info("Usando API ChArUco nueva (CharucoDetector)")
+            else:
+                # API legacy (OpenCV 4.6 y anteriores)
+                self.charuco_board = cv2.aruco.CharucoBoard_create(
+                    self.charuco_squares_x, self.charuco_squares_y,
+                    self.square_size / 1000.0,
+                    self.marker_size / 1000.0,
+                    self.aruco_dict
+                )
+                self.aruco_params = cv2.aruco.DetectorParameters_create()
+                self.charuco_detector = None
+                logger.info("Usando API ChArUco legacy (detectMarkers + interpolate)")
 
             logger.info(f"Calibrador ChArUco inicializado - {self.charuco_squares_x}x{self.charuco_squares_y}, "
                        f"Square: {self.square_size:.1f}mm, Marker: {self.marker_size:.1f}mm")
@@ -104,7 +118,7 @@ class CameraCalibrator:
     
     def detect_charuco_corners(self, image: np.ndarray) -> Tuple[bool, Optional[np.ndarray], Optional[np.ndarray]]:
         """
-        Detectar esquinas ChArUco en una imagen usando API nueva (CharucoDetector)
+        Detectar esquinas ChArUco en una imagen (compatible OpenCV 4.6 y 4.7+)
 
         Returns:
             success (bool): True si se detectaron esquinas válidas
@@ -112,15 +126,28 @@ class CameraCalibrator:
             charuco_ids (np.ndarray): IDs de las esquinas detectadas
         """
         try:
-            # Convertir a escala de grises si es necesario
             if len(image.shape) == 3:
                 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             else:
                 gray = image.copy()
 
-            # Detectar con API nueva (CharucoDetector.detectBoard)
-            charuco_corners, charuco_ids, marker_corners, marker_ids = \
-                self.charuco_detector.detectBoard(gray)
+            if self._use_new_charuco_api:
+                # API nueva (OpenCV 4.7+): CharucoDetector.detectBoard
+                charuco_corners, charuco_ids, _, marker_ids = \
+                    self.charuco_detector.detectBoard(gray)
+            else:
+                # API legacy (OpenCV 4.6): detectMarkers + interpolateCornersCharuco
+                corners, ids, _ = cv2.aruco.detectMarkers(
+                    gray, self.aruco_dict, parameters=self.aruco_params
+                )
+                if ids is None or len(ids) == 0:
+                    logger.debug("No se detectaron marcadores ArUco")
+                    return False, None, None
+
+                num_corners, charuco_corners, charuco_ids = cv2.aruco.interpolateCornersCharuco(
+                    corners, ids, gray, self.charuco_board
+                )
+                marker_ids = ids
 
             # Validar que se detectaron suficientes esquinas (mínimo 4)
             if charuco_ids is None or len(charuco_ids) < 4:
@@ -485,8 +512,12 @@ class CameraCalibrator:
 
             # === PREPARAR PUNTOS 3D PARA CADA IMAGEN ===
             # Obtenemos las coordenadas 3D del tablero ChArUco por ID
-            # NOTA: getChessboardCorners() retorna en METROS (así creamos el board)
-            all_board_corners = self.charuco_board.getChessboardCorners()
+            # En METROS (así creamos el board)
+            if hasattr(self.charuco_board, 'getChessboardCorners'):
+                all_board_corners = self.charuco_board.getChessboardCorners()
+            else:
+                # API legacy: chessboardCorners es atributo directo
+                all_board_corners = self.charuco_board.chessboardCorners
 
             objpoints = []
             imgpoints_left = []
