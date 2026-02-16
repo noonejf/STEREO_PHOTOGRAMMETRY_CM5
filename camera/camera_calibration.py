@@ -46,8 +46,12 @@ class CameraCalibrator:
                 self.aruco_dict
             )
 
-            # Parámetros de detección ArUco
-            self.aruco_params = cv2.aruco.DetectorParameters()
+            # Crear detector ChArUco (API nueva, estable en ARM)
+            charuco_params = cv2.aruco.CharucoParameters()
+            detector_params = cv2.aruco.DetectorParameters()
+            self.charuco_detector = cv2.aruco.CharucoDetector(
+                self.charuco_board, charuco_params, detector_params
+            )
 
             logger.info(f"Calibrador ChArUco inicializado - {self.charuco_squares_x}x{self.charuco_squares_y}, "
                        f"Square: {self.square_size:.1f}mm, Marker: {self.marker_size:.1f}mm")
@@ -100,7 +104,7 @@ class CameraCalibrator:
     
     def detect_charuco_corners(self, image: np.ndarray) -> Tuple[bool, Optional[np.ndarray], Optional[np.ndarray]]:
         """
-        Detectar esquinas ChArUco en una imagen
+        Detectar esquinas ChArUco en una imagen usando API nueva (CharucoDetector)
 
         Returns:
             success (bool): True si se detectaron esquinas válidas
@@ -114,33 +118,18 @@ class CameraCalibrator:
             else:
                 gray = image.copy()
 
-            # 1. Detectar marcadores ArUco
-            corners, ids, _ = cv2.aruco.detectMarkers(
-                gray,
-                self.aruco_dict,
-                parameters=self.aruco_params
-            )
+            # Detectar con API nueva (CharucoDetector.detectBoard)
+            charuco_corners, charuco_ids, marker_corners, marker_ids = \
+                self.charuco_detector.detectBoard(gray)
 
-            # Verificar que se detectaron marcadores
-            if ids is None or len(ids) == 0:
-                logger.debug("No se detectaron marcadores ArUco")
+            # Validar que se detectaron suficientes esquinas (mínimo 4)
+            if charuco_ids is None or len(charuco_ids) < 4:
+                num = 0 if charuco_ids is None else len(charuco_ids)
+                logger.debug(f"Esquinas ChArUco insuficientes: {num}")
                 return False, None, None
 
-            # 2. Interpolar esquinas ChArUco a partir de los marcadores
-            num_corners, charuco_corners, charuco_ids = cv2.aruco.interpolateCornersCharuco(
-                corners,
-                ids,
-                gray,
-                self.charuco_board
-            )
-
-            # 3. Validar que se detectaron suficientes esquinas
-            # Mínimo 4 esquinas para calibración robusta
-            if num_corners is None or num_corners < 4:
-                logger.debug(f"Esquinas ChArUco insuficientes: {num_corners}")
-                return False, None, None
-
-            logger.debug(f"✓ ChArUco detectado: {num_corners} esquinas, {len(ids)} marcadores")
+            logger.debug(f"ChArUco detectado: {len(charuco_ids)} esquinas, "
+                        f"{0 if marker_ids is None else len(marker_ids)} marcadores")
             return True, charuco_corners, charuco_ids
 
         except Exception as e:
@@ -494,27 +483,42 @@ class CameraCalibrator:
         try:
             logger.info("Ejecutando calibración estéreo ChArUco...")
 
-            # === CALIBRACIÓN INDIVIDUAL DE CADA CÁMARA CON ChArUco ===
+            # === PREPARAR PUNTOS 3D PARA CADA IMAGEN ===
+            # Obtenemos las coordenadas 3D del tablero ChArUco por ID
+            # NOTA: getChessboardCorners() retorna en METROS (así creamos el board)
+            all_board_corners = self.charuco_board.getChessboardCorners()
+
+            objpoints = []
+            imgpoints_left = []
+            imgpoints_right = []
+
+            for corners_l, ids_l, corners_r, ids_r in zip(
+                charuco_corners_left, charuco_ids_left,
+                charuco_corners_right, charuco_ids_right
+            ):
+                # Filtrar puntos 3D solo para los IDs detectados (ya filtrados por comunes)
+                obj_pts_filtered = all_board_corners[ids_l.flatten()]
+
+                # Convertir de metros a milímetros para consistencia interna
+                obj_pts_filtered = (obj_pts_filtered * 1000.0).astype(np.float32)
+
+                objpoints.append(obj_pts_filtered)
+                imgpoints_left.append(corners_l)
+                imgpoints_right.append(corners_r)
+
+            # === CALIBRACIÓN INDIVIDUAL DE CADA CÁMARA ===
+            # Usamos cv2.calibrateCamera estándar (no cv2.aruco.calibrateCameraCharuco
+            # que puede segfaultear en ARM con la API nueva)
             logger.info("Calibrando cámara izquierda (ChArUco)...")
-            ret_left, mtx_left, dist_left, rvecs_l, tvecs_l = cv2.aruco.calibrateCameraCharuco(
-                charuco_corners_left,
-                charuco_ids_left,
-                self.charuco_board,
-                img_shape,
-                None,
-                None,
+            ret_left, mtx_left, dist_left, rvecs_l, tvecs_l = cv2.calibrateCamera(
+                objpoints, imgpoints_left, img_shape, None, None,
                 criteria=self.calibration_criteria
             )
             logger.info(f"Calibración cámara izquierda - Error: {ret_left:.3f}")
 
             logger.info("Calibrando cámara derecha (ChArUco)...")
-            ret_right, mtx_right, dist_right, rvecs_r, tvecs_r = cv2.aruco.calibrateCameraCharuco(
-                charuco_corners_right,
-                charuco_ids_right,
-                self.charuco_board,
-                img_shape,
-                None,
-                None,
+            ret_right, mtx_right, dist_right, rvecs_r, tvecs_r = cv2.calibrateCamera(
+                objpoints, imgpoints_right, img_shape, None, None,
                 criteria=self.calibration_criteria
             )
             logger.info(f"Calibración cámara derecha - Error: {ret_right:.3f}")
@@ -525,31 +529,6 @@ class CameraCalibrator:
                     'success': False,
                     'error': 'Calibración individual ChArUco falló (retval=0)'
                 }
-
-            # === CALIBRACIÓN ESTÉREO ===
-            # IMPORTANTE: Para ChArUco, necesitamos crear objPoints comunes
-            # Usamos el board para obtener las coordenadas 3D de cada ID
-            objpoints = []
-            imgpoints_left = []
-            imgpoints_right = []
-
-            for corners_l, ids_l, corners_r, ids_r in zip(
-                charuco_corners_left, charuco_ids_left,
-                charuco_corners_right, charuco_ids_right
-            ):
-                # Obtener puntos 3D del tablero ChArUco
-                # NOTA: chessboardCorners está en METROS (porque así creamos el board)
-                obj_pts = self.charuco_board.getChessboardCorners()
-
-                # Filtrar solo los IDs detectados (ya están filtrados por IDs comunes)
-                obj_pts_filtered = obj_pts[ids_l.flatten()]
-
-                # Convertir de metros a milímetros para consistencia interna
-                obj_pts_filtered = obj_pts_filtered * 1000.0
-
-                objpoints.append(obj_pts_filtered)
-                imgpoints_left.append(corners_l)
-                imgpoints_right.append(corners_r)
 
             # Flags para calibración estéreo (usar matrices ya calculadas)
             stereo_flags = cv2.CALIB_FIX_INTRINSIC

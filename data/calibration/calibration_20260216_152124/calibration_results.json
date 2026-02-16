@@ -1,4 +1,6 @@
 {
+    "success": true,
+    "calibration_error": 7.478710998965064,
     "left_camera_matrix": [
         [
             1851.0783768960735,
@@ -113,10 +115,6 @@
             1.0
         ]
     ],
-    "calibration_date": "2026-02-16T13:36:38.114125",
-    "calibration_error": 7.478710998965064,
-    "is_calibrated": true,
-    "success": true,
     "rectification_left": [
         [
             0.7164416653911395,
@@ -230,6 +228,7 @@
         1440
     ],
     "baseline_meters": 0.13378625496722965,
+    "calibration_date": "2026-02-16T13:36:38.114125",
     "tvecs_left": [
         [
             [
