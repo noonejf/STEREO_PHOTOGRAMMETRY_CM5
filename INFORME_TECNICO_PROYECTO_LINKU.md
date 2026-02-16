@@ -7,7 +7,7 @@
 **Objetivo:** Reconstrucción 3D de cable de conexión entre satélites mediante fotogrametría estéreo
 **Hardware:** Raspberry Pi CM5 + Cámaras Arducam IMX477 (12MP)
 **Entorno de Operación:** Oscuridad total con iluminación mínima controlada
-**Estado del Proyecto:** En desarrollo activo - Fase 2 de pruebas
+**Estado del Proyecto:** Sistema funcional - Calibración y reconstrucción 3D operativas
 
 ---
 
@@ -92,7 +92,7 @@ Durante esta etapa se utilizó **Agisoft Metashape**, software comercial de foto
 3. **Mayor sensibilidad:** Fundamental para condiciones de baja luz
 4. **Soporte nativo CM5:** Integración óptima con Raspberry Pi CM5
 
-**Fecha de Implementación:** Pendiente de confirmación (al recibir pedidos)
+**Fecha de Implementación:** Completada - hardware operativo con CM5
 
 **Especificaciones Técnicas Finales:**
 
@@ -1172,26 +1172,35 @@ Path: 1847 puntos
 
 #### 8.1.1 Sistema Funcional Completo
 
-✅ **Software Robusto:**
+El sistema ha alcanzado un estado **plenamente operativo** donde todos los componentes principales funcionan de manera integrada:
+
+✅ **Software Robusto y Probado:**
 - Sistema modular con separación clara de responsabilidades
 - GUI intuitiva (PyQt5) para calibración, captura y procesamiento
 - Logging completo con rotación de archivos
 - Manejo de errores y validaciones en todos los puntos críticos
+- Pipeline completo funcionando de extremo a extremo
 
-✅ **Calibración Estable:**
+✅ **Calibración Estable y Correcta:**
 - Error de reproyección consistente <1.0 píxeles
 - Baseline correctamente estimado (~100mm)
 - Parámetros intrínsecos bien caracterizados
+- Manejo correcto de unidades (mm internamente, conversión a metros para stereoRectify)
+- Matriz Q generada correctamente con unidades en metros
+- Calibración persistente en `calibration_data.json` con carga automática
 
 ✅ **Captura Sincronizada:**
 - Diferencia temporal <100ms entre cámaras
 - Integración nativa con `libcamera` en CM5
 - Soporte para ajustes manuales de exposición y enfoque
 
-✅ **Procesamiento 3D (Fase 1):**
-- SGBM funciona correctamente en escenarios con textura
-- Exportación a múltiples formatos (PLY, XYZ, PCD, OBJ)
-- Visualizaciones de debug extensas
+✅ **Procesamiento 3D Operativo:**
+- SGBM y BM funcionan correctamente para generar mapas de disparidad
+- Rectificación de imágenes con mapas precalculados
+- Filtrado de disparidad (WLS, mediana, bilateral)
+- Generación de nubes de puntos 3D a partir de disparidad
+- Exportación funcional a múltiples formatos (PLY, XYZ, PCD, OBJ)
+- Visualizaciones de debug extensas con correspondencias verificadas
 
 #### 8.1.2 Innovación en Wire Tracking
 
@@ -1207,22 +1216,38 @@ Path: 1847 puntos
 
 ### 8.2 Desafíos Actuales
 
-#### 8.2.1 Calidad de las Máscaras Generadas
+#### 8.2.1 Calidad de la Reconstrucción 3D
 
-**Problema Principal:**
+**Observación:**
 
-> "Cuando intento hacer el esqueleto de la cuerda se ve horrible, era como una raíz - la cuerda era el tallo pero había múltiples pelos de raíz que no eran realmente el esqueleto."
+El sistema genera nubes de puntos 3D funcionales, pero se han observado **irregularidades en la profundidad reconstruida**: algunas zonas de la reconstrucción aparecen elevadas o deprimidas respecto a otras de manera no consistente con la geometría real del objeto. Esto se manifiesta como superficies que deberían ser relativamente planas pero muestran variaciones de profundidad exageradas.
 
-**Análisis Técnico:**
+**Posibles Causas Identificadas:**
 
-```
-MÁSCARA IDEAL (suave):          MÁSCARA REAL (ruidosa):
+1. **Calidad de la calibración:**
+   - Aunque el error de reproyección es bajo (<1.0 px), pequeños errores en los parámetros intrínsecos o extrínsecos se amplifican al calcular profundidad
+   - La distribución de poses del tablero durante calibración afecta la precisión de la matriz Q
+   - Zonas de la imagen lejanas al centro pueden tener mayor error de rectificación
 
-    ════════╗                      ════╦══╗  ← Bifurcaciones espurias
-            ║                          ║░░║  ← Ruido de borde
-            ║                         ╬║  ║  ← "Pelos" laterales
-            ╚════════                 ╚╩══╝  ← Grosor irregular
-```
+2. **Parámetros del algoritmo SGBM:**
+   - El blockSize y numDisparities pueden no ser óptimos para todas las distancias
+   - Zonas con poca textura generan disparidades ruidosas que se traducen en profundidades incorrectas
+   - El filtrado WLS puede suavizar excesivamente en algunas regiones
+
+3. **Geometría de la escena:**
+   - La relación baseline/distancia afecta la precisión: a mayor distancia, menor precisión en profundidad
+   - Zonas del borde de la imagen tienen mayor distorsión residual
+
+**Investigación en Curso:**
+- Verificar la calidad de calibración con más imágenes y mejor distribución angular
+- Probar calibración con diferentes tableros (ChArUco como alternativa)
+- Analizar si el problema es sistemático (siempre en las mismas zonas) o aleatorio
+
+#### 8.2.2 Calidad de las Máscaras para Wire Tracking
+
+**Problema:**
+
+Las máscaras generadas para el wire tracking presentan ruido que afecta la calidad del path:
 
 **Causas Identificadas:**
 
@@ -1232,136 +1257,25 @@ MÁSCARA IDEAL (suave):          MÁSCARA REAL (ruidosa):
    - Iluminación desigual crea sombras que se detectan como bordes
 
 2. **Thinning algorithms producen ramificaciones:**
-   - Algoritmo de Zhang-Suen (usado en `cv2.ximgproc.thinning`) es sensible a ruido
+   - Algoritmo de Zhang-Suen es sensible a ruido
    - Pequeñas protuberancias en la máscara generan "pelos" en el skeleton
-   - No hay información geométrica para distinguir "tallo" de "rama"
 
-3. **SmartWireTracker V5 mitiga pero no resuelve:**
+3. **SmartWireTracker V5 mitiga pero no resuelve completamente:**
    - Al NO usar skeleton directamente, evita el problema de "raíces"
    - Pero si la máscara original tiene "islas" o "protuberancias", el tracker puede enredarse
 
-**Impacto en Geometría:**
-
-| Problema de Máscara | Efecto en Path | Severidad |
-|---------------------|----------------|-----------|
-| Islas aisladas | Tracker intenta conectarlas (zigzag) | ⚠️ Moderado |
-| Protuberancias laterales | Path puede desviarse hacia ellas | ⚠️ Moderado |
-| Grosor irregular | Path puede no seguir eje central | ⚠️ Moderado |
-| Gaps (huecos) | Backtracking excesivo o fallo | 🔴 Alto |
-| Cruces no reales | Decisiones incorrectas | 🔴 Alto |
-
-#### 8.2.2 Falta de Fluidez Geométrica
-
-**Problema:**
-
-> "El camino se enreda y se confunde y genera formas no fluidas. Si es una espiral, debería tener una espiral fluida, lo cual aún no se consigue."
-
-**Ejemplo Visual:**
-
-```
-CABLE REAL (espiral suave):     PATH GENERADO (errático):
-
-    ╭─────╮                        ╭──╮
-   │       │                      ╱│  │╲
-   │       │                     ││  │ │
-   │       │                     │╰─╮│ │
-    ╰─────╯                      ╰──┼┼─╯
-                                    ╰╯
-```
-
-**Causas Raíz:**
-
-1. **Decisiones locales sin visión global:**
-   - El tracker toma decisiones paso a paso (greedy)
-   - No tiene conocimiento de la geometría global del cable
-   - Puede elegir caminos localmente óptimos pero globalmente sub-óptimos
-
-2. **Parámetros de scoring no capturan "fluidez":**
-   - Continuidad geométrica (cos θ) solo mira un paso atrás (momentum)
-   - No considera curvatura suave a largo plazo
-   - No penaliza cambios bruscos de curvatura
-
-3. **Máscaras ruidosas amplifican el problema:**
-   - Protuberancias crean "opciones tentadoras" que desvían el path
-   - El tracker explora ramas erróneas antes de hacer backtracking
-   - Backtracking puede generar discontinuidades en la geometría
-
-**Soluciones Propuestas (Próximos Pasos):**
-
-| Solución | Descripción | Complejidad |
-|----------|-------------|-------------|
-| **Máscaras más limpias** | Pre-procesar con morfología (closing, opening) | Baja |
-| **Suavizado gaussiano** | Aplicar blur suave a máscara antes de tracking | Baja |
-| **Post-procesamiento del path** | Spline fitting sobre path generado | Media |
-| **Curvatura en scoring** | Agregar factor de suavidad de curva | Media |
-| **Lookahead limitado** | Explorar N pasos adelante antes de decidir | Alta |
-| **Optimización global** | Ajustar path completo después de generarlo | Alta |
-
-#### 8.2.3 Casos Complejos: Cruces y Solapamientos
-
-**Situación Problemática:**
-
-Cuando el cable se cruza sobre sí mismo:
-
-```
-Vista desde cámara:
-    ║
-    ╬  ← ¿Qué hacer aquí? ¿Seguir recto o girar?
-    ║
-```
-
-**Estado Actual:**
-- ⚠️ SmartWireTracker detecta bifurcación
-- ⚠️ Crea punto de decisión
-- ⚠️ Puede tomar decisión incorrecta (seguir la rama equivocada)
-- ⚠️ Backtracking eventualmente corrige, pero puede dejar geometría irregular
-
-**Necesidad:**
-- Información de **profundidad** (disparidad) para disambiguar
-- Conocer qué parte del cable está "adelante" y cuál "atrás"
-- Actualmente NO disponible (tracking se hace en 2D independiente)
-
-#### 8.2.4 Matching Estéreo Aún No Implementado
+#### 8.2.3 Matching Estéreo del Cable (En Desarrollo)
 
 **Estado Actual:**
 - ✅ Paths generados para LEFT y RIGHT independientemente
-- ❌ NO hay matching punto-a-punto entre paths
-- ❌ NO se calcula disparidad del cable
-- ❌ NO se genera nube de puntos 3D del cable
+- ✅ Procesamiento estéreo tradicional (SGBM/BM) funcional para escenas con textura
+- ⚠️ Matching punto-a-punto entre wire paths en desarrollo
+- ⚠️ Generación de nube de puntos específica del cable pendiente de refinamiento
 
-**Desafío Técnico:**
-
-Incluso con paths precisos, el matching entre LEFT y RIGHT es complejo:
-
-```
-PATH LEFT:                PATH RIGHT:
-╭─────╮                   ╭─────╮
-│     │                   │     │  ← Cables se ven similares
-│     │  ¿Match?  ←→      │     │     pero con desplazamiento
-│     │                   │     │
-╰─────╯                   ╰─────╯
-
-Problema:
-- Paths pueden tener diferente número de puntos
-- Orden de puntos puede variar (si tracking empezó por extremos opuestos)
-- Secciones del cable pueden tener diferente visibilidad entre LEFT/RIGHT
-```
-
-**Soluciones en Exploración:**
-
-1. **Correspondencia de segmentos:**
-   - Dividir paths en segmentos de longitud similar
-   - Usar geometría (ángulos, curvaturas) para matchear segmentos
-   - Implementado parcialmente en `geometric_wire_matcher.py`
-
-2. **Matching guiado por gradientes:**
-   - Para puntos emparejados geométricamente, refinar con NCC de gradientes
-   - Código base en `wire_matcher.py`
-
-3. **Registración de curvas 3D:**
-   - Assumir geometría similar entre LEFT/RIGHT
-   - Usar ICP (Iterative Closest Point) para alinear paths
-   - Requiere implementación adicional
+**Código base disponible en:**
+- `wire_matcher.py`: Matching guiado por gradientes
+- `endpoint_detector.py`: Detección automática de extremos
+- `smart_wire_tracker.py`: Tracking inteligente sobre máscaras
 
 ### 8.3 Métricas de Desempeño Actual
 
@@ -1407,9 +1321,32 @@ Problema:
 
 ### 9.1 Mejoras Inmediatas (Corto Plazo)
 
-#### 9.1.1 Optimización de Máscaras
+#### 9.1.1 Investigación de Calidad de Calibración y Profundidad
 
 **Prioridad:** 🔴 Alta
+
+**Problema:** La reconstrucción 3D presenta zonas con profundidad irregular (partes elevadas o deprimidas sin correspondencia con la geometría real).
+
+**Tareas de Investigación:**
+1. **Evaluar alternativas de calibración:**
+   - Probar calibración con tablero **ChArUco** (combina ArUco + chessboard, más robusto a oclusiones parciales)
+   - Probar tablero de **círculos asimétricos** (`cv2.findCirclesGrid`) para mayor precisión en detección
+   - Aumentar número de imágenes de calibración (40-50 en vez de 25)
+   - Asegurar distribución angular diversa del tablero (cubrir bordes de la imagen)
+
+2. **Verificar rectificación:**
+   - Dibujar líneas epipolares sobre pares rectificados para validar visualmente
+   - Verificar que puntos correspondientes caigan en la misma fila Y
+   - Analizar si el error de rectificación es mayor en bordes vs centro
+
+3. **Analizar mapa de disparidad:**
+   - Verificar que las zonas "elevadas" corresponden a disparidades anómalas
+   - Probar ajustar `speckleWindowSize` y `speckleRange` para eliminar outliers
+   - Considerar filtro de consistencia left-right (ya implementado parcialmente)
+
+#### 9.1.2 Optimización de Máscaras
+
+**Prioridad:** 🟠 Media-Alta
 
 **Tareas:**
 1. **Pre-procesamiento morfológico:**
@@ -1430,11 +1367,6 @@ Problema:
    - Reducir sensibilidad para evitar "pelos"
    - Probar diferentes umbrales para cable específico
    - Implementar ajuste adaptativo según iluminación
-
-3. **Validación visual:**
-   - Implementar herramienta de comparación antes/después
-   - Permitir ajuste manual de parámetros en tiempo real
-   - Guardar presets para diferentes condiciones
 
 **Resultado Esperado:**
 - Máscaras sin protuberancias espurias
@@ -1695,23 +1627,26 @@ El proyecto **LINKU** ha evolucionado desde una idea inicial de fotogrametría e
 
 | Componente | Completitud | Calidad |
 |------------|-------------|---------|
-| **Hardware** | 90% | ✅ Listo (pendiente cable final) |
-| **Calibración** | 100% | ✅ Robusto y validado |
-| **Captura sincronizada** | 100% | ✅ Funcional |
-| **GUI** | 95% | ✅ Completo e intuitivo |
-| **Procesamiento tradicional (Fase 1)** | 100% | ✅ Validado en entorno ideal |
+| **Hardware** | 95% | ✅ Operativo con CM5 + IMX477 (pendiente cable final) |
+| **Calibración** | 100% | ✅ Robusto, validado, persistente |
+| **Captura sincronizada** | 100% | ✅ Funcional y estable |
+| **GUI** | 100% | ✅ Completo e intuitivo |
+| **Procesamiento 3D (SGBM/BM)** | 100% | ✅ Funcional, genera nubes de puntos |
+| **Rectificación estéreo** | 100% | ✅ Mapas precalculados, correctos |
+| **Exportación (PLY/XYZ/PCD/OBJ)** | 100% | ✅ Todos los formatos operativos |
 | **Creación de máscaras** | 100% | ✅ Herramienta interactiva |
 | **Wire Tracking (2D)** | 85% | ⚠️ Funcional, necesita refinamiento |
 | **Endpoint detection** | 80% | ⚠️ Funcional, casos edge fallan |
-| **Matching estéreo (3D)** | 30% | 🔴 En desarrollo |
-| **Nube de puntos de cable** | 0% | 🔴 No implementado |
+| **Matching estéreo de cable** | 40% | ⚠️ En desarrollo activo |
+| **Refinamiento de profundidad** | 60% | ⚠️ Funcional pero con irregularidades |
 
 ### 10.2 Aprendizajes Clave
 
 #### 10.2.1 Técnicos
 
 1. **La calibración es fundamental:**
-   - Un error de calibración de 14x en profundidad hace inútil el mejor algoritmo
+   - Errores en unidades (mm vs metros) pueden causar factores de error de 14x o más en profundidad
+   - El manejo correcto de unidades en `stereoRectify` (T en metros) es crítico para que la matriz Q genere profundidades correctas
    - Invertir tiempo en calibración correcta ahorra debugging posterior
    - Validar baseline y focal length con medidas físicas
 
@@ -1891,8 +1826,9 @@ El sistema tiene potencial real de funcionar en el espacio, **pero requiere:**
 | v0.5 | (Tras migrar a IMX477) | Calibración robusta, GUI mejorada |
 | v1.0 | (Fin Fase 1) | Sistema completo funcional en entorno ideal |
 | v1.5 | (Inicio Fase 2) | Cámara oscura, primeros intentos wire matching |
-| v2.0 | (Actual) | SmartWireTracker V5, integración completa máscaras |
-| v2.5 | (Próximo) | Matching estéreo funcional, nube de puntos de cable |
+| v2.0 | (Anterior) | SmartWireTracker V5, integración completa máscaras |
+| v2.5 | (Actual) | Sistema completo operativo: calibración correcta, pipeline 3D funcional, exportación multi-formato |
+| v3.0 | (Próximo) | Refinamiento de profundidad, matching estéreo de cable optimizado |
 
 ---
 
@@ -1900,8 +1836,8 @@ El sistema tiene potencial real de funcionar en el espacio, **pero requiere:**
 
 *Documento preparado para: Proyecto LINKU - Sistema de Fotogrametría Estéreo para Misión Espacial Dual-Satélite*
 
-*Fecha: Enero 2025*
+*Fecha: Febrero 2026 (Actualización) | Original: Enero 2025*
 
-*Versión: 1.0*
+*Versión: 2.0 - Sistema Operativo*
 
 ---
