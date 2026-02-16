@@ -1,0 +1,38 @@
+{
+    "capture_name": "calibration_20260216_160735/calib_pair_012",
+    "timestamp": "2026-02-16T16:10:08.933723",
+    "left_camera": {
+        "id": 0,
+        "file": "data/calibration/calibration_20260216_160735/calib_pair_012/left.jpg",
+        "resolution": [
+            1440,
+            1920,
+            3
+        ],
+        "size_bytes": 296868,
+        "capture_time": 3.122304916381836
+    },
+    "right_camera": {
+        "id": 1,
+        "file": "data/calibration/calibration_20260216_160735/calib_pair_012/right.jpg",
+        "resolution": [
+            1440,
+            1920,
+            3
+        ],
+        "size_bytes": 290019,
+        "capture_time": 3.1122517585754395
+    },
+    "synchronization": {
+        "time_difference_ms": 10.84280014038086,
+        "quality": "EXCELENTE",
+        "acceptable": true
+    },
+    "camera_config": {
+        "baseline_mm": 100.0,
+        "capture_resolution_used": [
+            1920,
+            1440
+        ]
+    }
+}
