@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Sistema de calibración para cámaras estéreo
-Implementa calibración robusta con tablero de ajedrez y validación de calidad
+Soporta tableros ChArUco (recomendado) y ajedrez clásico (legacy)
 """
 
 import cv2
@@ -18,18 +18,47 @@ logger = get_logger(__name__)
 
 class CameraCalibrator:
     """Calibrador principal para sistema estéreo"""
-    
+
     def __init__(self, camera_config):
         """Inicializar calibrador"""
         self.config = camera_config
-        self.board_size = camera_config.stereo.calibration_board_size
-        
-        # ✏️ --- CAMBIO DE UNIDAD: USAR MILÍMETROS ---
-        # No convertir a metros, usar mm directamente para estabilidad numérica
-        self.square_size = camera_config.stereo.calibration_square_size_mm
-        # ✏️ --- FIN CAMBIO ---
-        
-        # Parámetros de calibración (estos estaban en tu original, los volvemos a poner por si acaso)
+
+        # === CONFIGURACIÓN DE TABLERO ===
+        self.use_charuco = camera_config.stereo.use_charuco
+
+        if self.use_charuco:
+            # Configuración ChArUco
+            self.charuco_squares_x = camera_config.stereo.charuco_squares_x
+            self.charuco_squares_y = camera_config.stereo.charuco_squares_y
+            self.square_size = camera_config.stereo.charuco_square_size_mm  # mm
+            self.marker_size = camera_config.stereo.charuco_marker_size_mm  # mm
+
+            # Crear diccionario ArUco
+            dict_name = camera_config.stereo.charuco_dict_name
+            aruco_dict_id = getattr(cv2.aruco, dict_name)
+            self.aruco_dict = cv2.aruco.getPredefinedDictionary(aruco_dict_id)
+
+            # Crear tablero ChArUco
+            self.charuco_board = cv2.aruco.CharucoBoard(
+                (self.charuco_squares_x, self.charuco_squares_y),
+                self.square_size / 1000.0,  # Convertir mm a metros para OpenCV
+                self.marker_size / 1000.0,   # Convertir mm a metros para OpenCV
+                self.aruco_dict
+            )
+
+            # Parámetros de detección ArUco
+            self.aruco_params = cv2.aruco.DetectorParameters()
+
+            logger.info(f"Calibrador ChArUco inicializado - {self.charuco_squares_x}x{self.charuco_squares_y}, "
+                       f"Square: {self.square_size:.1f}mm, Marker: {self.marker_size:.1f}mm")
+        else:
+            # Configuración ajedrez clásico (legacy)
+            self.board_size = camera_config.stereo.calibration_board_size
+            self.square_size = camera_config.stereo.calibration_square_size_mm  # mm
+            logger.info(f"Calibrador Ajedrez inicializado - Tablero: {self.board_size}, "
+                       f"Cuadrado: {self.square_size:.1f}mm")
+
+        # === PARÁMETROS DE CALIBRACIÓN ===
         self.calibration_flags = (
             cv2.CALIB_FIX_ASPECT_RATIO |
             cv2.CALIB_ZERO_TANGENT_DIST |
@@ -39,43 +68,95 @@ class CameraCalibrator:
             cv2.CALIB_FIX_K4 |
             cv2.CALIB_FIX_K5
         )
-        
+
         # Criterios de terminación para detección de esquinas
         self.corner_criteria = (
             cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER,
             30,
             0.001
         )
-        
+
         # Criterios para calibración
         self.calibration_criteria = (
             cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER,
             100,
             1e-5
         )
-        
-        # Modificado para que no multiplique por 1000
-        logger.info(f"Calibrador inicializado - Tablero: {self.board_size}, Cuadrado: {self.square_size:.1f}mm")
     
     def prepare_object_points(self) -> np.ndarray:
-        """Preparar puntos 3D del tablero de ajedrez"""
-        # Crear patrón 3D de puntos (z=0 para tablero plano)
-        objp = np.zeros((self.board_size[0] * self.board_size[1], 3), np.float32)
-        objp[:, :2] = np.mgrid[0:self.board_size[0], 0:self.board_size[1]].T.reshape(-1, 2)
-        objp *= self.square_size
-        
-        return objp
+        """Preparar puntos 3D del tablero (ChArUco o Ajedrez)"""
+        if self.use_charuco:
+            # Para ChArUco, los puntos 3D son generados dinámicamente por el tablero
+            # No se necesita un array fijo como en ajedrez
+            # Este método no se usa con ChArUco, pero lo mantenemos por compatibilidad
+            return None
+        else:
+            # Ajedrez clásico: Crear patrón 3D de puntos (z=0 para tablero plano)
+            objp = np.zeros((self.board_size[0] * self.board_size[1], 3), np.float32)
+            objp[:, :2] = np.mgrid[0:self.board_size[0], 0:self.board_size[1]].T.reshape(-1, 2)
+            objp *= self.square_size  # Multiplicar por tamaño en mm
+
+            return objp
     
-    def detect_chessboard_corners(self, image: np.ndarray, 
-                                 improve_accuracy: bool = True) -> Tuple[bool, Optional[np.ndarray]]:
-        """Detectar esquinas del tablero de ajedrez en una imagen"""
+    def detect_charuco_corners(self, image: np.ndarray) -> Tuple[bool, Optional[np.ndarray], Optional[np.ndarray]]:
+        """
+        Detectar esquinas ChArUco en una imagen
+
+        Returns:
+            success (bool): True si se detectaron esquinas válidas
+            charuco_corners (np.ndarray): Coordenadas 2D de las esquinas ChArUco detectadas
+            charuco_ids (np.ndarray): IDs de las esquinas detectadas
+        """
         try:
             # Convertir a escala de grises si es necesario
             if len(image.shape) == 3:
                 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             else:
                 gray = image.copy()
-            
+
+            # 1. Detectar marcadores ArUco
+            corners, ids, _ = cv2.aruco.detectMarkers(
+                gray,
+                self.aruco_dict,
+                parameters=self.aruco_params
+            )
+
+            # Verificar que se detectaron marcadores
+            if ids is None or len(ids) == 0:
+                logger.debug("No se detectaron marcadores ArUco")
+                return False, None, None
+
+            # 2. Interpolar esquinas ChArUco a partir de los marcadores
+            num_corners, charuco_corners, charuco_ids = cv2.aruco.interpolateCornersCharuco(
+                corners,
+                ids,
+                gray,
+                self.charuco_board
+            )
+
+            # 3. Validar que se detectaron suficientes esquinas
+            # Mínimo 4 esquinas para calibración robusta
+            if num_corners is None or num_corners < 4:
+                logger.debug(f"Esquinas ChArUco insuficientes: {num_corners}")
+                return False, None, None
+
+            logger.debug(f"✓ ChArUco detectado: {num_corners} esquinas, {len(ids)} marcadores")
+            return True, charuco_corners, charuco_ids
+
+        except Exception as e:
+            logger.error(f"Error detectando ChArUco: {e}")
+            return False, None, None
+
+    def detect_chessboard_corners(self, image: np.ndarray,
+                                 improve_accuracy: bool = True) -> Tuple[bool, Optional[np.ndarray]]:
+        """Detectar esquinas del tablero de ajedrez en una imagen (legacy)"""
+        try:
+            # Convertir a escala de grises si es necesario
+            if len(image.shape) == 3:
+                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            else:
+                gray = image.copy()
+
             # Detectar esquinas
             ret, corners = cv2.findChessboardCorners(
                 gray,
@@ -83,7 +164,7 @@ class CameraCalibrator:
                 flags=cv2.CALIB_CB_ADAPTIVE_THRESH +
                       cv2.CALIB_CB_NORMALIZE_IMAGE
             )
-            
+
             if ret and improve_accuracy:
                 # Refinar esquinas para mayor precisión
                 corners = cv2.cornerSubPix(
@@ -93,9 +174,9 @@ class CameraCalibrator:
                     (-1, -1),
                     self.corner_criteria
                 )
-            
+
             return ret, corners
-            
+
         except Exception as e:
             logger.error(f"Error detectando esquinas: {e}")
             return False, None
@@ -182,108 +263,389 @@ class CameraCalibrator:
         
         return quality_info
     
-    def process_calibration_images(self, image_pairs: List[Tuple[str, str]], 
+    def process_calibration_images(self, image_pairs: List[Tuple[str, str]],
                                  progress_callback: Optional[Callable] = None) -> Dict[str, Any]:
-        """Procesar pares de imágenes para calibración"""
+        """Procesar pares de imágenes para calibración (ChArUco o Ajedrez)"""
         try:
-            logger.info(f"Procesando {len(image_pairs)} pares de imágenes para calibración")
-            
-            # Preparar puntos 3D
-            objp = self.prepare_object_points()
-            
-            # Listas para almacenar puntos
-            objpoints = []  # Puntos 3D en el mundo real
-            imgpoints_left = []  # Puntos 2D en imagen izquierda
-            imgpoints_right = []  # Puntos 2D en imagen derecha
-            
-            valid_images = []
-            image_quality_reports = []
-            
-            for i, (left_path, right_path) in enumerate(image_pairs):
-                try:
-                    if progress_callback:
-                        progress = int((i / len(image_pairs)) * 70)  # Hasta 70% para procesamiento
-                        progress_callback(progress, f"Procesando imagen {i+1}/{len(image_pairs)}")
-                    
-                    # Cargar imágenes
-                    left_img = cv2.imread(left_path)
-                    right_img = cv2.imread(right_path)
-                    
-                    if left_img is None or right_img is None:
-                        logger.warning(f"No se pudieron cargar imágenes: {left_path}, {right_path}")
-                        continue
-                    
-                    # Detectar esquinas en ambas imágenes
-                    ret_left, corners_left = self.detect_chessboard_corners(left_img)
-                    ret_right, corners_right = self.detect_chessboard_corners(right_img)
-                    
-                    if ret_left and ret_right:
-                        # ¡VALIDACIÓN DE CALIDAD IGNORADA!
-                        # Si encontramos las esquinas, es válido (como en tu script anterior)
-                        
-                        logger.info(f"Par {i+1} VÁLIDO (Esquinas detectadas)")
-                        
-                        # Agregar puntos válidos
-                        objpoints.append(objp)
-                        imgpoints_left.append(corners_left)
-                        imgpoints_right.append(corners_right)
-                        
-                        valid_images.append((left_path, right_path))
-                        # Añadimos un reporte falso de "calidad" para que el código no falle
-                        image_quality_reports.append({
-                            'left': {'is_valid': True, 'issues': []},
-                            'right': {'is_valid': True, 'issues': []}
-                        })
-                        
-                        logger.debug(f"Par {i+1} válido agregado")
-                        
-                    else:
-                        logger.warning(f"No se detectaron esquinas en par {i+1}")
-                        
-                except Exception as e:
-                    logger.error(f"Error procesando par {i+1}: {e}")
-                    continue
-            
-            if len(objpoints) < self.config.stereo.min_calibration_images:
-                return {
-                    'success': False,
-                    'error': f"Imágenes válidas insuficientes: {len(objpoints)}/{self.config.stereo.min_calibration_images}"
-                }
-            
-            logger.info(f"Imágenes válidas para calibración: {len(objpoints)}")
-            
-            # Obtener dimensiones de imagen
-            img_shape = left_img.shape[:2][::-1]  # (width, height)
-            
-            if progress_callback:
-                progress_callback(75, "Ejecutando calibración estéreo...")
-            
-            # Ejecutar calibración estéreo
-            calibration_result = self.execute_stereo_calibration(
-                objpoints, imgpoints_left, imgpoints_right, img_shape
-            )
-            
-            if calibration_result['success']:
-                # Agregar información adicional
-                calibration_result['images_used'] = len(objpoints)
-                calibration_result['valid_image_pairs'] = valid_images
-                calibration_result['quality_reports'] = image_quality_reports
-                calibration_result['image_shape'] = img_shape
-                
-                if progress_callback:
-                    progress_callback(90, "Validando resultados de calibración...")
-                
-                # Validar calidad de calibración
-                validation_result = self.validate_calibration_quality(calibration_result)
-                calibration_result.update(validation_result)
-                
-                if progress_callback:
-                    progress_callback(100, "Calibración completada")
-            
-            return calibration_result
-            
+            board_type = "ChArUco" if self.use_charuco else "Ajedrez"
+            logger.info(f"Procesando {len(image_pairs)} pares con tablero {board_type}")
+
+            if self.use_charuco:
+                return self._process_charuco_calibration(image_pairs, progress_callback)
+            else:
+                return self._process_chessboard_calibration(image_pairs, progress_callback)
+
         except Exception as e:
             logger.error(f"Error procesando imágenes de calibración: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def _process_charuco_calibration(self, image_pairs: List[Tuple[str, str]],
+                                    progress_callback: Optional[Callable] = None) -> Dict[str, Any]:
+        """Procesar calibración con tablero ChArUco"""
+        # Listas para almacenar esquinas ChArUco detectadas
+        all_charuco_corners_left = []
+        all_charuco_corners_right = []
+        all_charuco_ids_left = []
+        all_charuco_ids_right = []
+
+        valid_images = []
+        image_quality_reports = []
+
+        for i, (left_path, right_path) in enumerate(image_pairs):
+            try:
+                if progress_callback:
+                    progress = int((i / len(image_pairs)) * 70)
+                    progress_callback(progress, f"Procesando imagen {i+1}/{len(image_pairs)}")
+
+                # Cargar imágenes
+                left_img = cv2.imread(left_path)
+                right_img = cv2.imread(right_path)
+
+                if left_img is None or right_img is None:
+                    logger.warning(f"No se pudieron cargar imágenes: {left_path}, {right_path}")
+                    continue
+
+                # Detectar ChArUco en ambas imágenes
+                ret_left, corners_left, ids_left = self.detect_charuco_corners(left_img)
+                ret_right, corners_right, ids_right = self.detect_charuco_corners(right_img)
+
+                if ret_left and ret_right:
+                    # CRÍTICO: Filtrar solo IDs comunes entre ambas imágenes
+                    common_ids = np.intersect1d(ids_left.flatten(), ids_right.flatten())
+
+                    if len(common_ids) < 4:
+                        logger.warning(f"Par {i+1}: Solo {len(common_ids)} IDs comunes (mínimo 4)")
+                        continue
+
+                    # Filtrar esquinas para mantener solo IDs comunes
+                    left_mask = np.isin(ids_left.flatten(), common_ids)
+                    right_mask = np.isin(ids_right.flatten(), common_ids)
+
+                    filtered_corners_left = corners_left[left_mask]
+                    filtered_corners_right = corners_right[right_mask]
+                    filtered_ids_left = ids_left[left_mask]
+                    filtered_ids_right = ids_right[right_mask]
+
+                    # Verificar que los IDs estén en el mismo orden
+                    sort_left = np.argsort(filtered_ids_left.flatten())
+                    sort_right = np.argsort(filtered_ids_right.flatten())
+
+                    filtered_corners_left = filtered_corners_left[sort_left]
+                    filtered_corners_right = filtered_corners_right[sort_right]
+                    filtered_ids_left = filtered_ids_left[sort_left]
+                    filtered_ids_right = filtered_ids_right[sort_right]
+
+                    logger.info(f"Par {i+1} VÁLIDO: {len(common_ids)} esquinas comunes")
+
+                    # Agregar a las listas
+                    all_charuco_corners_left.append(filtered_corners_left)
+                    all_charuco_corners_right.append(filtered_corners_right)
+                    all_charuco_ids_left.append(filtered_ids_left)
+                    all_charuco_ids_right.append(filtered_ids_right)
+
+                    valid_images.append((left_path, right_path))
+                    image_quality_reports.append({
+                        'left': {'is_valid': True, 'issues': []},
+                        'right': {'is_valid': True, 'issues': []}
+                    })
+
+                else:
+                    logger.warning(f"No se detectó ChArUco en par {i+1}")
+
+            except Exception as e:
+                logger.error(f"Error procesando par {i+1}: {e}")
+                continue
+
+        if len(all_charuco_corners_left) < self.config.stereo.min_calibration_images:
+            return {
+                'success': False,
+                'error': f"Imágenes válidas insuficientes: {len(all_charuco_corners_left)}/{self.config.stereo.min_calibration_images}"
+            }
+
+        logger.info(f"Imágenes ChArUco válidas: {len(all_charuco_corners_left)}")
+
+        # Obtener dimensiones de imagen
+        img_shape = left_img.shape[:2][::-1]  # (width, height)
+
+        if progress_callback:
+            progress_callback(75, "Ejecutando calibración estéreo ChArUco...")
+
+        # Ejecutar calibración estéreo ChArUco
+        calibration_result = self.execute_stereo_calibration_charuco(
+            all_charuco_corners_left, all_charuco_corners_right,
+            all_charuco_ids_left, all_charuco_ids_right,
+            img_shape
+        )
+
+        if calibration_result['success']:
+            calibration_result['images_used'] = len(all_charuco_corners_left)
+            calibration_result['valid_image_pairs'] = valid_images
+            calibration_result['quality_reports'] = image_quality_reports
+            calibration_result['image_shape'] = img_shape
+
+            if progress_callback:
+                progress_callback(90, "Validando resultados de calibración...")
+
+            validation_result = self.validate_calibration_quality(calibration_result)
+            calibration_result.update(validation_result)
+
+            if progress_callback:
+                progress_callback(100, "Calibración completada")
+
+        return calibration_result
+
+    def _process_chessboard_calibration(self, image_pairs: List[Tuple[str, str]],
+                                       progress_callback: Optional[Callable] = None) -> Dict[str, Any]:
+        """Procesar calibración con tablero de ajedrez (legacy)"""
+        # Preparar puntos 3D
+        objp = self.prepare_object_points()
+
+        # Listas para almacenar puntos
+        objpoints = []
+        imgpoints_left = []
+        imgpoints_right = []
+
+        valid_images = []
+        image_quality_reports = []
+
+        for i, (left_path, right_path) in enumerate(image_pairs):
+            try:
+                if progress_callback:
+                    progress = int((i / len(image_pairs)) * 70)
+                    progress_callback(progress, f"Procesando imagen {i+1}/{len(image_pairs)}")
+
+                # Cargar imágenes
+                left_img = cv2.imread(left_path)
+                right_img = cv2.imread(right_path)
+
+                if left_img is None or right_img is None:
+                    logger.warning(f"No se pudieron cargar imágenes: {left_path}, {right_path}")
+                    continue
+
+                # Detectar esquinas en ambas imágenes
+                ret_left, corners_left = self.detect_chessboard_corners(left_img)
+                ret_right, corners_right = self.detect_chessboard_corners(right_img)
+
+                if ret_left and ret_right:
+                    logger.info(f"Par {i+1} VÁLIDO (Ajedrez detectado)")
+
+                    objpoints.append(objp)
+                    imgpoints_left.append(corners_left)
+                    imgpoints_right.append(corners_right)
+
+                    valid_images.append((left_path, right_path))
+                    image_quality_reports.append({
+                        'left': {'is_valid': True, 'issues': []},
+                        'right': {'is_valid': True, 'issues': []}
+                    })
+
+                else:
+                    logger.warning(f"No se detectaron esquinas en par {i+1}")
+
+            except Exception as e:
+                logger.error(f"Error procesando par {i+1}: {e}")
+                continue
+
+        if len(objpoints) < self.config.stereo.min_calibration_images:
+            return {
+                'success': False,
+                'error': f"Imágenes válidas insuficientes: {len(objpoints)}/{self.config.stereo.min_calibration_images}"
+            }
+
+        logger.info(f"Imágenes válidas para calibración: {len(objpoints)}")
+
+        # Obtener dimensiones de imagen
+        img_shape = left_img.shape[:2][::-1]  # (width, height)
+
+        if progress_callback:
+            progress_callback(75, "Ejecutando calibración estéreo...")
+
+        # Ejecutar calibración estéreo
+        calibration_result = self.execute_stereo_calibration(
+            objpoints, imgpoints_left, imgpoints_right, img_shape
+        )
+
+        if calibration_result['success']:
+            calibration_result['images_used'] = len(objpoints)
+            calibration_result['valid_image_pairs'] = valid_images
+            calibration_result['quality_reports'] = image_quality_reports
+            calibration_result['image_shape'] = img_shape
+
+            if progress_callback:
+                progress_callback(90, "Validando resultados de calibración...")
+
+            validation_result = self.validate_calibration_quality(calibration_result)
+            calibration_result.update(validation_result)
+
+            if progress_callback:
+                progress_callback(100, "Calibración completada")
+
+        return calibration_result
+
+    def execute_stereo_calibration_charuco(self, charuco_corners_left: List[np.ndarray],
+                                          charuco_corners_right: List[np.ndarray],
+                                          charuco_ids_left: List[np.ndarray],
+                                          charuco_ids_right: List[np.ndarray],
+                                          img_shape: Tuple[int, int]) -> Dict[str, Any]:
+        """Ejecutar calibración estéreo con tablero ChArUco"""
+        try:
+            logger.info("Ejecutando calibración estéreo ChArUco...")
+
+            # === CALIBRACIÓN INDIVIDUAL DE CADA CÁMARA CON ChArUco ===
+            logger.info("Calibrando cámara izquierda (ChArUco)...")
+            ret_left, mtx_left, dist_left, rvecs_l, tvecs_l = cv2.aruco.calibrateCameraCharuco(
+                charuco_corners_left,
+                charuco_ids_left,
+                self.charuco_board,
+                img_shape,
+                None,
+                None,
+                criteria=self.calibration_criteria
+            )
+            logger.info(f"Calibración cámara izquierda - Error: {ret_left:.3f}")
+
+            logger.info("Calibrando cámara derecha (ChArUco)...")
+            ret_right, mtx_right, dist_right, rvecs_r, tvecs_r = cv2.aruco.calibrateCameraCharuco(
+                charuco_corners_right,
+                charuco_ids_right,
+                self.charuco_board,
+                img_shape,
+                None,
+                None,
+                criteria=self.calibration_criteria
+            )
+            logger.info(f"Calibración cámara derecha - Error: {ret_right:.3f}")
+
+            if ret_left == 0 or ret_right == 0:
+                logger.error("Calibración individual ChArUco falló")
+                return {
+                    'success': False,
+                    'error': 'Calibración individual ChArUco falló (retval=0)'
+                }
+
+            # === CALIBRACIÓN ESTÉREO ===
+            # IMPORTANTE: Para ChArUco, necesitamos crear objPoints comunes
+            # Usamos el board para obtener las coordenadas 3D de cada ID
+            objpoints = []
+            imgpoints_left = []
+            imgpoints_right = []
+
+            for corners_l, ids_l, corners_r, ids_r in zip(
+                charuco_corners_left, charuco_ids_left,
+                charuco_corners_right, charuco_ids_right
+            ):
+                # Obtener puntos 3D del tablero ChArUco
+                # NOTA: chessboardCorners está en METROS (porque así creamos el board)
+                obj_pts = self.charuco_board.getChessboardCorners()
+
+                # Filtrar solo los IDs detectados (ya están filtrados por IDs comunes)
+                obj_pts_filtered = obj_pts[ids_l.flatten()]
+
+                # Convertir de metros a milímetros para consistencia interna
+                obj_pts_filtered = obj_pts_filtered * 1000.0
+
+                objpoints.append(obj_pts_filtered)
+                imgpoints_left.append(corners_l)
+                imgpoints_right.append(corners_r)
+
+            # Flags para calibración estéreo (usar matrices ya calculadas)
+            stereo_flags = cv2.CALIB_FIX_INTRINSIC
+
+            logger.info("Ejecutando calibración estéreo conjunta...")
+            retval, mtx_left, dist_left, mtx_right, dist_right, R, T, E, F = cv2.stereoCalibrate(
+                objpoints,
+                imgpoints_left,
+                imgpoints_right,
+                mtx_left, dist_left,
+                mtx_right, dist_right,
+                img_shape,
+                criteria=self.calibration_criteria,
+                flags=stereo_flags
+            )
+
+            logger.debug("--- RESULTADOS ChArUco ---")
+            logger.debug(f"Error de reproyección (retval): {retval:.4f}")
+            logger.debug(f"Vector T (mm): {T.ravel()}")  # En mm porque objpoints están en mm
+
+            if retval == 0 or np.isnan(retval):
+                logger.error('Calibración estéreo ChArUco falló (retval=0 o nan)')
+                return {
+                    'success': False,
+                    'error': 'Calibración estéreo ChArUco falló'
+                }
+
+            logger.info(f"Error calibración estéreo: {retval:.3f} píxeles")
+
+            # === RECTIFICACIÓN ESTÉREO ===
+            logger.info("Calculando rectificación estéreo...")
+
+            # CRÍTICO: Convertir T de mm a metros para stereoRectify
+            T_meters = T / 1000.0
+            logger.info(f"🔧 T convertido: {T.ravel()} mm → {T_meters.ravel()} m")
+
+            R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
+                mtx_left, dist_left,
+                mtx_right, dist_right,
+                img_shape, R, T_meters,  # T en METROS
+                flags=cv2.CALIB_ZERO_DISPARITY,
+                alpha=0.0
+            )
+
+            logger.info(f"✅ Matriz Q generada (unidades: metros)")
+            logger.info(f"   Q[3,2] = {Q[3,2]:.6f}")
+
+            # Crear mapas de rectificación
+            left_map1, left_map2 = cv2.initUndistortRectifyMap(
+                mtx_left, dist_left, R1, P1, img_shape, cv2.CV_16SC2
+            )
+            right_map1, right_map2 = cv2.initUndistortRectifyMap(
+                mtx_right, dist_right, R2, P2, img_shape, cv2.CV_16SC2
+            )
+
+            # === CALCULAR MÉTRICAS ===
+            baseline_mm = np.linalg.norm(T)  # T está en mm
+            baseline_m = baseline_mm / 1000.0
+            logger.info(f"Baseline: {baseline_mm:.1f} mm")
+
+            # Distancia promedio al tablero
+            avg_distance_m = 0.0
+            if tvecs_l:
+                distances_mm = [np.linalg.norm(tvec) for tvec in tvecs_l]
+                if distances_mm:
+                    avg_distance_mm = np.mean(distances_mm)
+                    avg_distance_m = avg_distance_mm / 1000.0
+                    logger.info(f"Distancia promedio al tablero: {avg_distance_mm / 10.0:.1f} cm")
+
+            return {
+                'success': True,
+                'calibration_error': retval,
+                'left_camera_matrix': mtx_left,
+                'left_distortion': dist_left,
+                'right_camera_matrix': mtx_right,
+                'right_distortion': dist_right,
+                'rotation_matrix': R,
+                'translation_vector': T,  # En mm
+                'essential_matrix': E,
+                'fundamental_matrix': F,
+                'rectification_left': R1,
+                'rectification_right': R2,
+                'projection_left': P1,
+                'projection_right': P2,
+                'disparity_to_depth_matrix': Q,
+                'roi_left': roi1,
+                'roi_right': roi2,
+                'baseline_meters': baseline_m,  # En metros
+                'calibration_date': datetime.now().isoformat(),
+                'tvecs_left': tvecs_l,  # En mm
+                'tvecs_right': tvecs_r,  # En mm
+                'average_distance_meters': avg_distance_m  # En metros
+            }
+
+        except Exception as e:
+            logger.error(f"Error en calibración estéreo ChArUco: {e}", exc_info=True)
             return {
                 'success': False,
                 'error': str(e)
@@ -293,11 +655,11 @@ class CameraCalibrator:
                                  imgpoints_left: List[np.ndarray],
                                  imgpoints_right: List[np.ndarray],
                                  img_shape: Tuple[int, int]) -> Dict[str, Any]:
-        """Ejecutar calibración estéreo"""
+        """Ejecutar calibración estéreo con tablero de ajedrez (legacy)"""
         try:
-            logger.info("Ejecutando calibración estéreo...")
+            logger.info("Ejecutando calibración estéreo (Ajedrez)...")
 
-            # Primero calibrar cada cámara individualmente
+            # === CALIBRACIÓN INDIVIDUAL DE CADA CÁMARA ===
             logger.info("Calibrando cámara izquierda...")
             ret_left, mtx_left, dist_left, rvecs_l, tvecs_l = cv2.calibrateCamera(
                 objpoints, imgpoints_left, img_shape, None, None,
@@ -312,7 +674,6 @@ class CameraCalibrator:
             )
             logger.info(f"Calibración cámara derecha - Error: {ret_right:.3f}")
 
-            # Verificar que las calibraciones individuales fueron exitosas
             if ret_left == 0 or ret_right == 0:
                 logger.error("Calibración individual de cámaras falló")
                 return {
@@ -320,15 +681,10 @@ class CameraCalibrator:
                     'error': 'Calibración individual de cámaras falló (retval=0)'
                 }
 
-            # --- FLAGS PARA CALIBRACIÓN ESTÉREO ---
-            # Usar las matrices de cámara ya calculadas
-            stereo_flags = (
-                cv2.CALIB_FIX_INTRINSIC  # Usar matrices de cámara ya calculadas
-            )
+            # === CALIBRACIÓN ESTÉREO CONJUNTA ===
+            stereo_flags = cv2.CALIB_FIX_INTRINSIC  # Usar matrices ya calculadas
 
-            # Calibración estéreo con matrices precalculadas
-            logger.info("Ejecutando calibración estéreo (modo conjunto)...")
-
+            logger.info("Ejecutando calibración estéreo conjunta...")
             retval, mtx_left, dist_left, mtx_right, dist_right, R, T, E, F = cv2.stereoCalibrate(
                 objpoints,
                 imgpoints_left,
@@ -340,62 +696,43 @@ class CameraCalibrator:
                 flags=stereo_flags
             )
 
-            # --- INICIO: DEPURACIÓN ADICIONAL ---
-            logger.debug("--- RESULTADOS INTERNOS DE CALIBRACIÓN ---")
-            logger.debug(f"Error de reproyección (retval): {retval}")
+            # === UNIDADES: T está en MILÍMETROS (porque objpoints están en mm) ===
+            logger.debug("--- RESULTADOS DE CALIBRACIÓN ---")
+            logger.debug(f"Error de reproyección: {retval:.4f} px")
+            logger.debug(f"Vector T (mm): {T.ravel()}")
 
-            # ✏️ --- UNIDADES EN MILÍMETROS ---
-            # El vector T (Traslación) ahora está en MILÍMETROS.
-            # Debería ser algo como [-100.0, 0.0, 0.0] (para -100mm en X)
-            logger.debug(f"Vector T (Milímetros): \n{T}")
-            # ✏️ --- FIN CAMBIO ---
-
-            logger.debug(f"Matriz R (Rotación): \n{R}")
-            logger.debug(f"Matriz Cámara Izquierda: \n{mtx_left}")
-            logger.debug(f"Distorión Cámara Izquierda: \n{dist_left}")
-            logger.debug("------------------------------------------")
-            # --- FIN: DEPURACIÓN ADICIONAL ---
-
-            # Usar los vectores de rotación/traslación de las calibraciones individuales
-            rvecs_left = rvecs_l
+            # Guardar poses individuales
             tvecs_left = tvecs_l
-            rvecs_right = rvecs_r
             tvecs_right = tvecs_r
 
-            logger.info(f"Poses individuales obtenidas de calibración ({len(tvecs_left)} imágenes).")
-
-            if retval == 0 or not tvecs_left or np.isnan(retval):
-                error_msg = 'Calibración estéreo falló (retval=0 o nan)' if (retval == 0 or np.isnan(retval)) else 'Cálculo de Poses falló para todas las imágenes'
-                logger.error(error_msg)
+            if retval == 0 or np.isnan(retval):
+                logger.error('Calibración estéreo falló (retval=0 o nan)')
                 return {
                     'success': False,
-                    'error': error_msg
+                    'error': 'Calibración estéreo falló'
                 }
-            
+
             logger.info(f"Error calibración estéreo: {retval:.3f} píxeles")
-            
-            # Rectificación estéreo
+
+            # === RECTIFICACIÓN ESTÉREO ===
             logger.info("Calculando rectificación estéreo...")
 
-            # CRÍTICO: Convertir T de milímetros a metros para stereoRectify
-            # cv2.stereoRectify genera la matriz Q basada en las unidades de T
-            # Si T está en mm, Q asumirá mm, lo cual causará errores en cálculo de profundidad
+            # ⚠️ CRÍTICO: stereoRectify espera T en METROS para generar Q correctamente
+            # Si pasamos T en mm, la matriz Q asumirá mm y el cálculo de profundidad fallará
             T_meters = T / 1000.0
-            logger.info(f"🔧 CORRECCIÓN: T convertido de mm a metros para stereoRectify")
-            logger.info(f"   T original (mm): {T.ravel()}")
-            logger.info(f"   T corregido (m): {T_meters.ravel()}")
+            logger.info(f"🔧 T convertido: {T.ravel()} mm → {T_meters.ravel()} m")
 
             R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
                 mtx_left, dist_left,
                 mtx_right, dist_right,
-                img_shape, R, T_meters,  # ← USAR T EN METROS
+                img_shape, R, T_meters,  # ← T en METROS
                 flags=cv2.CALIB_ZERO_DISPARITY,
-                alpha=0.0  # CAMBIADO: 0.0 = recortar bordes distorsionados (como tesis, evita artefactos)
+                alpha=0.0  # 0.0 = recortar bordes negros
             )
 
-            logger.info(f"✅ Matriz Q generada con unidades en METROS")
-            logger.info(f"   Q[3,2] = {Q[3,2]:.6f} (debería ser ~1/baseline_metros)")
-            
+            logger.info(f"✅ Matriz Q generada (unidades: metros)")
+            logger.info(f"   Q[3,2] = {Q[3,2]:.6f}")
+
             # Crear mapas de rectificación
             left_map1, left_map2 = cv2.initUndistortRectifyMap(
                 mtx_left, dist_left, R1, P1, img_shape, cv2.CV_16SC2
@@ -403,26 +740,20 @@ class CameraCalibrator:
             right_map1, right_map2 = cv2.initUndistortRectifyMap(
                 mtx_right, dist_right, R2, P2, img_shape, cv2.CV_16SC2
             )
-            
-            # ✏️ --- UNIDADES EN MILÍMETROS ---
-            # T está en mm, baseline estará en mm
-            baseline_mm = np.linalg.norm(T)
-            baseline_m = baseline_mm / 1000.0 # Convertir a metros para guardar
-            logger.info(f"Baseline calculado: {baseline_mm:.1f} mm") # Log en mm
-            # ✏️ --- FIN CAMBIO ---
 
-            # Calcular distancia promedio
+            # === CALCULAR MÉTRICAS ===
+            baseline_mm = np.linalg.norm(T)  # T está en mm
+            baseline_m = baseline_mm / 1000.0  # Convertir a metros para guardar
+            logger.info(f"Baseline: {baseline_mm:.1f} mm")
+
+            # Distancia promedio al tablero
             avg_distance_m = 0.0
-            if tvecs_left: 
-                # ✏️ --- UNIDADES EN MILÍMETROS ---
-                # tvecs están en mm
+            if tvecs_left:
                 distances_mm = [np.linalg.norm(tvec) for tvec in tvecs_left]
                 if distances_mm:
                     avg_distance_mm = np.mean(distances_mm)
-                    avg_distance_m = avg_distance_mm / 1000.0 # Convertir a metros para guardar
-                    # Convertir mm a cm para el log (avg_distance_mm / 10.0)
-                    logger.info(f"Distancia promedio al tablero (aprox): {avg_distance_mm / 10.0:.1f} cm") 
-                # ✏️ --- FIN CAMBIO ---
+                    avg_distance_m = avg_distance_mm / 1000.0
+                    logger.info(f"Distancia promedio al tablero: {avg_distance_mm / 10.0:.1f} cm")
 
             return {
                 'success': True,
@@ -432,7 +763,7 @@ class CameraCalibrator:
                 'right_camera_matrix': mtx_right,
                 'right_distortion': dist_right,
                 'rotation_matrix': R,
-                'translation_vector': T, # Guardado en mm
+                'translation_vector': T,  # En mm
                 'essential_matrix': E,
                 'fundamental_matrix': F,
                 'rectification_left': R1,
@@ -442,15 +773,15 @@ class CameraCalibrator:
                 'disparity_to_depth_matrix': Q,
                 'roi_left': roi1,
                 'roi_right': roi2,
-                'baseline_meters': baseline_m, # Guardar en metros
+                'baseline_meters': baseline_m,  # En metros
                 'calibration_date': datetime.now().isoformat(),
-                'tvecs_left': tvecs_left,       # Guardados en mm
-                'tvecs_right': tvecs_right,     # Guardados en mm
-                'average_distance_meters': avg_distance_m # Guardar en metros
+                'tvecs_left': tvecs_left,  # En mm
+                'tvecs_right': tvecs_right,  # En mm
+                'average_distance_meters': avg_distance_m  # En metros
             }
-            
+
         except Exception as e:
-            logger.error(f"Error en calibración estéreo: {e}", exc_info=True) # exc_info=True para traceback
+            logger.error(f"Error en calibración estéreo: {e}", exc_info=True)
             return {
                 'success': False,
                 'error': str(e)

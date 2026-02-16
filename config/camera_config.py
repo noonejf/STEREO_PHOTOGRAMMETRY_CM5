@@ -35,10 +35,24 @@ class CameraSettings:
 class StereoConfig:
     """Configuración del sistema estéreo"""
     baseline_mm: float = 100.0  # Separación entre cámaras en mm
-    convergence_angle: float = 0.0  # Ángulo de convergencia en grados  
+    convergence_angle: float = 0.0  # Ángulo de convergencia en grados
     sync_tolerance_ms: int = 50  # Tolerancia de sincronización
-    calibration_board_size: Tuple[int, int] = (9, 6)  # Esquinas internas del tablero
-    calibration_square_size_mm: float = 24.0  # Tamaño del cuadrado en mm
+
+    # ==================== CONFIGURACIÓN TABLERO ChArUco ====================
+    # Tablero generado con generate_charuco.py (5x7, DICT_6X6_250)
+    # Square size medido con calibrador: 37mm
+    use_charuco: bool = True  # True=ChArUco, False=Ajedrez clásico
+    charuco_squares_x: int = 5  # Columnas
+    charuco_squares_y: int = 7  # Filas
+    charuco_square_size_mm: float = 37.0  # ✅ MEDIDO: 37mm
+    charuco_marker_size_mm: float = 29.6  # marker = square * 0.8 = 37 * 0.8
+    charuco_dict_name: str = "DICT_6X6_250"  # Diccionario ArUco
+    # ========================================================================
+
+    # Configuración tablero ajedrez (legacy, solo si use_charuco=False)
+    calibration_board_size: Tuple[int, int] = (9, 6)  # Esquinas internas
+    calibration_square_size_mm: float = 24.0  # Tamaño cuadrado ajedrez (mm)
+
     min_calibration_images: int = 10
     max_calibration_images: int = 30
     calibration_data_path: str = "data/calibration"
@@ -231,6 +245,14 @@ class CameraConfig:
                 "baseline_mm": self.stereo.baseline_mm,
                 "convergence_angle": self.stereo.convergence_angle,
                 "sync_tolerance_ms": self.stereo.sync_tolerance_ms,
+                # Configuración ChArUco
+                "use_charuco": self.stereo.use_charuco,
+                "charuco_squares_x": self.stereo.charuco_squares_x,
+                "charuco_squares_y": self.stereo.charuco_squares_y,
+                "charuco_square_size_mm": self.stereo.charuco_square_size_mm,
+                "charuco_marker_size_mm": self.stereo.charuco_marker_size_mm,
+                "charuco_dict_name": self.stereo.charuco_dict_name,
+                # Configuración ajedrez (legacy)
                 "calibration_board_size": self.stereo.calibration_board_size,
                 "calibration_square_size_mm": self.stereo.calibration_square_size_mm,
                 "min_calibration_images": self.stereo.min_calibration_images,
