@@ -72,7 +72,16 @@ class MainWindow(QMainWindow):
     def init_ui(self):
         """Inicializar interfaz de usuario"""
         self.setWindowTitle("Sistema de Fotogrametría Estéreo CM5 - Arducam HQ 477")
-        self.setGeometry(100, 100, 1200, 800)
+
+        # Ajustar tamaño a la pantalla disponible
+        screen = QApplication.primaryScreen()
+        if screen:
+            available = screen.availableGeometry()
+            w = min(1200, available.width() - 40)
+            h = min(800, available.height() - 40)
+            self.setGeometry(available.x() + 20, available.y() + 20, w, h)
+        else:
+            self.setGeometry(100, 100, 1200, 800)
         
         # Widget central con splitter
         central_widget = QWidget()  # ← CREAR AQUÍ
@@ -107,7 +116,7 @@ class MainWindow(QMainWindow):
         self.setup_status_bar()
         
         # Configurar proporciones del splitter principal (arriba/abajo)
-        main_splitter.setSizes([600, 300])  # Más espacio arriba para cámaras
+        main_splitter.setSizes([400, 250])  # Proporcional
         
         # Configurar proporciones del splitter inferior (controles/registro)
         bottom_splitter.setSizes([400, 600])  # Más espacio para registro
@@ -125,7 +134,7 @@ class MainWindow(QMainWindow):
         
         # Título del panel
         preview_title = QLabel("Vista Previa de Cámaras Estéreo")
-        preview_title.setFont(QFont("Arial", 14, QFont.Bold))
+        preview_title.setFont(QFont("Arial", 11, QFont.Bold))
         preview_title.setAlignment(Qt.AlignCenter)
         preview_layout.addWidget(preview_title)
         
@@ -147,12 +156,12 @@ class MainWindow(QMainWindow):
         preview_controls_layout = QHBoxLayout()
         
         self.btn_start_preview = QPushButton("▶ Iniciar Vista Previa")
-        self.btn_start_preview.setFixedHeight(40)
+        self.btn_start_preview.setFixedHeight(30)
         self.btn_start_preview.clicked.connect(self.toggle_preview)
         preview_controls_layout.addWidget(self.btn_start_preview)
         
         self.btn_stop_preview = QPushButton("⏹ Detener Vista Previa")
-        self.btn_stop_preview.setFixedHeight(40)
+        self.btn_stop_preview.setFixedHeight(30)
         self.btn_stop_preview.clicked.connect(self.stop_preview)
         self.btn_stop_preview.setEnabled(False)
         preview_controls_layout.addWidget(self.btn_stop_preview)
@@ -184,9 +193,9 @@ class MainWindow(QMainWindow):
         
         # Título del sistema
         system_title = QLabel("Sistema de Fotogrametría Estéreo")
-        system_title.setFont(QFont("Arial", 16, QFont.Bold))
+        system_title.setFont(QFont("Arial", 13, QFont.Bold))
         system_title.setAlignment(Qt.AlignCenter)
-        system_title.setStyleSheet("color: #1976D2; margin: 10px;")
+        system_title.setStyleSheet("color: #1976D2; margin: 4px;")
         control_layout.addWidget(system_title)
         
         # Controles principales (PRIMERO)
@@ -196,12 +205,7 @@ class MainWindow(QMainWindow):
         # Estado de calibración (DESPUÉS)
         self.calibration_status_group = self.create_calibration_status_group()
         control_layout.addWidget(self.calibration_status_group)
-        
-        # Controles de captura
-        capture_controls_group = self.create_capture_controls_group() 
-        control_layout.addWidget(capture_controls_group)
-        
-        
+
         control_layout.addStretch()
     
     def create_calibration_status_group(self):
@@ -254,7 +258,7 @@ class MainWindow(QMainWindow):
 
         # Botón de calibración
         self.btn_calibrate = QPushButton("🎯 Calibrar Cámaras")
-        self.btn_calibrate.setFixedHeight(50)
+        self.btn_calibrate.setFixedHeight(36)
         self.btn_calibrate.setStyleSheet("""
             QPushButton {
                 font-size: 14px;
@@ -283,7 +287,7 @@ class MainWindow(QMainWindow):
         
         # Botón de reconstrucción 3D
         self.btn_capture_3d = QPushButton("📸 Capturar para Modelo 3D")
-        self.btn_capture_3d.setFixedHeight(50)
+        self.btn_capture_3d.setFixedHeight(36)
         self.btn_capture_3d.setStyleSheet("""
             QPushButton {
                 font-size: 14px;
@@ -310,7 +314,7 @@ class MainWindow(QMainWindow):
         
         # Botón de procesamiento
         self.btn_process_3d = QPushButton("⚙️ Procesar Últimas Capturas")
-        self.btn_process_3d.setFixedHeight(40)
+        self.btn_process_3d.setFixedHeight(32)
         self.btn_process_3d.clicked.connect(self.process_last_captures)
         # IMPORTANTE: Habilitar solo si el sistema está calibrado
         # (El procesamiento 3D REQUIERE calibración válida)
@@ -326,11 +330,11 @@ class MainWindow(QMainWindow):
         
         # Cuenta regresiva
         self.countdown_label = QLabel("Listo para captura")
-        self.countdown_label.setFont(QFont("Arial", 18, QFont.Bold))
+        self.countdown_label.setFont(QFont("Arial", 14, QFont.Bold))
         self.countdown_label.setAlignment(Qt.AlignCenter)
         self.countdown_label.setStyleSheet("""
             background-color: #E3F2FD;
-            padding: 15px;
+            padding: 8px;
             border-radius: 5px;
             border: 2px solid #2196F3;
         """)
@@ -781,19 +785,23 @@ class MainWindow(QMainWindow):
         pass  # Implementar si se necesita procesamiento adicional
     
     def setup_log_panel(self, parent_splitter):
-        """Configurar panel de registro de actividades"""
+        """Configurar panel de registro de actividades + control de captura"""
         log_frame = QFrame()
         log_frame.setFrameStyle(QFrame.StyledPanel)
         parent_splitter.addWidget(log_frame)
-        
+
         log_layout = QVBoxLayout(log_frame)
-        
-        # Título
+
+        # Controles de captura (movidos aqui para que quepan en pantalla)
+        capture_controls_group = self.create_capture_controls_group()
+        log_layout.addWidget(capture_controls_group)
+
+        # Título del log
         log_title = QLabel("Registro de Actividades")
         log_title.setFont(QFont("Arial", 12, QFont.Bold))
         log_title.setAlignment(Qt.AlignCenter)
         log_layout.addWidget(log_title)
-        
+
         # Log text
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)

@@ -53,7 +53,7 @@ class SmartWireTracker:
         # Estadísticas
         self.total_mask_pixels = np.sum(mask > 0)
 
-    def track_wire(self, max_iterations: int = 5000) -> Dict:
+    def track_wire(self, max_iterations: int = 5000, step_callback=None) -> Dict:
         print("\n" + "="*70)
         print("SMART WIRE TRACKER (CON BACKTRACKING)")
         print("="*70)
@@ -130,6 +130,10 @@ class SmartWireTracker:
             self.path.append(next_step)
             current = next_step
             self._mark_visited(next_step)
+
+            # Notificar progreso para visualizacion en tiempo real
+            if step_callback and iteration % 5 == 0:
+                step_callback(list(self.path), iteration)
 
             if iteration % 200 == 0:
                 print(f"  Iter {iteration}: Path len {len(self.path)}")

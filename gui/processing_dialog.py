@@ -434,6 +434,233 @@ class ResultsVisualizationWidget(QWidget):
             logger.error(f"Error actualizando estadísticas: {e}")
             self.stats_text.setText(f"Error cargando estadísticas: {e}")
 
+class WireTrackingWorkerThread(QThread):
+    """Hilo que ejecuta SmartWireTracker y emite el path parcial para animacion"""
+    path_updated = pyqtSignal(list, int)  # path parcial, iteracion
+    tracking_finished = pyqtSignal(dict)  # resultado final
+
+    def __init__(self, mask, start_pt, end_pt):
+        super().__init__()
+        self.mask = mask
+        self.start_pt = start_pt
+        self.end_pt = end_pt
+
+    def run(self):
+        from processing.smart_wire_tracker import SmartWireTracker
+        tracker = SmartWireTracker(self.mask, self.start_pt, self.end_pt)
+        result = tracker.track_wire(
+            max_iterations=10000,
+            step_callback=self._on_step
+        )
+        self.tracking_finished.emit(result)
+
+    def _on_step(self, path, iteration):
+        self.path_updated.emit(path, iteration)
+
+
+class WireTrackingVisualizationDialog(QDialog):
+    """Ventana que muestra en tiempo real como el tracker reconstruye el cable"""
+
+    def __init__(self, left_img, right_img, mask_left, mask_right,
+                 start_left, end_left, start_right, end_right, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Wire Tracking - Reconstruccion en vivo")
+        self.setModal(True)
+
+        # Guardar datos
+        self.left_img = left_img.copy()
+        self.right_img = right_img.copy()
+        self.mask_left = mask_left
+        self.mask_right = mask_right
+        self.start_left = start_left
+        self.end_left = end_left
+        self.start_right = start_right
+        self.end_right = end_right
+
+        # Estado
+        self.current_path_left = []
+        self.current_path_right = []
+        self.result_left = None
+        self.result_right = None
+        self.phase = "idle"  # idle -> left -> right -> done
+
+        # Ajustar al tamano de pantalla
+        screen = QApplication.primaryScreen()
+        if screen:
+            available = screen.availableGeometry()
+            w = min(1100, available.width() - 40)
+            h = min(550, available.height() - 60)
+            self.resize(w, h)
+        else:
+            self.resize(1100, 550)
+
+        self._build_ui()
+        # Iniciar automaticamente
+        QTimer.singleShot(300, self._start_left_tracking)
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(4)
+        layout.setContentsMargins(6, 6, 6, 6)
+
+        # Estado
+        self.status_label = QLabel("Preparando...")
+        self.status_label.setFont(QFont("Arial", 11, QFont.Bold))
+        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setStyleSheet("color: #1976D2; margin: 2px;")
+        layout.addWidget(self.status_label)
+
+        # Dos imagenes lado a lado
+        images_layout = QHBoxLayout()
+
+        # Izquierda
+        left_frame = QFrame()
+        left_frame_layout = QVBoxLayout(left_frame)
+        left_frame_layout.setContentsMargins(2, 2, 2, 2)
+        self.left_header = QLabel("Izquierda - esperando...")
+        self.left_header.setFont(QFont("Arial", 9, QFont.Bold))
+        self.left_header.setAlignment(Qt.AlignCenter)
+        self.left_header.setStyleSheet("color: #2196F3;")
+        left_frame_layout.addWidget(self.left_header)
+        self.left_image_label = QLabel()
+        self.left_image_label.setAlignment(Qt.AlignCenter)
+        self.left_image_label.setPixmap(self._cv2_to_pixmap(self.left_img))
+        left_frame_layout.addWidget(self.left_image_label)
+        images_layout.addWidget(left_frame)
+
+        # Derecha
+        right_frame = QFrame()
+        right_frame_layout = QVBoxLayout(right_frame)
+        right_frame_layout.setContentsMargins(2, 2, 2, 2)
+        self.right_header = QLabel("Derecha - esperando...")
+        self.right_header.setFont(QFont("Arial", 9, QFont.Bold))
+        self.right_header.setAlignment(Qt.AlignCenter)
+        self.right_header.setStyleSheet("color: #FF9800;")
+        right_frame_layout.addWidget(self.right_header)
+        self.right_image_label = QLabel()
+        self.right_image_label.setAlignment(Qt.AlignCenter)
+        self.right_image_label.setPixmap(self._cv2_to_pixmap(self.right_img))
+        right_frame_layout.addWidget(self.right_image_label)
+        images_layout.addWidget(right_frame)
+
+        layout.addLayout(images_layout)
+
+        # Boton cerrar (deshabilitado hasta que termine)
+        self.btn_close = QPushButton("Procesando...")
+        self.btn_close.setFixedHeight(30)
+        self.btn_close.setEnabled(False)
+        self.btn_close.clicked.connect(self.accept)
+        self.btn_close.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3; color: white;
+                font-weight: bold; border-radius: 4px;
+            }
+            QPushButton:hover { background-color: #1976D2; }
+            QPushButton:disabled { background-color: #CCCCCC; color: #666666; }
+        """)
+        layout.addWidget(self.btn_close)
+
+    def _start_left_tracking(self):
+        self.phase = "left"
+        self.status_label.setText("Procesando imagen izquierda...")
+        self.left_header.setText("Izquierda - procesando...")
+
+        self.worker = WireTrackingWorkerThread(
+            self.mask_left, self.start_left, self.end_left
+        )
+        self.worker.path_updated.connect(self._on_left_path_update)
+        self.worker.tracking_finished.connect(self._on_left_finished)
+        self.worker.start()
+
+    def _on_left_path_update(self, path, iteration):
+        self.current_path_left = path
+        vis = self._draw_wire_on_image(self.left_img, path, "LEFT")
+        self.left_image_label.setPixmap(self._cv2_to_pixmap(vis))
+        self.left_header.setText(f"Izquierda - {len(path)} pts (iter {iteration})")
+
+    def _on_left_finished(self, result):
+        self.result_left = result
+        self.current_path_left = result['path']
+        # Dibujar resultado final
+        vis = self._draw_wire_on_image(self.left_img, result['path'], "LEFT")
+        self.left_image_label.setPixmap(self._cv2_to_pixmap(vis))
+        self.left_header.setText(
+            f"Izquierda - {len(result['path'])} pts | Cob: {result['coverage']*100:.1f}%"
+        )
+        # Iniciar derecha
+        QTimer.singleShot(500, self._start_right_tracking)
+
+    def _start_right_tracking(self):
+        self.phase = "right"
+        self.status_label.setText("Procesando imagen derecha...")
+        self.right_header.setText("Derecha - procesando...")
+
+        self.worker = WireTrackingWorkerThread(
+            self.mask_right, self.start_right, self.end_right
+        )
+        self.worker.path_updated.connect(self._on_right_path_update)
+        self.worker.tracking_finished.connect(self._on_right_finished)
+        self.worker.start()
+
+    def _on_right_path_update(self, path, iteration):
+        self.current_path_right = path
+        vis = self._draw_wire_on_image(self.right_img, path, "RIGHT")
+        self.right_image_label.setPixmap(self._cv2_to_pixmap(vis))
+        self.right_header.setText(f"Derecha - {len(path)} pts (iter {iteration})")
+
+    def _on_right_finished(self, result):
+        self.result_right = result
+        self.current_path_right = result['path']
+        vis = self._draw_wire_on_image(self.right_img, result['path'], "RIGHT")
+        self.right_image_label.setPixmap(self._cv2_to_pixmap(vis))
+        self.right_header.setText(
+            f"Derecha - {len(result['path'])} pts | Cob: {result['coverage']*100:.1f}%"
+        )
+        self.phase = "done"
+        self.status_label.setText("Reconstruccion completada")
+        self.status_label.setStyleSheet("color: #2E7D32; font-weight: bold;")
+        self.btn_close.setText("Cerrar")
+        self.btn_close.setEnabled(True)
+
+    def get_results(self):
+        """Retorna los resultados del tracking de ambas imagenes"""
+        if self.result_left and self.result_right:
+            return {
+                'success': self.result_left['success'] and self.result_right['success'],
+                'left': self.result_left,
+                'right': self.result_right
+            }
+        return None
+
+    def _draw_wire_on_image(self, img, path, side):
+        vis = img.copy()
+        if len(path) < 2:
+            return vis
+        color = (0, 200, 255) if side == "LEFT" else (0, 165, 255)
+        for i in range(len(path) - 1):
+            pt1 = (int(path[i][0]), int(path[i][1]))
+            pt2 = (int(path[i+1][0]), int(path[i+1][1]))
+            cv2.line(vis, pt1, pt2, color, 2, cv2.LINE_AA)
+        start = (int(path[0][0]), int(path[0][1]))
+        end = (int(path[-1][0]), int(path[-1][1]))
+        cv2.circle(vis, start, 6, (0, 255, 0), -1)
+        cv2.circle(vis, end, 6, (0, 0, 255), -1)
+        return vis
+
+    def _cv2_to_pixmap(self, cv_img):
+        if len(cv_img.shape) == 2:
+            cv_img = cv2.cvtColor(cv_img, cv2.COLOR_GRAY2BGR)
+        rgb = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb.shape
+        bytes_per_line = ch * w
+        q_image = QImage(rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+        pixmap = QPixmap.fromImage(q_image.copy())  # .copy() para evitar dangling pointer
+        max_w, max_h = 520, 400
+        if pixmap.width() > max_w or pixmap.height() > max_h:
+            pixmap = pixmap.scaled(max_w, max_h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        return pixmap
+
+
 class ProcessingDialog(QDialog):
     """Diálogo principal de procesamiento 3D"""
     
@@ -450,15 +677,26 @@ class ProcessingDialog(QDialog):
         """Inicializar interfaz de usuario"""
         self.setWindowTitle("Procesamiento 3D - Generación de Modelo")
         self.setModal(True)
-        self.resize(1000, 700)
-        
+
+        # Ajustar al tamaño de pantalla disponible
+        screen = QApplication.primaryScreen()
+        if screen:
+            available = screen.availableGeometry()
+            w = min(1000, available.width() - 40)
+            h = min(700, available.height() - 40)
+            self.resize(w, h)
+        else:
+            self.resize(1000, 700)
+
         layout = QVBoxLayout(self)
-        
+        layout.setSpacing(4)
+        layout.setContentsMargins(6, 6, 6, 6)
+
         # Título
-        title = QLabel("🏗️ Procesamiento 3D y Generación de Modelo")
-        title.setFont(QFont("Arial", 18, QFont.Bold))
+        title = QLabel("Procesamiento 3D y Generacion de Modelo")
+        title.setFont(QFont("Arial", 13, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("color: #1976D2; margin: 10px;")
+        title.setStyleSheet("color: #1976D2; margin: 4px;")
         layout.addWidget(title)
         
         # Splitter principal
@@ -567,9 +805,9 @@ class ProcessingDialog(QDialog):
                 font-weight: bold;
                 background-color: #FF9800;
                 color: white;
-                padding: 12px;
+                padding: 8px;
                 border-radius: 5px;
-                font-size: 11px;
+                font-size: 10px;
             }
             QPushButton:hover {
                 background-color: #F57C00;
@@ -697,7 +935,7 @@ class ProcessingDialog(QDialog):
         layout = QVBoxLayout(group)
         
         self.log_text = QTextEdit()
-        self.log_text.setMaximumHeight(100)
+        self.log_text.setMaximumHeight(70)
         self.log_text.setReadOnly(True)
         self.log_text.setStyleSheet("""
             QTextEdit {
@@ -716,7 +954,7 @@ class ProcessingDialog(QDialog):
         
         # Botón de inicio
         self.btn_start = QPushButton("🚀 Iniciar Procesamiento")
-        self.btn_start.setFixedHeight(45)
+        self.btn_start.setFixedHeight(34)
         self.btn_start.setStyleSheet("""
             QPushButton {
                 font-size: 14px;
@@ -739,7 +977,7 @@ class ProcessingDialog(QDialog):
         
         # Botón de cancelar
         self.btn_cancel = QPushButton("⏹️ Cancelar")
-        self.btn_cancel.setFixedHeight(45)
+        self.btn_cancel.setFixedHeight(34)
         self.btn_cancel.clicked.connect(self.cancel_processing)
         self.btn_cancel.setEnabled(False)
         layout.addWidget(self.btn_cancel)
@@ -748,7 +986,7 @@ class ProcessingDialog(QDialog):
         
         # Botón de cerrar
         self.btn_close = QPushButton("✅ Cerrar")
-        self.btn_close.setFixedHeight(45)
+        self.btn_close.setFixedHeight(34)
         self.btn_close.clicked.connect(self.close)
         layout.addWidget(self.btn_close)
         
@@ -1243,32 +1481,41 @@ class ProcessingDialog(QDialog):
                 self.cable_mask_left, self.cable_mask_right = result
                 self.cable_filter_configured = True
 
-                # === PROCESAR MÁSCARAS CON SmartWireTracker ===
-                self.add_log_message("🎯 Procesando máscaras con SmartWireTracker...", "INFO")
+                # === DETECTAR ENDPOINTS Y ABRIR VISUALIZACION ANIMADA ===
+                self.add_log_message("Detectando endpoints del cable...", "INFO")
 
                 try:
-                    # Crear procesador
-                    processor = StereoProcessor(self.camera_config)
+                    from processing.endpoint_detector import detect_wire_endpoints
 
-                    # Procesar máscaras con wire tracker
-                    wire_result = processor.process_wire_masks(
-                        self.cable_mask_left,
-                        self.cable_mask_right,
-                        save_debug=True
+                    start_left, end_left = detect_wire_endpoints(self.cable_mask_left)
+                    start_right, end_right = detect_wire_endpoints(self.cable_mask_right)
+
+                    self.add_log_message(f"  LEFT endpoints: {start_left} -> {end_left}", "INFO")
+                    self.add_log_message(f"  RIGHT endpoints: {start_right} -> {end_right}", "INFO")
+
+                    # Abrir dialogo animado que ejecuta el tracker en tiempo real
+                    vis_dialog = WireTrackingVisualizationDialog(
+                        left_img, right_img,
+                        self.cable_mask_left, self.cable_mask_right,
+                        start_left, end_left,
+                        start_right, end_right,
+                        self
                     )
+                    vis_dialog.exec_()
 
-                    if wire_result['success']:
-                        # Guardar resultados del wire tracking
-                        self.wire_tracking_result = wire_result
+                    # Obtener resultados del tracking
+                    tracking_results = vis_dialog.get_results()
 
-                        self.add_log_message(f"✓ Wire tracking exitoso:", "INFO")
-                        self.add_log_message(f"  LEFT: {len(wire_result['left']['path'])} puntos, "
-                                      f"Cobertura: {wire_result['left']['coverage']*100:.1f}%", "INFO")
-                        self.add_log_message(f"  RIGHT: {len(wire_result['right']['path'])} puntos, "
-                                      f"Cobertura: {wire_result['right']['coverage']*100:.1f}%", "INFO")
+                    if tracking_results and tracking_results['success']:
+                        self.wire_tracking_result = tracking_results
 
-                        # Actualizar label de estado
-                        self.filter_status_label.setText("✅ Filtro configurado + Wire tracking OK")
+                        self.add_log_message(f"Wire tracking exitoso:", "INFO")
+                        self.add_log_message(f"  LEFT: {len(tracking_results['left']['path'])} puntos, "
+                                      f"Cob: {tracking_results['left']['coverage']*100:.1f}%", "INFO")
+                        self.add_log_message(f"  RIGHT: {len(tracking_results['right']['path'])} puntos, "
+                                      f"Cob: {tracking_results['right']['coverage']*100:.1f}%", "INFO")
+
+                        self.filter_status_label.setText("Filtro configurado + Wire tracking OK")
                         self.filter_status_label.setStyleSheet("""
                             QLabel {
                                 background-color: #E8F5E9;
@@ -1279,18 +1526,11 @@ class ProcessingDialog(QDialog):
                                 font-size: 9px;
                             }
                         """)
-
-                        QMessageBox.information(self, "Éxito",
-                            f"Filtro de cable y wire tracking configurados correctamente.\n\n"
-                            f"LEFT: {len(wire_result['left']['path'])} puntos (Cov: {wire_result['left']['coverage']*100:.1f}%)\n"
-                            f"RIGHT: {len(wire_result['right']['path'])} puntos (Cov: {wire_result['right']['coverage']*100:.1f}%)\n\n"
-                            f"Imágenes de debug guardadas en data/results/debug/")
                     else:
-                        self.add_log_message("⚠️ Wire tracking falló, usando solo máscaras básicas", "WARNING")
+                        self.add_log_message("Wire tracking no completo", "WARNING")
                         self.wire_tracking_result = None
 
-                        # Actualizar label de estado
-                        self.filter_status_label.setText("⚠️ Filtro OK, Wire tracking falló")
+                        self.filter_status_label.setText("Filtro OK, Wire tracking incompleto")
                         self.filter_status_label.setStyleSheet("""
                             QLabel {
                                 background-color: #FFF3E0;
@@ -1302,17 +1542,12 @@ class ProcessingDialog(QDialog):
                             }
                         """)
 
-                        QMessageBox.warning(self, "Advertencia",
-                            "Máscaras creadas pero wire tracking falló.\n\n"
-                            "El procesamiento usará las máscaras básicas sin paths optimizados.")
-
                 except Exception as e:
                     logger.error(f"Error en wire tracking: {e}")
-                    self.add_log_message(f"❌ Error en wire tracking: {e}", "ERROR")
+                    self.add_log_message(f"Error en wire tracking: {e}", "ERROR")
                     self.wire_tracking_result = None
 
-                    # Actualizar label de estado (máscaras OK pero sin tracking)
-                    self.filter_status_label.setText("✅ Filtro configurado (sin wire tracking)")
+                    self.filter_status_label.setText("Filtro configurado (sin wire tracking)")
                     self.filter_status_label.setStyleSheet("""
                         QLabel {
                             background-color: #E8F5E9;
@@ -1324,8 +1559,8 @@ class ProcessingDialog(QDialog):
                         }
                     """)
 
-                    QMessageBox.information(self, "Éxito parcial",
-                        f"Filtro de cable configurado correctamente.\n\n"
+                    QMessageBox.information(self, "Aviso",
+                        f"Filtro de cable configurado.\n\n"
                         f"Wire tracking falló ({e}), pero las máscaras están disponibles.")
 
             else:
