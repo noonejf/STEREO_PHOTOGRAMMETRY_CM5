@@ -25,20 +25,35 @@ class EndpointDetector:
         """
         Detecta los dos endpoints principales del cable.
 
+        Normalización canónica: start siempre tiene Y menor (más arriba en la imagen).
+        Si Y es igual, start tiene X menor (más a la izquierda).
+
         Args:
             method: Método de detección ("skeleton", "contour", or "distance_transform")
 
         Returns:
-            Tupla con (start_point, end_point) en formato (x, y)
+            Tupla con (start_point, end_point) en formato (x, y),
+            donde start es el punto superior (menor Y).
         """
         if method == "skeleton":
-            return self._detect_endpoints_skeleton()
+            start, end = self._detect_endpoints_skeleton()
         elif method == "contour":
-            return self._detect_endpoints_contour()
+            start, end = self._detect_endpoints_contour()
         elif method == "distance_transform":
-            return self._detect_endpoints_distance_transform()
+            start, end = self._detect_endpoints_distance_transform()
         else:
             raise ValueError(f"Método desconocido: {method}")
+
+        # --- NORMALIZACIÓN CANÓNICA: start = punto superior (menor Y) ---
+        # Esto garantiza dirección consistente top-to-bottom entre imágenes
+        start_y = start[1]
+        end_y = end[1]
+        if start_y > end_y or (start_y == end_y and start[0] > end[0]):
+            print(f"DEBUG: Normalizando dirección endpoints (swap): "
+                  f"({start}) <-> ({end})")
+            start, end = end, start
+
+        return start, end
 
     def _detect_endpoints_skeleton(self) -> Tuple[Tuple[int, int], Tuple[int, int]]:
         """

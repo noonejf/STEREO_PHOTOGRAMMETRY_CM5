@@ -809,32 +809,152 @@ class StereoProcessor:
 
         from scipy import interpolate
 
-        # VERIFICAR SI LOS PATHS ESTÁN EN LA MISMA DIRECCIÓN
-        # Comparar usando SOLO coordenada Y (porque X está desplazada por disparidad)
-        start_left = path_left_arr[0]
-        end_left = path_left_arr[-1]
-        start_right = path_right_arr[0]
-        end_right = path_right_arr[-1]
+        # === NORMALIZACIÓN CANÓNICA DE DIRECCIÓN ===
+        # Forzar ambos paths a ir de ARRIBA hacia ABAJO (menor Y → mayor Y)
+        # independientemente de cómo fueron detectados los endpoints.
+        # Esto evita el problema de que un path vaya top→bottom y el otro bottom→top.
 
-        # Comparar Y del inicio izquierdo con Y del inicio/fin derecho
-        y_start_left = start_left[1]
-        y_end_left = end_left[1]
-        y_start_right = start_right[1]
-        y_end_right = end_right[1]
+        y_start_left = path_left_arr[0][1]
+        y_end_left = path_left_arr[-1][1]
+        y_start_right = path_right_arr[0][1]
+        y_end_right = path_right_arr[-1][1]
 
-        # Si el inicio izquierdo está más cerca (en Y) del FIN derecho, invertir
-        dist_same_dir = abs(y_start_left - y_start_right) + abs(y_end_left - y_end_right)
-        dist_opposite = abs(y_start_left - y_end_right) + abs(y_end_left - y_start_right)
+        logger.info(f"   Pre-normalización: LEFT Y=[{y_start_left:.1f} → {y_end_left:.1f}], "
+                     f"RIGHT Y=[{y_start_right:.1f} → {y_end_right:.1f}]")
 
-        logger.info(f"   Check dirección: same={dist_same_dir:.1f}, opposite={dist_opposite:.1f}")
-        logger.info(f"   Start LEFT Y={y_start_left:.1f}, End LEFT Y={y_end_left:.1f}")
-        logger.info(f"   Start RIGHT Y={y_start_right:.1f}, End RIGHT Y={y_end_right:.1f}")
+        # Normalizar path izquierdo: si va de abajo hacia arriba, invertir
+        if y_start_left > y_end_left:
+            logger.info("   Invirtiendo path LEFT (iba de abajo hacia arriba)")
+            path_left_arr = path_left_arr[::-1]
 
-        if dist_opposite < dist_same_dir:
-            logger.info("⚠️ Paths en direcciones opuestas - invirtiendo path derecho")
+        # Normalizar path derecho: si va de abajo hacia arriba, invertir
+        if y_start_right > y_end_right:
+            logger.info("   Invirtiendo path RIGHT (iba de abajo hacia arriba)")
             path_right_arr = path_right_arr[::-1]
+
+        # Cross-check: verificar que ambos starts estén en Y similar
+        y_start_left_norm = path_left_arr[0][1]
+        y_start_right_norm = path_right_arr[0][1]
+        y_diff_starts = abs(y_start_left_norm - y_start_right_norm)
+        path_height_left = abs(path_left_arr[-1][1] - path_left_arr[0][1])
+        path_height_right = abs(path_right_arr[-1][1] - path_right_arr[0][1])
+        avg_height = max((path_height_left + path_height_right) / 2, 1.0)
+
+        if y_diff_starts > avg_height * 0.4:
+            logger.warning(f"⚠️ Cross-check: Y_start difieren mucho tras normalización "
+                          f"(LEFT={y_start_left_norm:.1f}, RIGHT={y_start_right_norm:.1f}, "
+                          f"diff={y_diff_starts:.1f}, avg_height={avg_height:.1f}). "
+                          f"Posible cable en forma de U o detección inconsistente.")
         else:
-            logger.info("✓ Paths en la misma dirección")
+            logger.info(f"   ✓ Dirección normalizada OK (diff_starts_Y={y_diff_starts:.1f}px)")
+
+        # === TRIMMING: Recortar ambos paths al rango vertical común ===
+        # Esto resuelve el problema de recorte diferencial (un cable empieza
+        # más abajo que el otro por oclusión o diferencia de FOV).
+        # Sin esto, el matching paramétrico 0%=0% se desalinea.
+
+        def _trim_path_to_y_range(path_arr, y_min, y_max):
+            """
+            Recorta un path al rango [y_min, y_max] con interpolación sub-pixel
+            en los bordes de corte. Asume que el path va de arriba hacia abajo
+            (Y creciente en general, aunque puede no ser estrictamente monótono).
+            """
+            y_coords = path_arr[:, 1]
+
+            # Encontrar índices de puntos dentro del rango
+            inside_mask = (y_coords >= y_min) & (y_coords <= y_max)
+            inside_indices = np.where(inside_mask)[0]
+
+            if len(inside_indices) == 0:
+                logger.warning(f"   ⚠️ Trimming: ningún punto dentro del rango Y=[{y_min:.1f}, {y_max:.1f}]")
+                return path_arr  # Devolver sin modificar como fallback
+
+            first_inside = inside_indices[0]
+            last_inside = inside_indices[-1]
+
+            trimmed_points = []
+
+            # Interpolar punto de entrada en y_min si recortamos el inicio
+            if first_inside > 0:
+                # Hay puntos antes del rango → interpolar el borde
+                p_before = path_arr[first_inside - 1]
+                p_after = path_arr[first_inside]
+                dy = p_after[1] - p_before[1]
+                if abs(dy) > 0.01:
+                    t = (y_min - p_before[1]) / dy
+                    t = np.clip(t, 0.0, 1.0)
+                    interp_point = p_before + t * (p_after - p_before)
+                    trimmed_points.append(interp_point)
+
+            # Agregar todos los puntos dentro del rango
+            trimmed_points.extend(path_arr[first_inside:last_inside + 1])
+
+            # Interpolar punto de salida en y_max si recortamos el final
+            if last_inside < len(path_arr) - 1:
+                p_before = path_arr[last_inside]
+                p_after = path_arr[last_inside + 1]
+                dy = p_after[1] - p_before[1]
+                if abs(dy) > 0.01:
+                    t = (y_max - p_before[1]) / dy
+                    t = np.clip(t, 0.0, 1.0)
+                    interp_point = p_before + t * (p_after - p_before)
+                    trimmed_points.append(interp_point)
+
+            return np.array(trimmed_points)
+
+        # Calcular rango Y común (intersección de ambos rangos verticales)
+        y_start_L = path_left_arr[0][1]
+        y_end_L = path_left_arr[-1][1]
+        y_start_R = path_right_arr[0][1]
+        y_end_R = path_right_arr[-1][1]
+
+        y_min_valid = max(y_start_L, y_start_R)  # El que empieza más abajo
+        y_max_valid = min(y_end_L, y_end_R)        # El que termina más arriba
+
+        logger.info(f"   Rango vertical LEFT:  Y=[{y_start_L:.1f}, {y_end_L:.1f}]")
+        logger.info(f"   Rango vertical RIGHT: Y=[{y_start_R:.1f}, {y_end_R:.1f}]")
+        logger.info(f"   Rango vertical COMÚN: Y=[{y_min_valid:.1f}, {y_max_valid:.1f}]")
+
+        if y_max_valid <= y_min_valid:
+            logger.error("❌ No hay solapamiento vertical entre los paths. "
+                        "No se puede hacer matching paramétrico.")
+            return {
+                'success': False,
+                'algorithm': 'GEOMETRIC_PATH',
+                'error': 'No vertical overlap between paths'
+            }
+
+        # Calcular cuánto se recorta (para logging)
+        total_range_L = y_end_L - y_start_L
+        total_range_R = y_end_R - y_start_R
+        common_range = y_max_valid - y_min_valid
+        trim_pct_L = (1.0 - common_range / max(total_range_L, 1.0)) * 100
+        trim_pct_R = (1.0 - common_range / max(total_range_R, 1.0)) * 100
+
+        len_before_L = len(path_left_arr)
+        len_before_R = len(path_right_arr)
+
+        # Solo recortar si hay diferencia significativa (>2% del rango)
+        if trim_pct_L > 2.0 or trim_pct_R > 2.0:
+            path_left_arr = _trim_path_to_y_range(path_left_arr, y_min_valid, y_max_valid)
+            path_right_arr = _trim_path_to_y_range(path_right_arr, y_min_valid, y_max_valid)
+
+            logger.info(f"   ✂ TRIMMING aplicado:")
+            logger.info(f"     LEFT:  {len_before_L} → {len(path_left_arr)} puntos "
+                        f"(recortado {trim_pct_L:.1f}%)")
+            logger.info(f"     RIGHT: {len_before_R} → {len(path_right_arr)} puntos "
+                        f"(recortado {trim_pct_R:.1f}%)")
+
+            # Validar que queden suficientes puntos después del trim
+            if len(path_left_arr) < 10 or len(path_right_arr) < 10:
+                logger.error("❌ Paths demasiado cortos después del trimming")
+                return {
+                    'success': False,
+                    'algorithm': 'GEOMETRIC_PATH',
+                    'error': 'Paths too short after trimming'
+                }
+        else:
+            logger.info(f"   ✓ Trimming no necesario (diff < 2%)")
 
         # Calcular longitud de arco ACUMULADA para cada punto
         def calc_cumulative_arc_length(path_arr):
