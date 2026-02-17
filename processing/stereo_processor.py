@@ -848,104 +848,290 @@ class StereoProcessor:
         else:
             logger.info(f"   ✓ Dirección normalizada OK (diff_starts_Y={y_diff_starts:.1f}px)")
 
-        # === TRIMMING: Recortar ambos paths al rango vertical común ===
-        # Esto resuelve el problema de recorte diferencial (un cable empieza
-        # más abajo que el otro por oclusión o diferencia de FOV).
-        # Sin esto, el matching paramétrico 0%=0% se desalinea.
+        # === SMART CONDITIONAL BORDER TRIMMING ===
+        # Decide cuándo y cómo recortar basándose en si los extremos tocan
+        # el borde de la imagen (cable cortado por FOV) o son puntas reales.
+        #
+        # CASOS:
+        #   1) Uno toca borde, otro no → recortar el interior para igualar al cortado
+        #   2) Ambos tocan borde:
+        #      2a) Borde izq/der (mismo Y aprox) → no recortar (desplazamiento = disparidad)
+        #      2b) Borde sup/inf, Y diferente → flujo macro decide quién fue más recortado
+        #      2c) Borde sup/inf, Y similar → safety trim 20px hacia adentro
+        #   3) Ninguno toca borde → no recortar (puntas reales visibles)
 
-        def _trim_path_to_y_range(path_arr, y_min, y_max):
+        EDGE_MARGIN = 2    # px para considerar que un punto toca el borde
+        SAFETY_TRIM = 20   # px de safety trim cuando ambos tocan borde con mismo Y
+        SAME_Y_THRESHOLD = 15  # px para considerar que dos Y son "el mismo"
+
+        def _is_on_edge(point, h, w):
+            """Retorna qué borde toca el punto, o None."""
+            x, y = point[0], point[1]
+            edges = []
+            if y <= EDGE_MARGIN:
+                edges.append('top')
+            if y >= h - EDGE_MARGIN:
+                edges.append('bottom')
+            if x <= EDGE_MARGIN:
+                edges.append('left')
+            if x >= w - EDGE_MARGIN:
+                edges.append('right')
+            return edges
+
+        def _get_macro_trend(path_arr, from_start: bool, window_pct: float = 0.10):
             """
-            Recorta un path al rango [y_min, y_max] con interpolación sub-pixel
-            en los bordes de corte. Asume que el path va de arriba hacia abajo
-            (Y creciente en general, aunque puede no ser estrictamente monótono).
+            Calcula la tendencia macro (dirección Y) en un extremo del path.
+            Usa ventana del 10% o mín 20 puntos.
+            Retorna: pendiente Y (positiva = cable baja, negativa = cable sube).
+            """
+            n = len(path_arr)
+            window_size = max(int(n * window_pct), min(20, n))
+            if from_start:
+                window = path_arr[:window_size]
+            else:
+                window = path_arr[-window_size:]
+            # Pendiente Y: diferencia entre último y primer punto de la ventana
+            dy = window[-1][1] - window[0][1]
+            return dy
+
+        def _trim_from_start(path_arr, y_target):
+            """
+            Recorta desde el INICIO del path hasta alcanzar y_target.
+            Itera desde idx=0 hacia el centro, conservando geometría interna.
+            Interpola sub-pixel en el punto de corte.
             """
             y_coords = path_arr[:, 1]
 
-            # Encontrar índices de puntos dentro del rango
-            inside_mask = (y_coords >= y_min) & (y_coords <= y_max)
-            inside_indices = np.where(inside_mask)[0]
+            cut_idx = None
+            for i in range(len(path_arr) - 1):
+                if y_coords[i] < y_target <= y_coords[i + 1]:
+                    cut_idx = i
+                    break
+                if y_coords[i] >= y_target:
+                    cut_idx = max(i - 1, 0)
+                    break
 
-            if len(inside_indices) == 0:
-                logger.warning(f"   ⚠️ Trimming: ningún punto dentro del rango Y=[{y_min:.1f}, {y_max:.1f}]")
-                return path_arr  # Devolver sin modificar como fallback
+            if cut_idx is None:
+                return path_arr
 
-            first_inside = inside_indices[0]
-            last_inside = inside_indices[-1]
+            p0 = path_arr[cut_idx]
+            p1 = path_arr[cut_idx + 1]
+            dy = p1[1] - p0[1]
 
             trimmed_points = []
+            if abs(dy) > 0.01:
+                t = np.clip((y_target - p0[1]) / dy, 0.0, 1.0)
+                trimmed_points.append(p0 + t * (p1 - p0))
 
-            # Interpolar punto de entrada en y_min si recortamos el inicio
-            if first_inside > 0:
-                # Hay puntos antes del rango → interpolar el borde
-                p_before = path_arr[first_inside - 1]
-                p_after = path_arr[first_inside]
-                dy = p_after[1] - p_before[1]
-                if abs(dy) > 0.01:
-                    t = (y_min - p_before[1]) / dy
-                    t = np.clip(t, 0.0, 1.0)
-                    interp_point = p_before + t * (p_after - p_before)
-                    trimmed_points.append(interp_point)
+            trimmed_points.extend(path_arr[cut_idx + 1:])
 
-            # Agregar todos los puntos dentro del rango
-            trimmed_points.extend(path_arr[first_inside:last_inside + 1])
-
-            # Interpolar punto de salida en y_max si recortamos el final
-            if last_inside < len(path_arr) - 1:
-                p_before = path_arr[last_inside]
-                p_after = path_arr[last_inside + 1]
-                dy = p_after[1] - p_before[1]
-                if abs(dy) > 0.01:
-                    t = (y_max - p_before[1]) / dy
-                    t = np.clip(t, 0.0, 1.0)
-                    interp_point = p_before + t * (p_after - p_before)
-                    trimmed_points.append(interp_point)
-
+            if len(trimmed_points) < 2:
+                return path_arr
             return np.array(trimmed_points)
 
-        # Calcular rango Y común (intersección de ambos rangos verticales)
-        y_start_L = path_left_arr[0][1]
-        y_end_L = path_left_arr[-1][1]
-        y_start_R = path_right_arr[0][1]
-        y_end_R = path_right_arr[-1][1]
+        def _trim_from_end(path_arr, y_target):
+            """
+            Recorta desde el FINAL del path hasta alcanzar y_target.
+            Itera desde idx=-1 hacia el centro, conservando geometría interna.
+            Interpola sub-pixel en el punto de corte.
+            """
+            y_coords = path_arr[:, 1]
 
-        y_min_valid = max(y_start_L, y_start_R)  # El que empieza más abajo
-        y_max_valid = min(y_end_L, y_end_R)        # El que termina más arriba
+            cut_idx = None
+            for i in range(len(path_arr) - 1, 0, -1):
+                if y_coords[i] > y_target >= y_coords[i - 1]:
+                    cut_idx = i
+                    break
+                if y_coords[i] <= y_target:
+                    cut_idx = min(i + 1, len(path_arr) - 1)
+                    break
+
+            if cut_idx is None:
+                return path_arr
+
+            trimmed_points = list(path_arr[:cut_idx])
+
+            p0 = path_arr[cut_idx - 1]
+            p1 = path_arr[cut_idx]
+            dy = p1[1] - p0[1]
+
+            if abs(dy) > 0.01:
+                t = np.clip((y_target - p0[1]) / dy, 0.0, 1.0)
+                trimmed_points.append(p0 + t * (p1 - p0))
+
+            if len(trimmed_points) < 2:
+                return path_arr
+            return np.array(trimmed_points)
+
+        # --- Extraer coordenadas de los extremos ---
+        start_L = path_left_arr[0]    # (x, y)
+        end_L = path_left_arr[-1]
+        start_R = path_right_arr[0]
+        end_R = path_right_arr[-1]
+
+        y_start_L = start_L[1]
+        y_end_L = end_L[1]
+        y_start_R = start_R[1]
+        y_end_R = end_R[1]
+
+        # Detectar qué bordes toca cada extremo
+        start_L_edges = _is_on_edge(start_L, height, width)
+        end_L_edges = _is_on_edge(end_L, height, width)
+        start_R_edges = _is_on_edge(start_R, height, width)
+        end_R_edges = _is_on_edge(end_R, height, width)
+
+        start_L_is_tb = 'top' in start_L_edges or 'bottom' in start_L_edges
+        start_R_is_tb = 'top' in start_R_edges or 'bottom' in start_R_edges
+        end_L_is_tb = 'top' in end_L_edges or 'bottom' in end_L_edges
+        end_R_is_tb = 'top' in end_R_edges or 'bottom' in end_R_edges
+
+        start_L_is_lr = 'left' in start_L_edges or 'right' in start_L_edges
+        start_R_is_lr = 'left' in start_R_edges or 'right' in start_R_edges
+        end_L_is_lr = 'left' in end_L_edges or 'right' in end_L_edges
+        end_R_is_lr = 'left' in end_R_edges or 'right' in end_R_edges
+
+        start_L_on_edge = len(start_L_edges) > 0
+        start_R_on_edge = len(start_R_edges) > 0
+        end_L_on_edge = len(end_L_edges) > 0
+        end_R_on_edge = len(end_R_edges) > 0
 
         logger.info(f"   Rango vertical LEFT:  Y=[{y_start_L:.1f}, {y_end_L:.1f}]")
         logger.info(f"   Rango vertical RIGHT: Y=[{y_start_R:.1f}, {y_end_R:.1f}]")
-        logger.info(f"   Rango vertical COMÚN: Y=[{y_min_valid:.1f}, {y_max_valid:.1f}]")
+        logger.info(f"   Bordes START: L={start_L_edges}, R={start_R_edges}")
+        logger.info(f"   Bordes END:   L={end_L_edges}, R={end_R_edges}")
 
-        if y_max_valid <= y_min_valid:
-            logger.error("❌ No hay solapamiento vertical entre los paths. "
-                        "No se puede hacer matching paramétrico.")
+        # === Determinar y_min_trim (inicio / top) ===
+        y_min_trim = None  # None = no recortar inicio
+
+        if not start_L_on_edge and not start_R_on_edge:
+            # CASO 3: Ninguno toca borde → puntas reales, no recortar
+            logger.info("   Start: CASO 3 - Ambos interiores, no recortar inicio")
+            y_min_trim = None
+
+        elif start_L_on_edge and not start_R_on_edge:
+            # CASO 1: L toca borde, R es interior → recortar R para igualar a L
+            logger.info(f"   Start: CASO 1 - L en borde, R interior → recortar R al Y de L ({y_start_L:.1f})")
+            y_min_trim = y_start_L
+
+        elif not start_L_on_edge and start_R_on_edge:
+            # CASO 1: R toca borde, L es interior → recortar L para igualar a R
+            logger.info(f"   Start: CASO 1 - R en borde, L interior → recortar L al Y de R ({y_start_R:.1f})")
+            y_min_trim = y_start_R
+
+        else:
+            # CASO 2: Ambos tocan borde
+            if (start_L_is_lr and start_R_is_lr) and not (start_L_is_tb or start_R_is_tb):
+                # CASO 2a: Ambos tocan borde izquierdo/derecho (no sup/inf)
+                logger.info("   Start: CASO 2a - Ambos en borde lateral, no recortar")
+                y_min_trim = None
+
+            elif abs(y_start_L - y_start_R) <= SAME_Y_THRESHOLD:
+                # CASO 2c: Ambos en borde sup/inf con MISMO Y
+                logger.info(f"   Start: CASO 2c - Ambos en borde, mismo Y (diff={abs(y_start_L - y_start_R):.1f}px) "
+                           f"→ safety trim {SAFETY_TRIM}px")
+                y_min_trim = max(y_start_L, y_start_R) + SAFETY_TRIM
+
+            else:
+                # CASO 2b: Ambos en borde sup/inf con Y DIFERENTE
+                # Usar tendencia macro para decidir quién fue más recortado
+                trend_L = _get_macro_trend(path_left_arr, from_start=True)
+                trend_R = _get_macro_trend(path_right_arr, from_start=True)
+
+                logger.info(f"   Start: CASO 2b - Ambos en borde, Y diferente "
+                           f"(L={y_start_L:.1f}, R={y_start_R:.1f})")
+                logger.info(f"     Tendencia macro: L={trend_L:.1f}, R={trend_R:.1f}")
+
+                # El que empieza más adentrado en la dirección del flujo fue más recortado
+                # Ambos normalizados top→bottom, flujo va hacia abajo (trend > 0)
+                # El que tiene Y mayor (más abajo) fue más recortado → recortar el otro
+                y_min_trim = max(y_start_L, y_start_R)
+                logger.info(f"     → Recortar al mayor Y_start: {y_min_trim:.1f}")
+
+        # === Determinar y_max_trim (final / bottom) ===
+        y_max_trim = None  # None = no recortar final
+
+        if not end_L_on_edge and not end_R_on_edge:
+            # CASO 3: Ninguno toca borde → puntas reales, no recortar
+            logger.info("   End: CASO 3 - Ambos interiores, no recortar final")
+            y_max_trim = None
+
+        elif end_L_on_edge and not end_R_on_edge:
+            # CASO 1: L toca borde, R es interior → recortar R para igualar a L
+            logger.info(f"   End: CASO 1 - L en borde, R interior → recortar R al Y de L ({y_end_L:.1f})")
+            y_max_trim = y_end_L
+
+        elif not end_L_on_edge and end_R_on_edge:
+            # CASO 1: R toca borde, L es interior → recortar L para igualar a R
+            logger.info(f"   End: CASO 1 - R en borde, L interior → recortar L al Y de R ({y_end_R:.1f})")
+            y_max_trim = y_end_R
+
+        else:
+            # CASO 2: Ambos tocan borde
+            if (end_L_is_lr and end_R_is_lr) and not (end_L_is_tb or end_R_is_tb):
+                # CASO 2a: Ambos tocan borde izquierdo/derecho
+                logger.info("   End: CASO 2a - Ambos en borde lateral, no recortar")
+                y_max_trim = None
+
+            elif abs(y_end_L - y_end_R) <= SAME_Y_THRESHOLD:
+                # CASO 2c: Ambos en borde con MISMO Y
+                logger.info(f"   End: CASO 2c - Ambos en borde, mismo Y (diff={abs(y_end_L - y_end_R):.1f}px) "
+                           f"→ safety trim {SAFETY_TRIM}px")
+                y_max_trim = min(y_end_L, y_end_R) - SAFETY_TRIM
+
+            else:
+                # CASO 2b: Ambos en borde con Y DIFERENTE
+                trend_L = _get_macro_trend(path_left_arr, from_start=False)
+                trend_R = _get_macro_trend(path_right_arr, from_start=False)
+
+                logger.info(f"   End: CASO 2b - Ambos en borde, Y diferente "
+                           f"(L={y_end_L:.1f}, R={y_end_R:.1f})")
+                logger.info(f"     Tendencia macro: L={trend_L:.1f}, R={trend_R:.1f}")
+
+                # El que termina más arriba (Y menor) fue más recortado → recortar el otro
+                y_max_trim = min(y_end_L, y_end_R)
+                logger.info(f"     → Recortar al menor Y_end: {y_max_trim:.1f}")
+
+        # === Validar que el rango resultante tenga sentido ===
+        effective_y_min = y_min_trim if y_min_trim is not None else max(y_start_L, y_start_R)
+        effective_y_max = y_max_trim if y_max_trim is not None else min(y_end_L, y_end_R)
+
+        if effective_y_max <= effective_y_min:
+            logger.error(f"❌ Rango vertical inválido después de trimming: "
+                        f"Y=[{effective_y_min:.1f}, {effective_y_max:.1f}]")
             return {
                 'success': False,
                 'algorithm': 'GEOMETRIC_PATH',
-                'error': 'No vertical overlap between paths'
+                'error': 'Invalid vertical range after trimming'
             }
 
-        # Calcular cuánto se recorta (para logging)
-        total_range_L = y_end_L - y_start_L
-        total_range_R = y_end_R - y_start_R
-        common_range = y_max_valid - y_min_valid
-        trim_pct_L = (1.0 - common_range / max(total_range_L, 1.0)) * 100
-        trim_pct_R = (1.0 - common_range / max(total_range_R, 1.0)) * 100
-
+        # === Aplicar trimming direccional ===
         len_before_L = len(path_left_arr)
         len_before_R = len(path_right_arr)
+        trimmed = False
 
-        # Solo recortar si hay diferencia significativa (>2% del rango)
-        if trim_pct_L > 2.0 or trim_pct_R > 2.0:
-            path_left_arr = _trim_path_to_y_range(path_left_arr, y_min_valid, y_max_valid)
-            path_right_arr = _trim_path_to_y_range(path_right_arr, y_min_valid, y_max_valid)
+        if y_min_trim is not None:
+            if y_start_L < y_min_trim - 1.0:
+                path_left_arr = _trim_from_start(path_left_arr, y_min_trim)
+                trimmed = True
+            if y_start_R < y_min_trim - 1.0:
+                path_right_arr = _trim_from_start(path_right_arr, y_min_trim)
+                trimmed = True
 
-            logger.info(f"   ✂ TRIMMING aplicado:")
-            logger.info(f"     LEFT:  {len_before_L} → {len(path_left_arr)} puntos "
-                        f"(recortado {trim_pct_L:.1f}%)")
-            logger.info(f"     RIGHT: {len_before_R} → {len(path_right_arr)} puntos "
-                        f"(recortado {trim_pct_R:.1f}%)")
+        if y_max_trim is not None:
+            if y_end_L > y_max_trim + 1.0:
+                path_left_arr = _trim_from_end(path_left_arr, y_max_trim)
+                trimmed = True
+            if y_end_R > y_max_trim + 1.0:
+                path_right_arr = _trim_from_end(path_right_arr, y_max_trim)
+                trimmed = True
 
-            # Validar que queden suficientes puntos después del trim
+        if trimmed:
+            logger.info(f"   ✂ SMART TRIMMING aplicado:")
+            logger.info(f"     LEFT:  {len_before_L} → {len(path_left_arr)} puntos")
+            logger.info(f"     RIGHT: {len_before_R} → {len(path_right_arr)} puntos")
+            logger.info(f"     Rango Y resultante: [{path_left_arr[0][1]:.1f}, {path_left_arr[-1][1]:.1f}] (L) "
+                        f"[{path_right_arr[0][1]:.1f}, {path_right_arr[-1][1]:.1f}] (R)")
+
             if len(path_left_arr) < 10 or len(path_right_arr) < 10:
                 logger.error("❌ Paths demasiado cortos después del trimming")
                 return {
@@ -954,7 +1140,7 @@ class StereoProcessor:
                     'error': 'Paths too short after trimming'
                 }
         else:
-            logger.info(f"   ✓ Trimming no necesario (diff < 2%)")
+            logger.info("   ✓ No se requiere trimming")
 
         # Calcular longitud de arco ACUMULADA para cada punto
         def calc_cumulative_arc_length(path_arr):
