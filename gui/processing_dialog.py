@@ -1137,67 +1137,130 @@ class ProcessingDialog(QDialog):
                 )
                 return
 
-            # Crear diálogo de selección
+            # Crear diálogo de selección con preview
             dialog = QDialog(self)
             dialog.setWindowTitle("Select Capture Session")
             dialog.setModal(True)
-            dialog.resize(500, 400)
+            dialog.resize(800, 450)
 
             layout = QVBoxLayout(dialog)
 
             # Título
-            title = QLabel("📁 Select a capture session to process")
+            title = QLabel("Select a capture session to process")
             title.setFont(QFont("Arial", 12, QFont.Bold))
             title.setAlignment(Qt.AlignCenter)
             layout.addWidget(title)
 
-            # Lista de sesiones
+            # --- Layout horizontal: Lista | Preview ---
+            content_layout = QHBoxLayout()
+
+            # === Lado izquierdo: Lista de sesiones ===
             list_widget = QListWidget()
             list_widget.setFont(QFont("Courier New", 10))
+            list_widget.setMinimumWidth(320)
 
             for session_dir in session_dirs:
-                # Verificar que tenga imágenes izquierda y derecha
                 left_img = session_dir / "left.jpg"
                 right_img = session_dir / "right.jpg"
 
-                # Obtener fecha de captura
                 capture_time = datetime.fromtimestamp(session_dir.stat().st_mtime)
                 date_str = capture_time.strftime('%Y-%m-%d %H:%M:%S')
 
-                # Crear item con información
                 if left_img.exists() and right_img.exists():
-                    status_icon = "✅"
+                    status_icon = "+"
                     status_text = "Complete"
                 else:
-                    status_icon = "⚠️"
+                    status_icon = "!"
                     status_text = "Incomplete"
 
-                item_text = f"{status_icon} {session_dir.name}\n    📅 {date_str} | {status_text}"
+                item_text = f"[{status_icon}] {session_dir.name}\n    {date_str} | {status_text}"
                 item = QListWidgetItem(item_text)
-                item.setData(Qt.UserRole, session_dir)  # Guardar path en el item
+                item.setData(Qt.UserRole, session_dir)
 
-                # Deshabilitar si no está completa
                 if not (left_img.exists() and right_img.exists()):
                     item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
 
                 list_widget.addItem(item)
 
-            layout.addWidget(list_widget)
+            content_layout.addWidget(list_widget, stretch=1)
+
+            # === Lado derecho: Preview panel ===
+            preview_frame = QFrame()
+            preview_frame.setFrameShape(QFrame.StyledPanel)
+            preview_frame.setMinimumWidth(280)
+            preview_frame.setStyleSheet("QFrame { background-color: #2b2b2b; border-radius: 4px; }")
+            preview_layout = QVBoxLayout(preview_frame)
+
+            preview_title = QLabel("Preview")
+            preview_title.setFont(QFont("Arial", 10, QFont.Bold))
+            preview_title.setAlignment(Qt.AlignCenter)
+            preview_title.setStyleSheet("color: #cccccc; padding: 4px;")
+            preview_layout.addWidget(preview_title)
+
+            left_preview_label = QLabel("Left")
+            left_preview_label.setAlignment(Qt.AlignCenter)
+            left_preview_label.setStyleSheet("color: #888888;")
+            left_preview_label.setFixedHeight(180)
+            preview_layout.addWidget(left_preview_label)
+
+            right_preview_label = QLabel("Right")
+            right_preview_label.setAlignment(Qt.AlignCenter)
+            right_preview_label.setStyleSheet("color: #888888;")
+            right_preview_label.setFixedHeight(180)
+            preview_layout.addWidget(right_preview_label)
+
+            preview_layout.addStretch()
+            content_layout.addWidget(preview_frame, stretch=0)
+
+            layout.addLayout(content_layout)
+
+            # Callback: actualizar preview al seleccionar un item
+            def _update_preview(current_item, _previous_item):
+                if current_item is None:
+                    left_preview_label.setText("Left")
+                    right_preview_label.setText("Right")
+                    return
+
+                session_path = current_item.data(Qt.UserRole)
+                if session_path is None:
+                    return
+
+                for img_name, label in [("left.jpg", left_preview_label),
+                                        ("right.jpg", right_preview_label)]:
+                    img_path = session_path / img_name
+                    if img_path.exists():
+                        pixmap = QPixmap(str(img_path))
+                        if not pixmap.isNull():
+                            scaled = pixmap.scaled(
+                                label.width() - 4, label.height() - 4,
+                                Qt.KeepAspectRatio, Qt.SmoothTransformation
+                            )
+                            label.setPixmap(scaled)
+                        else:
+                            label.setText(f"Cannot load {img_name}")
+                    else:
+                        label.setText(f"No {img_name}")
+
+            list_widget.currentItemChanged.connect(_update_preview)
+
+            # Seleccionar el primer item para mostrar preview inicial
+            if list_widget.count() > 0:
+                list_widget.setCurrentRow(0)
 
             # Información adicional
-            info_label = QLabel(f"📊 Total sessions: {len(session_dirs)}")
+            info_label = QLabel(f"Total sessions: {len(session_dirs)}")
             info_label.setStyleSheet("color: #666666; font-style: italic; padding: 5px;")
             layout.addWidget(info_label)
 
             # Botones
             buttons_layout = QHBoxLayout()
 
-            btn_ok = QPushButton("✅ Select")
+            btn_ok = QPushButton("Select")
             btn_ok.setDefault(True)
             btn_ok.clicked.connect(dialog.accept)
             buttons_layout.addWidget(btn_ok)
 
-            btn_cancel = QPushButton("❌ Cancel")
+            btn_cancel = QPushButton("Cancel")
             btn_cancel.clicked.connect(dialog.reject)
             buttons_layout.addWidget(btn_cancel)
 

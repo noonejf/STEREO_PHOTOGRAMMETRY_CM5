@@ -75,16 +75,35 @@ class SmartWireTracker:
 
             # 2. Calcular opciones
             candidates = self._find_candidates(current)
-            
-            # 3. Filtrar candidatos ya visitados
-            # Nota: Permitimos revisitar decision points, pero no el camino inmediato
+
+            # 3. Filtrar candidatos: preferir no-visitados, pero permitir
+            #    cruzar una zona visitada si la trayectoria es recta (crossing exception)
+            momentum = self._get_momentum_direction()
             valid_candidates = []
+            visited_crossing_candidates = []
+
             for c in candidates:
                 if self.visited_map[c[1], c[0]] == 0:
                     valid_candidates.append(c)
+                else:
+                    # Candidato visitado: evaluar si es un cruce legítimo
+                    # Solo permitir si hay momentum claro y la dirección está alineada
+                    if np.linalg.norm(momentum) > 0.1:
+                        direction = np.array(c, dtype=np.float64) - np.array(current, dtype=np.float64)
+                        norm = np.linalg.norm(direction)
+                        if norm > 0:
+                            direction /= norm
+                            dot = np.dot(direction, momentum)
+                            # Umbral alto (0.85): solo cruzar si va muy recto
+                            if dot > 0.85:
+                                visited_crossing_candidates.append(c)
+
+            # Usar candidatos visitados SOLO si los no-visitados son escasos
+            if len(valid_candidates) < 3 and len(visited_crossing_candidates) > 0:
+                valid_candidates.extend(visited_crossing_candidates)
             
             # 4. Análisis de Flujo (Momentum y Agrupación)
-            momentum = self._get_momentum_direction()
+            # (momentum ya calculado arriba para crossing check)
             end_direction = self._get_direction_to_end(current)
             
             flow_options = self._analyze_flow_options(
