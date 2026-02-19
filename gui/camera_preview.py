@@ -55,7 +55,7 @@ class LibcameraPreviewThread(QThread):
                 "--output", "-"
             ]
             
-            logger.info(f"Iniciando captura cam{self.camera_id}: {' '.join(cmd)}")
+            logger.info(f"Starting capture cam{self.camera_id}: {' '.join(cmd)}")
             
             self.process = subprocess.Popen(
                 cmd,
@@ -105,12 +105,12 @@ class LibcameraPreviewThread(QThread):
                         
                 except Exception as e:
                     if self.running:
-                        logger.warning(f"Error procesando frame cam{self.camera_id}: {e}")
+                        logger.warning(f"Error processing frame cam{self.camera_id}: {e}")
                     continue
                     
         except Exception as e:
-            self.error_occurred.emit(f"Error iniciando captura cam{self.camera_id}: {e}")
-            logger.error(f"Error en LibcameraPreviewThread cam{self.camera_id}: {e}")
+            self.error_occurred.emit(f"Error starting capture cam{self.camera_id}: {e}")
+            logger.error(f"Error in LibcameraPreviewThread cam{self.camera_id}: {e}")
         
         finally:
             self.cleanup()
@@ -211,7 +211,7 @@ class CameraPreviewWidget(QWidget):
         # Información de la cámara
         info_layout = QHBoxLayout()
         
-        self.info_label = QLabel(f"CAM{self.camera_id} - Desconectada")
+        self.info_label = QLabel(f"CAM{self.camera_id} - Disconnected")
         self.info_label.setFont(QFont("Arial", 9))
         self.info_label.setStyleSheet("color: #666666;")
         info_layout.addWidget(self.info_label)
@@ -238,7 +238,7 @@ class CameraPreviewWidget(QWidget):
     def show_no_signal(self):
         """Mostrar mensaje de sin señal"""
         self.video_label.clear()
-        self.video_label.setText(f"Sin señal\n{self.camera_name}")
+        self.video_label.setText(f"No signal\n{self.camera_name}")
         self.video_label.setStyleSheet("""
             QLabel {
                 background-color: #263238;
@@ -251,7 +251,7 @@ class CameraPreviewWidget(QWidget):
     def show_connecting(self):
         """Mostrar mensaje de conectando"""
         self.video_label.clear()
-        self.video_label.setText(f"Conectando...\n{self.camera_name}")
+        self.video_label.setText(f"Connecting...\n{self.camera_name}")
         self.video_label.setStyleSheet("""
             QLabel {
                 background-color: #1A237E;
@@ -269,7 +269,7 @@ class CameraPreviewWidget(QWidget):
         try:
             self.show_connecting()
             self.status_indicator.setStyleSheet("color: #FF9800;")  # Naranja
-            self.info_label.setText(f"CAM{self.camera_id} - Conectando...")
+            self.info_label.setText(f"CAM{self.camera_id} - Connecting...")
             
             # Determinar qué cámara es para obtener su config de preview
             cam_settings = self.config.left_camera if self.camera_id == self.config.left_camera.camera_id else self.config.right_camera
@@ -289,10 +289,10 @@ class CameraPreviewWidget(QWidget):
             self.preview_thread.start()
             self.is_previewing = True
             
-            logger.info(f"Vista previa iniciada para {self.camera_name}")
+            logger.info(f"Preview started for {self.camera_name}")
             
         except Exception as e:
-            self.on_error(f"Error iniciando vista previa: {e}")
+            self.on_error(f"Error starting preview: {e}")
     
     def stop_preview(self):
         """Detener vista previa de la cámara"""
@@ -317,10 +317,10 @@ class CameraPreviewWidget(QWidget):
         
         self.show_no_signal()
         self.status_indicator.setStyleSheet("color: #F44336;")  # Rojo
-        self.info_label.setText(f"CAM{self.camera_id} - Desconectada")
+        self.info_label.setText(f"CAM{self.camera_id} - Disconnected")
         self.fps_label.setText("0 FPS")
         
-        logger.info(f"Vista previa detenida para {self.camera_name}")
+        logger.info(f"Preview stopped for {self.camera_name}")
     
     def on_frame_ready(self, frame):
         """Callback cuando un frame está listo"""
@@ -351,7 +351,7 @@ class CameraPreviewWidget(QWidget):
             # Actualizar estado
             if not self.is_previewing:  # Primer frame recibido
                 self.status_indicator.setStyleSheet("color: #4CAF50;")  # Verde
-                self.info_label.setText(f"CAM{self.camera_id} - Activa")
+                self.info_label.setText(f"CAM{self.camera_id} - Active")
                 self.is_previewing = True
             
             # Incrementar contador de frames
@@ -361,11 +361,11 @@ class CameraPreviewWidget(QWidget):
             self.frame_ready.emit(frame)
             
         except Exception as e:
-            logger.error(f"Error procesando frame {self.camera_name}: {e}")
+            logger.error(f"Error processing frame {self.camera_name}: {e}")
     
     def on_error(self, error_message):
         """Callback cuando ocurre un error"""
-        logger.error(f"Error en {self.camera_name}: {error_message}")
+        logger.error(f"Error in {self.camera_name}: {error_message}")
         
         self.show_no_signal()
         self.video_label.setText(f"Error\n{self.camera_name}\n{error_message}")
@@ -384,7 +384,7 @@ class CameraPreviewWidget(QWidget):
     def on_preview_finished(self):
         """Callback cuando termina la vista previa"""
         self.is_previewing = False
-        logger.info(f"Hilo de vista previa terminado para {self.camera_name}")
+        logger.info(f"Preview thread finished for {self.camera_name}")
     
     def update_fps_display(self):
         """Actualizar display de FPS"""
@@ -405,7 +405,7 @@ class CameraPreviewWidget(QWidget):
     def capture_frame(self, output_file):
         """Capturar frame actual a archivo"""
         if self.current_frame is None:
-            raise RuntimeError("No hay frame disponible para captura")
+            raise RuntimeError("No frame available for capture")
         
         # Convertir RGB a BGR para OpenCV
         bgr_frame = cv2.cvtColor(self.current_frame, cv2.COLOR_RGB2BGR)
@@ -413,7 +413,7 @@ class CameraPreviewWidget(QWidget):
         # Guardar imagen
         success = cv2.imwrite(output_file, bgr_frame)
         if not success:
-            raise RuntimeError(f"Error guardando frame a {output_file}")
+            raise RuntimeError(f"Error saving frame to {output_file}")
         
         return output_file
     

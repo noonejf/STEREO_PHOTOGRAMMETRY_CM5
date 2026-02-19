@@ -72,12 +72,12 @@ class EdgeDetectionTuner(QDialog):
         layout = QVBoxLayout(panel)
 
         # Botón para cargar imagen
-        btn_load = QPushButton("Cargar Imagen")
+        btn_load = QPushButton("Load Image")
         btn_load.clicked.connect(self.load_image)
         layout.addWidget(btn_load)
 
         # Selector de método
-        method_group = QGroupBox("Método de Detección")
+        method_group = QGroupBox("Detection Method")
         method_layout = QVBoxLayout()
         self.method_combo = QComboBox()
         self.method_combo.addItems([
@@ -93,7 +93,7 @@ class EdgeDetectionTuner(QDialog):
         layout.addWidget(method_group)
 
         # === PARÁMETROS CANNY ===
-        self.canny_group = QGroupBox("Parámetros Canny")
+        self.canny_group = QGroupBox("Canny Parameters")
         canny_layout = QGridLayout()
 
         # Threshold 1
@@ -127,7 +127,7 @@ class EdgeDetectionTuner(QDialog):
         layout.addWidget(self.canny_group)
 
         # === PARÁMETROS SOBEL ===
-        self.sobel_group = QGroupBox("Parámetros Sobel")
+        self.sobel_group = QGroupBox("Sobel Parameters")
         sobel_layout = QGridLayout()
 
         sobel_layout.addWidget(QLabel("Kernel Size:"), 0, 0)
@@ -151,7 +151,7 @@ class EdgeDetectionTuner(QDialog):
         layout.addWidget(self.sobel_group)
 
         # === PARÁMETROS LAPLACIAN ===
-        self.laplacian_group = QGroupBox("Parámetros Laplacian")
+        self.laplacian_group = QGroupBox("Laplacian Parameters")
         laplacian_layout = QGridLayout()
 
         laplacian_layout.addWidget(QLabel("Kernel Size:"), 0, 0)
@@ -175,7 +175,7 @@ class EdgeDetectionTuner(QDialog):
         layout.addWidget(self.laplacian_group)
 
         # === PARÁMETROS MORPHOLOGICAL GRADIENT ===
-        self.morphgrad_group = QGroupBox("Parámetros Morphological Gradient")
+        self.morphgrad_group = QGroupBox("Morphological Gradient Parameters")
         morphgrad_layout = QGridLayout()
 
         morphgrad_layout.addWidget(QLabel("Kernel Size:"), 0, 0)
@@ -202,7 +202,7 @@ class EdgeDetectionTuner(QDialog):
         layout.addWidget(self.morphgrad_group)
 
         # === PARÁMETROS TOP-HAT ===
-        self.tophat_group = QGroupBox("Parámetros Top-Hat")
+        self.tophat_group = QGroupBox("Top-Hat Parameters")
         tophat_layout = QGridLayout()
 
         tophat_layout.addWidget(QLabel("Kernel Size:"), 0, 0)
@@ -229,7 +229,7 @@ class EdgeDetectionTuner(QDialog):
         layout.addWidget(self.tophat_group)
 
         # === POST-PROCESAMIENTO COMÚN ===
-        postproc_group = QGroupBox("Post-procesamiento")
+        postproc_group = QGroupBox("Post-processing")
         postproc_layout = QGridLayout()
 
         # Dilatación
@@ -266,11 +266,11 @@ class EdgeDetectionTuner(QDialog):
         layout.addWidget(postproc_group)
 
         # === LIMPIEZA INTELIGENTE ===
-        cleanup_group = QGroupBox("Limpieza Inteligente")
+        cleanup_group = QGroupBox("Smart Cleanup")
         cleanup_layout = QGridLayout()
 
         # Área mínima para componentes
-        cleanup_layout.addWidget(QLabel("Área Mínima (% del mayor):"), 0, 0)
+        cleanup_layout.addWidget(QLabel("Min Area (% of largest):"), 0, 0)
         self.cleanup_area_slider = QSlider(Qt.Horizontal)
         self.cleanup_area_slider.setRange(1, 50)
         self.cleanup_area_slider.setValue(10)
@@ -281,7 +281,7 @@ class EdgeDetectionTuner(QDialog):
 
         # Checkbox para activar limpieza
         from PyQt5.QtWidgets import QCheckBox
-        self.cleanup_enable = QCheckBox("Activar Limpieza Inteligente")
+        self.cleanup_enable = QCheckBox("Enable Smart Cleanup")
         self.cleanup_enable.setChecked(True)
         self.cleanup_enable.stateChanged.connect(self.update_detection)
         cleanup_layout.addWidget(self.cleanup_enable, 1, 0, 1, 3)
@@ -290,16 +290,16 @@ class EdgeDetectionTuner(QDialog):
         layout.addWidget(cleanup_group)
 
         # Estadísticas
-        self.stats_label = QLabel("Píxeles detectados: 0 (0.00%)")
+        self.stats_label = QLabel("Pixels detected: 0 (0.00%)")
         layout.addWidget(self.stats_label)
 
         # === GESTIÓN DE CONFIGURACIONES ===
-        config_group = QGroupBox("Configuraciones Guardadas")
+        config_group = QGroupBox("Saved Configurations")
         config_layout = QVBoxLayout()
 
         # Selector de configuraciones
         config_select_layout = QHBoxLayout()
-        config_select_layout.addWidget(QLabel("Cargar:"))
+        config_select_layout.addWidget(QLabel("Load:"))
         self.config_selector = QComboBox()
         self.config_selector.currentTextChanged.connect(self.load_saved_config)
         config_select_layout.addWidget(self.config_selector)
@@ -307,20 +307,20 @@ class EdgeDetectionTuner(QDialog):
 
         # Nombre para nueva configuración
         name_layout = QHBoxLayout()
-        name_layout.addWidget(QLabel("Nombre:"))
+        name_layout.addWidget(QLabel("Name:"))
         from PyQt5.QtWidgets import QLineEdit
         self.config_name_input = QLineEdit()
-        self.config_name_input.setPlaceholderText("Nueva configuración...")
+        self.config_name_input.setPlaceholderText("New configuration...")
         name_layout.addWidget(self.config_name_input)
         config_layout.addLayout(name_layout)
 
         # Botones
         buttons_layout = QHBoxLayout()
-        btn_save = QPushButton("💾 Guardar Como...")
+        btn_save = QPushButton("💾 Save As...")
         btn_save.clicked.connect(self.save_config_with_name)
         buttons_layout.addWidget(btn_save)
 
-        btn_delete = QPushButton("🗑️ Eliminar")
+        btn_delete = QPushButton("🗑️ Delete")
         btn_delete.clicked.connect(self.delete_config)
         buttons_layout.addWidget(btn_delete)
 
@@ -333,7 +333,7 @@ class EdgeDetectionTuner(QDialog):
         layout.addWidget(config_group)
 
         # Botón para aplicar y cerrar (cuando se usa desde procesamiento)
-        self.btn_apply_close = QPushButton("✓ Aplicar y Continuar Procesamiento")
+        self.btn_apply_close = QPushButton("✓ Apply and Continue Processing")
         self.btn_apply_close.clicked.connect(self.apply_and_close)
         self.btn_apply_close.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px;")
         self.btn_apply_close.hide()  # Solo visible cuando se llama desde procesamiento
@@ -349,14 +349,14 @@ class EdgeDetectionTuner(QDialog):
         layout = QVBoxLayout(panel)
 
         # Imagen original
-        layout.addWidget(QLabel("Imagen Original:"))
+        layout.addWidget(QLabel("Original Image:"))
         self.original_label = QLabel()
         self.original_label.setMinimumSize(600, 400)
         self.original_label.setScaledContents(True)
         layout.addWidget(self.original_label)
 
         # Imagen con detección
-        layout.addWidget(QLabel("Bordes Detectados:"))
+        layout.addWidget(QLabel("Detected Edges:"))
         self.detection_label = QLabel()
         self.detection_label.setMinimumSize(600, 400)
         self.detection_label.setScaledContents(True)
@@ -445,14 +445,14 @@ class EdgeDetectionTuner(QDialog):
             pixels_detected = np.sum(edges > 0)
             percentage = 100 * pixels_detected / edges.size
             self.stats_label.setText(
-                f"Píxeles: {pixels_detected} ({percentage:.2f}%)\n"
-                f"Componentes: {num_components_after} (antes: {num_components_before}, eliminados: {num_components_before - num_components_after})"
+                f"Pixels: {pixels_detected} ({percentage:.2f}%)\n"
+                f"Components: {num_components_after} (before: {num_components_before}, removed: {num_components_before - num_components_after})"
             )
         else:
             # Actualizar estadísticas sin limpieza
             pixels_detected = np.sum(edges > 0)
             percentage = 100 * pixels_detected / edges.size
-            self.stats_label.setText(f"Píxeles detectados: {pixels_detected} ({percentage:.2f}%)")
+            self.stats_label.setText(f"Pixels detected: {pixels_detected} ({percentage:.2f}%)")
 
         # Guardar máscara para uso externo
         self.mask_result = edges
@@ -687,27 +687,27 @@ class EdgeDetectionTuner(QDialog):
         # Guardar en archivo
         config_path = Path("edge_detection_config.txt")
         with open(config_path, 'w') as f:
-            f.write(f"Configuración de Detección de Bordes del Cable\n")
+            f.write(f"Cable Edge Detection Configuration\n")
             f.write(f"="*50 + "\n\n")
-            f.write(f"# Método de detección\n")
+            f.write(f"# Detection method\n")
             f.write(f"method: {config['method']}\n\n")
 
-            f.write(f"# Parámetros específicos del método\n")
+            f.write(f"# Method specific parameters\n")
             for key, value in config.items():
                 if key not in ['method', 'dilate', 'erode', 'close', 'cleanup_enabled', 'cleanup_area_percent']:
                     f.write(f"{key}: {value}\n")
 
-            f.write(f"\n# Post-procesamiento\n")
+            f.write(f"\n# Post-processing\n")
             f.write(f"dilate: {config['dilate']}\n")
             f.write(f"erode: {config['erode']}\n")
             f.write(f"close: {config['close']}\n")
 
-            f.write(f"\n# Limpieza inteligente\n")
+            f.write(f"\n# Smart cleanup\n")
             f.write(f"cleanup_enabled: {config['cleanup_enabled']}\n")
             f.write(f"cleanup_area_percent: {config['cleanup_area_percent']}\n")
 
-        print(f"✓ Configuración guardada en {config_path}")
-        print("\nConfiguración actual:")
+        print(f"✓ Configuration saved to {config_path}")
+        print("\nCurrent configuration:")
         print(config)
 
     def get_config_dir(self):
@@ -721,7 +721,7 @@ class EdgeDetectionTuner(QDialog):
         name = self.config_name_input.text().strip()
         if not name:
             from PyQt5.QtWidgets import QMessageBox
-            QMessageBox.warning(self, "Error", "Por favor ingresa un nombre para la configuración")
+            QMessageBox.warning(self, "Error", "Please enter a name for the configuration")
             return
 
         method = self.method_combo.currentText()
@@ -763,12 +763,12 @@ class EdgeDetectionTuner(QDialog):
         with open(last_used_path, 'w') as f:
             json.dump({'config_name': name}, f)
 
-        print(f"✓ Configuración '{name}' guardada")
+        print(f"✓ Configuration '{name}' saved")
         self.config_name_input.clear()
         self.refresh_config_list()
 
         from PyQt5.QtWidgets import QMessageBox
-        QMessageBox.information(self, "Guardado", f"Configuración '{name}' guardada exitosamente")
+        QMessageBox.information(self, "Saved", f"Configuration '{name}' saved successfully")
 
     def refresh_config_list(self):
         """Actualizar lista de configuraciones guardadas"""
@@ -848,28 +848,28 @@ class EdgeDetectionTuner(QDialog):
         self.cleanup_enable.setChecked(config.get('cleanup_enabled', True))
         self.cleanup_area_slider.setValue(config.get('cleanup_area_percent', 10))
 
-        print(f"✓ Configuración '{config_name}' cargada")
+        print(f"✓ Configuration '{config_name}' loaded")
 
     def delete_config(self):
         """Eliminar configuración seleccionada"""
         config_name = self.config_selector.currentText()
         if not config_name or config_name == "-- Default (Top-Hat) --":
             from PyQt5.QtWidgets import QMessageBox
-            QMessageBox.warning(self, "Error", "No se puede eliminar la configuración por defecto")
+            QMessageBox.warning(self, "Error", "Cannot delete default configuration")
             return
 
         from PyQt5.QtWidgets import QMessageBox
-        reply = QMessageBox.question(self, "Confirmar",
-                                     f"¿Eliminar configuración '{config_name}'?",
+        reply = QMessageBox.question(self, "Confirm",
+                                     f"Delete configuration '{config_name}'?",
                                      QMessageBox.Yes | QMessageBox.No)
 
         if reply == QMessageBox.Yes:
             config_path = self.get_config_dir() / f"{config_name}.json"
             if config_path.exists():
                 config_path.unlink()
-                print(f"✓ Configuración '{config_name}' eliminada")
+                print(f"✓ Configuration '{config_name}' deleted")
                 self.refresh_config_list()
-                QMessageBox.information(self, "Eliminado", f"Configuración '{config_name}' eliminada")
+                QMessageBox.information(self, "Deleted", f"Configuration '{config_name}' deleted")
 
     def apply_and_close(self):
         """Aplicar configuración actual y cerrar (para modo procesamiento)"""
@@ -891,14 +891,14 @@ class EdgeDetectionTuner(QDialog):
                     current_name = "left" if self.current_image == "left" else "right"
                     mask_path = mask_dir / f"cable_mask_{current_name}.png"
                     cv2.imwrite(str(mask_path), self.mask_result)
-                    print(f"✓ Máscara guardada: {mask_path}")
+                    print(f"✓ Mask saved: {mask_path}")
                 else:
                     # Modo normal (una sola imagen)
                     mask_path = mask_dir / "cable_mask.png"
                     cv2.imwrite(str(mask_path), self.mask_result)
-                    print(f"✓ Máscara guardada: {mask_path}")
+                    print(f"✓ Mask saved: {mask_path}")
             except Exception as e:
-                print(f"⚠️ No se pudo guardar máscara: {e}")
+                print(f"⚠️ Could not save mask: {e}")
 
         self.accept()  # Cerrar ventana con éxito
 
@@ -917,11 +917,11 @@ class EdgeDetectionTuner(QDialog):
         self.current_view = "left"  # "left" o "right"
 
         self.btn_apply_close.show()
-        self.setWindowTitle(f"Ajustar Detección de Cable - Imagen IZQUIERDA")
+        self.setWindowTitle(f"Tune Cable Detection - LEFT Image")
 
         # Añadir botón de switch si hay imagen derecha
         if right_img is not None:
-            self.btn_switch = QPushButton("↔️ Cambiar a Imagen DERECHA")
+            self.btn_switch = QPushButton("↔️ Switch to RIGHT Image")
             self.btn_switch.setStyleSheet("""
                 QPushButton {
                     background-color: #2196F3;
@@ -952,14 +952,14 @@ class EdgeDetectionTuner(QDialog):
             # Cambiar a imagen derecha
             self.current_view = "right"
             self.original_img = self.right_img_data
-            self.setWindowTitle("Ajustar Detección de Cable - Imagen DERECHA")
-            self.btn_switch.setText("↔️ Cambiar a Imagen IZQUIERDA")
+            self.setWindowTitle("Tune Cable Detection - RIGHT Image")
+            self.btn_switch.setText("↔️ Switch to LEFT Image")
         else:
             # Cambiar a imagen izquierda
             self.current_view = "left"
             self.original_img = self.left_img_data
-            self.setWindowTitle("Ajustar Detección de Cable - Imagen IZQUIERDA")
-            self.btn_switch.setText("↔️ Cambiar a Imagen DERECHA")
+            self.setWindowTitle("Tune Cable Detection - LEFT Image")
+            self.btn_switch.setText("↔️ Switch to RIGHT Image")
 
         # Actualizar detección con la nueva imagen
         self.update_detection()
@@ -996,7 +996,7 @@ def open_cable_detection_tuner(left_img, right_img=None):
         if right_img is not None:
             tuner_right = EdgeDetectionTuner()
             tuner_right.set_processing_mode(right_img, None)
-            tuner_right.setWindowTitle("Ajustar Detección de Cable - Imagen DERECHA")
+            tuner_right.setWindowTitle("Tune Cable Detection - RIGHT Image")
 
             result_right = tuner_right.exec_()
 
@@ -1041,7 +1041,7 @@ def open_cable_detection_tuner_with_switch(left_img, right_img, left_path="", ri
     tuner.set_processing_mode(left_img, right_img, left_path, right_path)
 
     # Indicar que debe configurar ambas
-    tuner.setWindowTitle("Configurar Filtro - Ajusta para ambas imágenes (usa ↔️)")
+    tuner.setWindowTitle("Configure Filter - Adjust for both images (use ↔️)")
 
     result = tuner.exec_()
 
@@ -1111,11 +1111,11 @@ def open_cable_detection_tuner_with_switch(left_img, right_img, left_path="", ri
 
             cv2.imwrite(str(mask_dir / "cable_mask_left.png"), mask_left)
             cv2.imwrite(str(mask_dir / "cable_mask_right.png"), mask_right)
-            print(f"✓ Máscaras guardadas:")
+            print(f"✓ Masks saved:")
             print(f"  - {mask_dir / 'cable_mask_left.png'}")
             print(f"  - {mask_dir / 'cable_mask_right.png'}")
         except Exception as e:
-            print(f"⚠️ No se pudieron guardar máscaras: {e}")
+            print(f"⚠️ Could not save masks: {e}")
 
         return mask_left, mask_right
 

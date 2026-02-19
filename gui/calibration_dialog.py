@@ -39,7 +39,7 @@ class CalibrationProcessingThread(QThread):
     def run(self):
         """Ejecutar solo el procesamiento de calibración"""
         try:
-            self.log_message.emit("Iniciando procesamiento de imágenes...", "INFO")
+            self.log_message.emit("Starting image processing...", "INFO")
             calibrator = CameraCalibrator(self.camera_config)
             
             calibration_result = calibrator.calibrate_from_session(
@@ -48,14 +48,14 @@ class CalibrationProcessingThread(QThread):
             )
             
             if calibration_result['success']:
-                self.log_message.emit("Procesamiento completado exitosamente", "INFO")
+                self.log_message.emit("Processing completed successfully", "INFO")
             else:
-                self.log_message.emit(f"Error en procesamiento: {calibration_result.get('error')}", "ERROR")
+                self.log_message.emit(f"Processing error: {calibration_result.get('error')}", "ERROR")
             
             self.calibration_complete.emit(calibration_result['success'], calibration_result)
             
         except Exception as e:
-            self.log_message.emit(f"Error fatal durante procesamiento: {e}", "ERROR")
+            self.log_message.emit(f"Fatal error during processing: {e}", "ERROR")
             self.calibration_complete.emit(False, {'error': str(e)})
     
     def progress_callback(self, progress, message):
@@ -91,7 +91,7 @@ class CalibrationDialog(QDialog):
         
     def init_ui(self):
         """Inicializar interfaz de usuario"""
-        self.setWindowTitle("Calibración de Cámaras Estéreo")
+        self.setWindowTitle("Stereo Camera Calibration")
         # ✅ FIX: No modal, para poder ver la ventana principal
         self.setModal(False) 
         self.resize(800, 600)
@@ -99,7 +99,7 @@ class CalibrationDialog(QDialog):
         layout = QVBoxLayout(self)
         
         # ... (El resto de la UI es igual) ...
-        title = QLabel("🎯 Calibración de Cámaras Estéreo")
+        title = QLabel("🎯 Stereo Camera Calibration")
         title.setFont(QFont("Arial", 18, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: #1976D2; margin: 10px;")
@@ -126,18 +126,18 @@ class CalibrationDialog(QDialog):
         self.apply_styles()
     
     def create_board_info_group(self):
-        group = QGroupBox("📋 Requisitos del Tablero de Ajedrez")
+        group = QGroupBox("📋 Checkerboard Requirements")
         layout = QVBoxLayout(group)
         board_size = self.camera_config.stereo.calibration_board_size
         square_size = self.camera_config.stereo.calibration_square_size_mm
         info_text = f"""
-        <b>Configuración del tablero:</b><br>
-        • Esquinas internas: {board_size[0]} x {board_size[1]} ({board_size[0] * board_size[1]} esquinas)<br>
-        • Tamaño de cuadrado: {square_size} mm<br><br>
-        <b>Instrucciones:</b><br>
-        • Mueve el diálogo para ver la vista previa de las cámaras.<br>
-        • Posiciona el tablero hasta que se vea bien en AMBAS cámaras.<br>
-        • El sistema te dará tiempo para re-acomodarte entre cada foto.
+        <b>Board Configuration:</b><br>
+        • Inner corners: {board_size[0]} x {board_size[1]} ({board_size[0] * board_size[1]} corners)<br>
+        • Square size: {square_size} mm<br><br>
+        <b>Instructions:</b><br>
+        • Move this dialog to see the camera preview.<br>
+        • Position the board so it is clearly visible in BOTH cameras.<br>
+        • The system will give you time to reposition between each shot.
         """
         info_label = QLabel(info_text)
         info_label.setWordWrap(True)
@@ -146,36 +146,36 @@ class CalibrationDialog(QDialog):
         return group
     
     def create_capture_config_group(self):
-        group = QGroupBox("⚙️ Configuración de Captura")
+        group = QGroupBox("⚙️ Capture Configuration")
         layout = QGridLayout(group)
         
-        layout.addWidget(QLabel("Número de imágenes:"), 0, 0)
+        layout.addWidget(QLabel("Number of images:"), 0, 0)
         self.num_images_spin = QSpinBox()
         self.num_images_spin.setRange(15, 50)
         self.num_images_spin.setValue(self.camera_config.stereo.min_calibration_images)
-        self.num_images_spin.setSuffix(" imágenes")
+        self.num_images_spin.setSuffix(" images")
         layout.addWidget(self.num_images_spin, 0, 1)
         
         # ✅ LÓGICA CAMBIADA: Este es el tiempo de preview ENTRE FOTOS
-        layout.addWidget(QLabel("Tiempo de acomodación:"), 1, 0)
+        layout.addWidget(QLabel("Settling time:"), 1, 0)
         self.delay_spin = QDoubleSpinBox()
         self.delay_spin.setRange(5.0, 30.0)
         self.delay_spin.setValue(8.0) # 8 segundos para acomodar
-        self.delay_spin.setSuffix(" segundos")
+        self.delay_spin.setSuffix(" seconds")
         self.delay_spin.setDecimals(1)
         layout.addWidget(self.delay_spin, 1, 1)
         
-        layout.addWidget(QLabel("Countdown inicial:"), 2, 0)
+        layout.addWidget(QLabel("Initial countdown:"), 2, 0)
         self.countdown_spin = QSpinBox()
         self.countdown_spin.setRange(5, 30)
         self.countdown_spin.setValue(10)
-        self.countdown_spin.setSuffix(" segundos")
+        self.countdown_spin.setSuffix(" seconds")
         layout.addWidget(self.countdown_spin, 2, 1)
         
         return group
     
     def create_current_status_group(self):
-        group = QGroupBox("📊 Estado Actual de Calibración")
+        group = QGroupBox("📊 Current Calibration Status")
         layout = QVBoxLayout(group)
         self.status_label = QLabel()
         self.status_label.setAlignment(Qt.AlignCenter)
@@ -187,9 +187,9 @@ class CalibrationDialog(QDialog):
         return group
     
     def create_progress_group(self):
-        group = QGroupBox("📈 Progreso de Calibración")
+        group = QGroupBox("📈 Calibration Progress")
         layout = QVBoxLayout(group)
-        self.countdown_label = QLabel("Mueve este diálogo para ver la vista previa")
+        self.countdown_label = QLabel("Move this dialog to see the preview")
         self.countdown_label.setFont(QFont("Arial", 16, QFont.Bold))
         self.countdown_label.setAlignment(Qt.AlignCenter)
         self.countdown_label.setStyleSheet("background-color: #F5F5F5; padding: 15px; border-radius: 5px; border: 2px solid #CCCCCC;")
@@ -206,7 +206,7 @@ class CalibrationDialog(QDialog):
         return group
     
     def create_log_group(self):
-        group = QGroupBox("📝 Registro de Actividades")
+        group = QGroupBox("📝 Activity Log")
         layout = QVBoxLayout(group)
         self.log_text = QTextEdit()
         self.log_text.setMaximumHeight(120)
@@ -219,7 +219,7 @@ class CalibrationDialog(QDialog):
         layout = QHBoxLayout()
 
         # Botón para captura nueva (solo si hay cámaras)
-        self.btn_start = QPushButton("🚀 Iniciar Calibración")
+        self.btn_start = QPushButton("🚀 Start Calibration")
         self.btn_start.setFixedHeight(45)
         self.btn_start.setStyleSheet("QPushButton { font-size: 14px; font-weight: bold; background-color: #4CAF50; color: white; border: none; border-radius: 5px; } QPushButton:hover { background-color: #45a049; } QPushButton:disabled { background-color: #CCCCCC; color: #666666; }")
         self.btn_start.clicked.connect(self.start_calibration)
@@ -227,13 +227,13 @@ class CalibrationDialog(QDialog):
         layout.addWidget(self.btn_start)
 
         # Botón para procesar sesión existente (siempre disponible)
-        self.btn_process_existing = QPushButton("📂 Procesar Sesión Existente")
+        self.btn_process_existing = QPushButton("📂 Process Existing Session")
         self.btn_process_existing.setFixedHeight(45)
         self.btn_process_existing.setStyleSheet("QPushButton { font-size: 14px; font-weight: bold; background-color: #2196F3; color: white; border: none; border-radius: 5px; } QPushButton:hover { background-color: #1976D2; } QPushButton:disabled { background-color: #CCCCCC; color: #666666; }")
         self.btn_process_existing.clicked.connect(self.process_existing_session)
         layout.addWidget(self.btn_process_existing)
 
-        self.btn_cancel = QPushButton("❌ Cancelar")
+        self.btn_cancel = QPushButton("❌ Cancel")
         self.btn_cancel.setFixedHeight(45)
         self.btn_cancel.clicked.connect(self.cancel_calibration)
         self.btn_cancel.setEnabled(False)
@@ -241,7 +241,7 @@ class CalibrationDialog(QDialog):
 
         layout.addStretch()
 
-        self.btn_close = QPushButton("✅ Cerrar")
+        self.btn_close = QPushButton("✅ Close")
         self.btn_close.setFixedHeight(45)
         self.btn_close.clicked.connect(self.close)
         layout.addWidget(self.btn_close)
@@ -252,15 +252,15 @@ class CalibrationDialog(QDialog):
     
     def load_current_calibration_status(self):
         if self.camera_config.is_calibrated():
-            self.status_label.setText("✅ SISTEMA CALIBRADO")
+            self.status_label.setText("✅ SYSTEM CALIBRATED")
             self.status_label.setStyleSheet("color: green; font-weight: bold; font-size: 14px;")
             if hasattr(self.camera_config, 'calibration_data'):
                 calib_data = self.camera_config.calibration_data
-                details_text = f"<b>Detalles:</b> Fecha: {calib_data.get('calibration_date', 'N/A')}, Error: {calib_data.get('calibration_error', 'N/A'):.3f} píxeles"
+                details_text = f"<b>Details:</b> Date: {calib_data.get('calibration_date', 'N/A')}, Error: {calib_data.get('calibration_error', 'N/A'):.3f} pixels"
                 self.details_label.setText(details_text)
                 self.details_label.setVisible(True)
         else:
-            self.status_label.setText("❌ CALIBRACIÓN REQUERIDA")
+            self.status_label.setText("❌ CALIBRATION REQUIRED")
             self.status_label.setStyleSheet("color: red; font-weight: bold; font-size: 14px;")
             self.details_label.setVisible(False)
     
@@ -275,11 +275,11 @@ class CalibrationDialog(QDialog):
     def start_calibration(self):
         """Inicia el proceso. Muestra advertencia y luego el countdown inicial."""
         msg = QMessageBox.question(
-            self, "Confirmar Calibración",
-            f"Se capturarán {self.num_images_spin.value()} pares de imágenes.\n\n"
-            "Asegúrate de poder ver la vista previa de la ventana principal.\n"
-            "¡Mueve este diálogo si es necesario!\n\n"
-            "¿Comenzar?",
+            self, "Confirm Calibration",
+            f"This will capture {self.num_images_spin.value()} image pairs.\n\n"
+            "Ensure you can see the preview in the main window.\n"
+            "Move this dialog if necessary!\n\n"
+            "Start?",
             QMessageBox.Yes | QMessageBox.No
         )
         
@@ -300,9 +300,9 @@ class CalibrationDialog(QDialog):
         # Crear el directorio de sesión AHORA
         try:
             self.capture_session_dir = self.stereo_camera.create_calibration_session_dir()
-            self.add_log_message(f"Sesión creada en: {self.capture_session_dir}", "INFO")
+            self.add_log_message(f"Session created at: {self.capture_session_dir}", "INFO")
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo crear el directorio de sesión: {e}")
+            QMessageBox.critical(self, "Error", f"Could not create session directory: {e}")
             self.cancel_calibration()
             return
         
@@ -324,7 +324,7 @@ class CalibrationDialog(QDialog):
     def update_initial_countdown(self):
         """Tick del countdown ANTES de la primera foto."""
         if self.countdown_seconds > 0:
-            self.set_countdown_style("🎯 ¡PREPARA EL TABLERO!", f"Captura inicial en: {self.countdown_seconds}", self.countdown_seconds)
+            self.set_countdown_style("🎯 PREPARE THE BOARD!", f"Initial capture in: {self.countdown_seconds}", self.countdown_seconds)
             self.countdown_seconds -= 1
         else:
             self.countdown_timer.stop()
@@ -333,7 +333,7 @@ class CalibrationDialog(QDialog):
     def update_next_shot_countdown(self):
         """Tick del countdown ENTRE fotos."""
         if self.countdown_seconds > 0:
-            self.set_countdown_style("👀 ¡RE-ACOMODA EL TABLERO!", f"Próxima captura en: {self.countdown_seconds}", self.countdown_seconds)
+            self.set_countdown_style("👀 REPOSITION THE BOARD!", f"Next capture in: {self.countdown_seconds}", self.countdown_seconds)
             self.countdown_seconds -= 1
         else:
             self.countdown_timer.stop()
@@ -344,8 +344,8 @@ class CalibrationDialog(QDialog):
         if not self.is_capturing:
             return
 
-        self.progress_message.setText(f"Capturando imagen {self.images_captured + 1} / {self.images_to_capture}...")
-        self.add_log_message(f"Capturando par {self.images_captured + 1}", "INFO")
+        self.progress_message.setText(f"Capturing image {self.images_captured + 1} / {self.images_to_capture}...")
+        self.add_log_message(f"Capturing pair {self.images_captured + 1}", "INFO")
 
         # 1. Pausar preview
         self.stop_preview_for_capture()
@@ -367,15 +367,15 @@ class CalibrationDialog(QDialog):
             self.progress_bar.setValue(progress)
 
         except Exception as e:
-            self.add_log_message(f"Error fatal en captura: {e}", "ERROR")
-            QMessageBox.critical(self, "Error de Captura", f"Falló la captura: {e}")
+            self.add_log_message(f"Fatal capture error: {e}", "ERROR")
+            QMessageBox.critical(self, "Capture Error", f"Capture failed: {e}")
             self.cancel_calibration()  # Abortar
             return
 
         # 3. Verificar si terminamos
         if self.images_captured >= self.images_to_capture:
             # Terminamos de capturar, ahora procesamos
-            self.add_log_message("Captura de imágenes completada.", "INFO")
+            self.add_log_message("Image capture completed.", "INFO")
             self.process_calibration_images()
         else:
             # No hemos terminado, reiniciar preview e iniciar el *siguiente* countdown
@@ -384,9 +384,9 @@ class CalibrationDialog(QDialog):
 
     def process_calibration_images(self):
         """Inicia el hilo de procesamiento de imágenes."""
-        self.add_log_message("Iniciando procesamiento de calibración...", "INFO")
-        self.set_countdown_style("⌛ PROCESANDO", "Calculando parámetros de calibración...", -1)
-        self.progress_message.setText("Procesando imágenes...")
+        self.add_log_message("Starting calibration processing...", "INFO")
+        self.set_countdown_style("⌛ PROCESSING", "Calculating calibration parameters...", -1)
+        self.progress_message.setText("Processing images...")
         
         # Iniciar el hilo de procesamiento
         self.processing_thread = CalibrationProcessingThread(
@@ -405,12 +405,12 @@ class CalibrationDialog(QDialog):
         self.is_capturing = False
         
         if success:
-            self.add_log_message("✅ Calibración completada exitosamente", "INFO")
-            self.set_countdown_style("✅ CALIBRACIÓN EXITOSA", "¡Sistema listo!", -2)
+            self.add_log_message("✅ Calibration completed successfully", "INFO")
+            self.set_countdown_style("✅ CALIBRATION SUCCESSFUL", "System ready!", -2)
             self.progress_bar.setValue(100)
             
             avg_dist = result.get('average_distance_meters', 0) * 100 # Convertir a cm
-            dist_msg = f"Distancia promedio al tablero: {avg_dist:.1f} cm"
+            dist_msg = f"Average distance to board: {avg_dist:.1f} cm"
             self.add_log_message(dist_msg, "INFO")
 
             # Actualizar estado de calibración en ventana principal
@@ -418,14 +418,14 @@ class CalibrationDialog(QDialog):
                 self.parent().is_calibrated = True
                 self.parent().update_calibration_status()
             
-            QMessageBox.information(self, "Éxito", f"Calibración completada y guardada.\n\n{dist_msg}")
+            QMessageBox.information(self, "Success", f"Calibration completed and saved.\n\n{dist_msg}")
             self.accept() # Cerrar el diálogo
             
         else:
-            error_details = result.get('error', 'Error desconocido')
-            self.add_log_message(f"❌ Calibración falló: {error_details}", "ERROR")
-            self.set_countdown_style("❌ ERROR EN CALIBRACIÓN", "Revisa el log e intenta de nuevo", -3)
-            QMessageBox.critical(self, "Error en Calibración", f"La calibración falló:\n\n{error_details}")
+            error_details = result.get('error', 'Unknown error')
+            self.add_log_message(f"❌ Calibration failed: {error_details}", "ERROR")
+            self.set_countdown_style("❌ CALIBRATION ERROR", "Check log and try again", -3)
+            QMessageBox.critical(self, "Calibration Error", f"Calibration failed:\n\n{error_details}")
             self.reset_ui_after_calibration()
 
     # --- Funciones de Ayuda (Preview y UI) ---
@@ -440,7 +440,7 @@ class CalibrationDialog(QDialog):
             if hasattr(main_window, 'start_preview'):
                 main_window.start_preview()
         except Exception as e:
-            self.add_log_message(f"Error iniciando preview: {e}", "WARNING")
+            self.add_log_message(f"Error starting preview: {e}", "WARNING")
 
     def stop_preview_for_capture(self):
         """Detiene el preview en la ventana principal."""
@@ -449,7 +449,7 @@ class CalibrationDialog(QDialog):
             if hasattr(main_window, 'stop_preview'):
                 main_window.stop_preview()
         except Exception as e:
-            self.add_log_message(f"Error deteniendo preview: {e}", "WARNING")
+            self.add_log_message(f"Error stopping preview: {e}", "WARNING")
 
     def set_countdown_style(self, title, subtitle, seconds):
         """Helper para cambiar el estilo del label de countdown."""
@@ -484,7 +484,7 @@ class CalibrationDialog(QDialog):
 
         self.progress_bar.setVisible(False)
         self.progress_message.setVisible(False)
-        self.set_countdown_style("Listo para (re)iniciar", "Mueve este diálogo para ver la vista previa", 0)
+        self.set_countdown_style("Ready to (re)start", "Move this dialog to see the preview", 0)
 
         # --- CORRECCIÓN ---
         # Vuelve a iniciar el preview para que la app no se quede congelada (solo si hay cámaras)
@@ -493,7 +493,7 @@ class CalibrationDialog(QDialog):
     
     def cancel_calibration(self):
         """Cancelar todo el proceso."""
-        self.add_log_message("Calibración cancelada por usuario", "WARNING")
+        self.add_log_message("Calibration canceled by user", "WARNING")
         self.is_capturing = False
         
         # Detener timers
@@ -518,7 +518,7 @@ class CalibrationDialog(QDialog):
         calibration_dir = Path("data/calibration")
         if not calibration_dir.exists():
             QMessageBox.warning(self, "Error",
-                              "No se encontró el directorio de calibración")
+                              "Calibration directory not found")
             return
 
         # Encontrar sesiones (directorios que empiecen con "calibration_")
@@ -531,9 +531,9 @@ class CalibrationDialog(QDialog):
                     sessions.append(item)
 
         if not sessions:
-            QMessageBox.warning(self, "Sin Sesiones",
-                              "No se encontraron sesiones de calibración.\n\n"
-                              "Primero debes capturar fotos de calibración en la Raspberry Pi.")
+            QMessageBox.warning(self, "No Sessions",
+                              "No calibration sessions found.\n\n"
+                              "First you must capture calibration photos on the Raspberry Pi.")
             return
 
         # Mostrar diálogo de selección
@@ -541,8 +541,8 @@ class CalibrationDialog(QDialog):
 
         session_names = [s.name for s in sorted(sessions, reverse=True)]  # Más reciente primero
         session_name, ok = QInputDialog.getItem(
-            self, "Seleccionar Sesión",
-            "Selecciona la sesión de calibración a procesar:",
+            self, "Select Session",
+            "Select calibration session to process:",
             session_names, 0, False
         )
 
@@ -555,10 +555,10 @@ class CalibrationDialog(QDialog):
         # Confirmar
         num_pairs = len(list(selected_session.glob("calib_pair_*")))
         msg = QMessageBox.question(
-            self, "Confirmar Procesamiento",
-            f"Sesión: {session_name}\n"
-            f"Pares de imágenes: {num_pairs}\n\n"
-            f"¿Procesar esta sesión para recalibrar el sistema?",
+            self, "Confirm Processing",
+            f"Session: {session_name}\n"
+            f"Image pairs: {num_pairs}\n\n"
+            f"Process this session to recalibrate the system?",
             QMessageBox.Yes | QMessageBox.No
         )
 
@@ -566,7 +566,7 @@ class CalibrationDialog(QDialog):
             return
 
         # Preparar UI
-        self.add_log_message(f"Procesando sesión: {session_name}", "INFO")
+        self.add_log_message(f"Processing session: {session_name}", "INFO")
         self.btn_process_existing.setEnabled(False)
         self.btn_start.setEnabled(False)
         self.btn_cancel.setEnabled(True)
@@ -587,8 +587,8 @@ class CalibrationDialog(QDialog):
         """Manejar cierre del diálogo."""
         if self.is_capturing:
             msg = QMessageBox.question(
-                self, "Calibración en Progreso",
-                "La calibración está en progreso. ¿Deseas cancelarla y cerrar?",
+                self, "Calibration in Progress",
+                "Calibration is in progress. Do you want to cancel and close?",
                 QMessageBox.Yes | QMessageBox.No
             )
             if msg == QMessageBox.Yes:
@@ -604,4 +604,4 @@ class CalibrationDialog(QDialog):
 
 if __name__ == "__main__":
     # Test del diálogo (requiere una app y mocks)
-    print("Este diálogo debe ser lanzado desde main.py")
+    print("This dialog must be launched from main.py")

@@ -96,8 +96,8 @@ def main():
     if missing_req:
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Critical)
-        msg.setWindowTitle("Requisitos Faltantes")
-        msg.setText("Faltan los siguientes requisitos críticos del sistema:")
+        msg.setWindowTitle("Missing Requirements")
+        msg.setText("The following critical system requirements are missing:")
         msg.setDetailedText("\n".join(missing_req))
         msg.exec_()
         logger.error(f"Requisitos faltantes: {missing_req}")
@@ -119,19 +119,19 @@ def main():
         if not cameras_available:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Information)
-            msg.setWindowTitle("Modo de Solo Procesamiento")
-            msg.setText("Sistema iniciado en modo de solo procesamiento")
+            msg.setWindowTitle("Processing Only Mode")
+            msg.setText("System started in processing only mode")
             msg.setInformativeText(
-                "No se detectaron cámaras. Podrás procesar capturas existentes pero no realizar nuevas capturas.\n\n"
-                "Este modo es ideal para procesar fotos tomadas en Raspberry Pi desde una computadora más potente."
+                "No cameras detected. You can process existing captures but cannot take new ones.\n\n"
+                "This mode is ideal for processing photos taken on Raspberry Pi from a more powerful computer."
             )
             msg.exec_()
 
     except Exception as e:
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Critical)
-        msg.setWindowTitle("Error de Configuración")
-        msg.setText(f"Error crítico cargando configuración: {str(e)}")
+        msg.setWindowTitle("Configuration Error")
+        msg.setText(f"Critical error loading configuration: {str(e)}")
         msg.exec_()
         logger.error(f"Error configuración: {str(e)}")
         return 1
@@ -144,8 +144,8 @@ def main():
     except Exception as e:
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Critical)
-        msg.setWindowTitle("Error de Inicialización")
-        msg.setText(f"Error creando ventana principal: {str(e)}")
+        msg.setWindowTitle("Initialization Error")
+        msg.setText(f"Error creating main window: {str(e)}")
         msg.exec_()
         logger.error(f"Error ventana principal: {str(e)}")
         return 1

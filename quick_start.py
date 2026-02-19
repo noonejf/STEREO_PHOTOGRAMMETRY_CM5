@@ -15,10 +15,10 @@ def print_banner():
     banner = """
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                                                                              ║
-║        🚀 SISTEMA DE FOTOGRAMETRÍA ESTÉREO CM5 🚀                           ║
+║        🚀 STEREO PHOTOGRAMMETRY SYSTEM CM5 🚀                               ║
 ║                                                                              ║
-║        Para Raspberry Pi CM5 + Cámaras Arducam HQ 477                       ║
-║        Diseñado para aplicaciones espaciales robustas                       ║
+║        For Raspberry Pi CM5 + Arducam HQ 477 Cameras                         ║
+║        Designed for robust space applications                                ║
 ║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 """
@@ -26,7 +26,7 @@ def print_banner():
 
 def print_step(step_num, title, description=""):
     """Imprimir paso formateado"""
-    print(f"\n📋 PASO {step_num}: {title}")
+    print(f"\n📋 STEP {step_num}: {title}")
     if description:
         print(f"   {description}")
     print("-" * 60)
@@ -43,7 +43,7 @@ def ask_yes_no(question, default="y"):
 
 def run_command_with_output(cmd, description=""):
     """Ejecutar comando y mostrar resultado"""
-    print(f"🔄 Ejecutando: {' '.join(cmd) if isinstance(cmd, list) else cmd}")
+    print(f"🔄 Running: {' '.join(cmd) if isinstance(cmd, list) else cmd}")
     if description:
         print(f"   {description}")
     
@@ -54,26 +54,26 @@ def run_command_with_output(cmd, description=""):
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         
         if result.returncode == 0:
-            print("✅ Completado exitosamente")
+            print("✅ Completed successfully")
             if result.stdout.strip():
-                print(f"📄 Salida:\n{result.stdout}")
+                print(f"📄 Output:\n{result.stdout}")
             return True
         else:
-            print(f"❌ Error (código {result.returncode})")
+            print(f"❌ Error (code {result.returncode})")
             if result.stderr:
                 print(f"📄 Error:\n{result.stderr}")
             return False
             
     except subprocess.TimeoutExpired:
-        print("⏰ Timeout - el comando tomó demasiado tiempo")
+        print("⏰ Timeout - command took too long")
         return False
     except Exception as e:
-        print(f"❌ Error ejecutando comando: {e}")
+        print(f"❌ Error executing command: {e}")
         return False
 
 def check_basic_requirements():
-    """Verificar requisitos básicos"""
-    print_step(1, "VERIFICACIÓN DE REQUISITOS BÁSICOS")
+    """Verify basic requirements"""
+    print_step(1, "BASIC REQUIREMENTS CHECK")
     
     # Verificar que estamos en Raspberry Pi
     try:
@@ -81,86 +81,86 @@ def check_basic_requirements():
             cpuinfo = f.read().lower()
         
         if 'raspberry' in cpuinfo:
-            print("✅ Raspberry Pi detectado")
+            print("✅ Raspberry Pi detected")
         else:
-            print("⚠️  No se detectó Raspberry Pi - continuando de todas formas")
+            print("⚠️  Raspberry Pi not detected - continuing anyway")
     except:
-        print("⚠️  No se pudo verificar hardware - continuando")
+        print("⚠️  Could not verify hardware - continuing")
     
     # Verificar Python
     version = sys.version_info
     if version.major == 3 and version.minor >= 9:
         print(f"✅ Python {version.major}.{version.minor}.{version.micro} - Compatible")
     else:
-        print(f"❌ Python {version.major}.{version.minor} - Se requiere Python 3.9+")
+        print(f"❌ Python {version.major}.{version.minor} - Python 3.9+ required")
         return False
     
     # Verificar permisos
     if os.geteuid() == 0:
-        print("⚠️  Ejecutándose como root - no recomendado para uso normal")
+        print("⚠️  Running as root - not recommended for normal use")
     else:
-        print("✅ Ejecutándose como usuario normal")
+        print("✅ Running as normal user")
     
     return True
 
 def install_system():
-    """Instalar el sistema"""
-    print_step(2, "INSTALACIÓN DEL SISTEMA")
+    """Install system"""
+    print_step(2, "SYSTEM INSTALLATION")
     
     if not Path("install_setup.py").exists():
-        print("❌ Archivo install_setup.py no encontrado")
-        print("   Asegúrate de ejecutar este script desde el directorio del proyecto")
+        print("❌ File install_setup.py not found")
+        print("   Make sure to run this script from the project directory")
         return False
     
-    if ask_yes_no("¿Ejecutar instalación automática?"):
-        print("\n🚀 Iniciando instalación automática...")
-        print("   Esto puede tomar varios minutos...")
+    if ask_yes_no("Run automatic installation?"):
+        print("\n🚀 Starting automatic installation...")
+        print("   This may take several minutes...")
         
         success = run_command_with_output(
             [sys.executable, "install_setup.py"],
-            "Instalar dependencias y configurar sistema"
+            "Install dependencies and configure system"
         )
         
         if success:
-            print("\n✅ Instalación completada")
-            print("⚠️  IMPORTANTE: Se requiere reinicio para activar las cámaras")
+            print("\n✅ Installation completed")
+            print("⚠️  IMPORTANT: Reboot required to activate cameras")
             
-            if ask_yes_no("¿Reiniciar ahora?", "n"):
-                print("🔄 Reiniciando sistema...")
+            if ask_yes_no("Reboot now?", "n"):
+                print("🔄 Rebooting system...")
                 subprocess.run(["sudo", "reboot"])
                 return True
             else:
-                print("⚠️  Recuerda reiniciar antes de usar las cámaras")
+                print("⚠️  Remember to reboot before using cameras")
                 return True
         else:
-            print("❌ Error durante la instalación")
+            print("❌ Error during installation")
             return False
     else:
-        print("⏭️  Saltando instalación automática")
+        print("⏭️  Skipping automatic installation")
         return True
 
 def verify_system():
-    """Verificar el sistema"""
-    print_step(3, "VERIFICACIÓN DEL SISTEMA")
+    """Verify system"""
+    print_step(3, "SYSTEM VERIFICATION")
     
     if not Path("demo_system_check.py").exists():
-        print("⚠️  Script de verificación no encontrado")
+        print("⚠️  Verification script not found")
         return True
     
-    if ask_yes_no("¿Ejecutar verificación completa del sistema?"):
+    if ask_yes_no("Run full system verification?"):
         success = run_command_with_output(
             [sys.executable, "demo_system_check.py"],
-            "Verificar todos los componentes del sistema"
+            "Verify all system components"
         )
         
         if success:
-            print("✅ Verificación completada - revisa la salida arriba")
+            print("✅ Verification completed - check output above")
         else:
-            print("⚠️  Problemas detectados - revisa los errores arriba")
+            print("⚠️  Problems detected - check errors above")
         
         return success
     else:
-        print("⏭️  Saltando verificación del sistema")
+        print("⏭️  Skipping system verification")
         return True
 
 def test_cameras():
@@ -183,154 +183,154 @@ def test_cameras():
         print("   4. Verificar /boot/firmware/config.txt")
         return False
     
-    # Probar captura rápida
-    if ask_yes_no("¿Probar captura rápida con cámara 0?"):
+    # Test quick capture
+    if ask_yes_no("Test quick capture with camera 0?"):
         test_success = run_command_with_output(
             ["libcamera-jpeg", "--camera", "0", "-o", "test_cam0.jpg", "-t", "2000"],
-            "Capturar imagen de prueba"
+            "Capture test image"
         )
         
         if test_success and Path("test_cam0.jpg").exists():
-            print("✅ Captura exitosa - test_cam0.jpg creado")
+            print("✅ Capture successful - test_cam0.jpg created")
             
-            # Limpiar archivo de prueba
+            # Clean up test file
             try:
                 Path("test_cam0.jpg").unlink()
-                print("🗑️  Archivo de prueba eliminado")
+                print("🗑️  Test file deleted")
             except:
                 pass
         else:
-            print("❌ Error en captura de prueba")
+            print("❌ Error in test capture")
             return False
     
     return True
 
 def show_usage_guide():
-    """Mostrar guía de uso"""
-    print_step(5, "GUÍA DE USO RÁPIDO")
+    """Show usage guide"""
+    print_step(5, "QUICK START GUIDE")
     
     guide = """
-📚 FLUJO DE TRABAJO RECOMENDADO:
+📚 RECOMMENDED WORKFLOW:
 
-1️⃣  PRIMERA VEZ - CALIBRACIÓN:
-   • Ejecuta: python3 main.py
-   • Presiona "🎯 Calibrar Cámaras"
-   • Prepara tablero de ajedrez 10x7 cuadrados
-   • Sigue las instrucciones del countdown
-   • Mueve el tablero a diferentes posiciones durante las 25 capturas
+1️⃣  FIRST TIME - CALIBRATION:
+   • Run: python3 main.py
+   • Press "🎯 Calibrate Cameras"
+   • Prepare 10x7 checkerboard
+   • Follow countdown instructions
+   • Move board to different positions during the 25 captures
 
-2️⃣  CAPTURA DE OBJETO 3D:
-   • Asegúrate de que muestra "✅ Sistema Calibrado"
-   • Posiciona tu objeto en el campo de visión
-   • Presiona "📸 Capturar para Modelo 3D"
-   • Espera el countdown de 10 segundos
+2️⃣  3D OBJECT CAPTURE:
+   • Ensure it shows "✅ System Calibrated"
+   • Position your object in field of view
+   • Press "📸 Capture for 3D Model"
+   • Wait for 10 second countdown
 
-3️⃣  PROCESAMIENTO 3D:
-   • Presiona "⚙️ Procesar Últimas Capturas"
-   • Selecciona algoritmo SGBM (recomendado)
-   • Elige formatos de exportación (PLY recomendado)
-   • Presiona "🚀 Iniciar Procesamiento"
+3️⃣  3D PROCESSING:
+   • Press "⚙️ Process Last Captures"
+   • Select SGBM algorithm (recommended)
+   • Choose export formats (PLY recommended)
+   • Press "🚀 Start Processing"
 
-4️⃣  RESULTADOS:
-   • Los archivos se guardan en data/results/
-   • Puedes ver mapas de disparidad y profundidad
-   • Las estadísticas muestran calidad del resultado
+4️⃣  RESULTS:
+   • Files are saved in data/results/
+   • You can view disparity and depth maps
+   • Statistics show result quality
 
-⚠️  IMPORTANTE:
-   • NO muevas las cámaras después de calibrar
-   • Usa iluminación uniforme sin reflejos
-   • Para mejores resultados, objetos con textura visible
-   • El tablero debe estar completamente plano
+⚠️  IMPORTANT:
+   • DO NOT move cameras after calibration
+   • Use uniform lighting without reflections
+   • For best results, objects with visible texture
+   • The board must be completely flat
 """
     
     print(guide)
     
-    input("\n📖 Presiona Enter para continuar...")
+    input("\n📖 Press Enter to continue...")
 
 def show_troubleshooting():
-    """Mostrar guía de solución de problemas"""
-    print_step(6, "SOLUCIÓN DE PROBLEMAS COMUNES")
+    """Show troubleshooting guide"""
+    print_step(6, "COMMON TROUBLESHOOTING")
     
     troubleshooting = """
-🔧 PROBLEMAS COMUNES Y SOLUCIONES:
+🔧 COMMON PROBLEMS AND SOLUTIONS:
 
-❌ "No se detectaron cámaras"
-   ✅ Verificar cables CSI conectados firmemente
-   ✅ Reiniciar: sudo reboot  
-   ✅ Verificar config.txt: cat /boot/firmware/config.txt | grep imx477
+❌ "No cameras detected"
+   ✅ Check CSI cables connected firmly
+   ✅ Reboot: sudo reboot  
+   ✅ Check config.txt: cat /boot/firmware/config.txt | grep imx477
 
-❌ "Error iniciando vista previa"
-   ✅ Cerrar otras aplicaciones que usen cámaras
-   ✅ Probar: libcamera-hello --camera 0 -t 2000
-   ✅ Verificar permisos de usuario
+❌ "Error starting preview"
+   ✅ Close other apps using cameras
+   ✅ Test: libcamera-hello --camera 0 -t 2000
+   ✅ Check user permissions
 
-❌ "Calibración falla repetidamente"
-   ✅ Usar tablero 10x7 cuadrados (9x6 esquinas internas)
-   ✅ Iluminación uniforme, sin reflejos
-   ✅ Tablero completamente plano
-   ✅ Mover a diferentes ángulos y distancias
+❌ "Calibration fails repeatedly"
+   ✅ Use 10x7 checkerboard (9x6 internal corners)
+   ✅ Uniform lighting, no reflections
+   ✅ Board completely flat
+   ✅ Move to different angles and distances
 
-❌ "Procesamiento 3D muy lento"
-   ✅ Usar algoritmo BM en lugar de SGBM
-   ✅ Reducir resolución de captura
-   ✅ Cerrar aplicaciones innecesarias
+❌ "3D processing very slow"
+   ✅ Use BM algorithm instead of SGBM
+   ✅ Reduce capture resolution
+   ✅ Close unnecessary applications
 
-❌ "PyQt5 no funciona"
-   ✅ Instalar: sudo apt install python3-pyqt5
-   ✅ NO usar pip install pyqt5 en Raspberry Pi
+❌ "PyQt5 not working"
+   ✅ Install: sudo apt install python3-pyqt5
+   ✅ DO NOT use pip install pyqt5 on Raspberry Pi
 
-📞 OBTENER AYUDA:
-   • Revisar logs: tail -f logs/stereo_photogrammetry.log
-   • Ejecutar verificación: python3 demo_system_check.py
-   • Revisar README.md para más detalles
+📞 GET HELP:
+   • Check logs: tail -f logs/stereo_photogrammetry.log
+   • Run verification: python3 demo_system_check.py
+   • Check README.md for more details
 """
     
     print(troubleshooting)
-    input("\n📖 Presiona Enter para continuar...")
+    input("\n📖 Press Enter to continue...")
 
 def launch_application():
-    """Lanzar aplicación principal"""
-    print_step(7, "INICIAR APLICACIÓN")
+    """Launch main application"""
+    print_step(7, "LAUNCH APPLICATION")
     
     if not Path("main.py").exists():
-        print("❌ main.py no encontrado")
-        print("   Asegúrate de ejecutar desde el directorio del proyecto")
+        print("❌ main.py not found")
+        print("   Make sure to run from project directory")
         return False
     
-    if ask_yes_no("¿Iniciar la aplicación principal ahora?"):
-        print("\n🚀 Iniciando aplicación de fotogrametría estéreo...")
-        print("   Se abrirá la ventana principal del sistema")
-        print("   Presiona Ctrl+C para cancelar si hay problemas")
+    if ask_yes_no("Launch main application now?"):
+        print("\n🚀 Launching stereo photogrammetry application...")
+        print("   Main system window will open")
+        print("   Press Ctrl+C to cancel if there are problems")
         
         try:
-            # Ejecutar aplicación principal
+            # Run main application
             subprocess.run([sys.executable, "main.py"])
             return True
         except KeyboardInterrupt:
-            print("\n⏹️  Aplicación cancelada por el usuario")
+            print("\n⏹️  Application canceled by user")
             return False
         except Exception as e:
-            print(f"\n❌ Error iniciando aplicación: {e}")
+            print(f"\n❌ Error launching application: {e}")
             return False
     else:
-        print("\n📝 Para iniciar manualmente más tarde:")
+        print("\n📝 To launch manually later:")
         print("   cd " + str(Path.cwd()))
         print("   python3 main.py")
         return True
 
 def main():
-    """Función principal del script de inicio rápido"""
+    """Quick start script main function"""
     print_banner()
     
-    print("¡Bienvenido al sistema de fotogrametría estéreo para CM5!")
-    print("Este asistente te guiará through la configuración inicial.")
-    print(f"Directorio actual: {Path.cwd()}")
+    print("Welcome to the CM5 stereo photogrammetry system!")
+    print("This wizard will guide you through the initial configuration.")
+    print(f"Current directory: {Path.cwd()}")
     
-    if not ask_yes_no("\n¿Continuar con la configuración guiada?"):
-        print("👋 ¡Hasta luego! Ejecuta 'python3 main.py' cuando estés listo.")
+    if not ask_yes_no("\nContinue with guided configuration?"):
+        print("👋 See you later! Run 'python3 main.py' when ready.")
         return 0
     
-    # Ejecutar pasos
+    # Run steps
     steps = [
         check_basic_requirements,
         install_system,
@@ -344,26 +344,26 @@ def main():
     try:
         for step_func in steps:
             if not step_func():
-                if ask_yes_no("¿Continuar a pesar del error?", "n"):
+                if ask_yes_no("Continue despite error?", "n"):
                     continue
                 else:
-                    print("\n⏹️  Configuración cancelada")
-                    print("   Puedes ejecutar este script nuevamente más tarde")
+                    print("\n⏹️  Configuration canceled")
+                    print("   You can run this script again later")
                     return 1
         
-        print("\n🎉 ¡CONFIGURACIÓN COMPLETADA!")
-        print("   El sistema está listo para usar")
-        print("   Ejecuta 'python3 main.py' para iniciar")
+        print("\n🎉 CONFIGURATION COMPLETED!")
+        print("   The system is ready to use")
+        print("   Run 'python3 main.py' to start")
         
         return 0
         
     except KeyboardInterrupt:
-        print("\n\n⏹️  Configuración cancelada por el usuario")
-        print("   Puedes ejecutar este script nuevamente más tarde")
+        print("\n\n⏹️  Configuration canceled by user")
+        print("   You can run this script again later")
         return 1
     except Exception as e:
-        print(f"\n❌ Error inesperado: {e}")
-        print("   Revisa la documentación o ejecuta el script nuevamente")
+        print(f"\n❌ Unexpected error: {e}")
+        print("   Check documentation or run script again")
         return 1
 
 if __name__ == "__main__":
@@ -371,5 +371,5 @@ if __name__ == "__main__":
         exit_code = main()
         sys.exit(exit_code)
     except Exception as e:
-        print(f"Error crítico: {e}")
+        print(f"Critical error: {e}")
         sys.exit(1)

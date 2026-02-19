@@ -43,20 +43,20 @@ class ProcessingWorkerThread(QThread):
     def run(self):
         """Ejecutar pipeline completo de procesamiento 3D"""
         try:
-            self.log_message.emit("Iniciando procesamiento 3D...", "INFO")
+            self.log_message.emit("Starting 3D processing...", "INFO")
 
             # Inicializar procesador
             processor = StereoProcessor(self.camera_config)
 
             # Cargar imágenes
-            self.progress_update.emit(5, "Cargando imágenes...")
+            self.progress_update.emit(5, "Loading images...")
             left_img = cv2.imread(self.processing_params['left_image'])
             right_img = cv2.imread(self.processing_params['right_image'])
 
             if left_img is None or right_img is None:
-                raise RuntimeError("No se pudieron cargar las imágenes")
+                raise RuntimeError("Could not load images")
 
-            self.log_message.emit(f"Imágenes cargadas: {left_img.shape}", "INFO")
+            self.log_message.emit(f"Images loaded: {left_img.shape}", "INFO")
 
             # === DECIDIR QUÉ MÉTODO USAR ===
             if self.wire_paths is not None:
@@ -64,16 +64,16 @@ class ProcessingWorkerThread(QThread):
                 # MÉTODO GEOMÉTRICO: Usar paths YA CALCULADOS
                 # NO vuelve a correr SmartWireTracker
                 # ============================================
-                self.log_message.emit("🎯 Usando PATHS GEOMÉTRICOS ya calculados", "INFO")
-                self.log_message.emit(f"   Path izquierdo: {len(self.wire_paths['left'])} puntos", "INFO")
-                self.log_message.emit(f"   Path derecho: {len(self.wire_paths['right'])} puntos", "INFO")
+                self.log_message.emit("🎯 Using PRE-CALCULATED GEOMETRIC PATHS", "INFO")
+                self.log_message.emit(f"   Left path: {len(self.wire_paths['left'])} points", "INFO")
+                self.log_message.emit(f"   Right path: {len(self.wire_paths['right'])} points", "INFO")
 
                 # Rectificar imágenes primero
-                self.progress_update.emit(10, "Rectificando imágenes...")
+                self.progress_update.emit(10, "Rectifying images...")
                 left_rect, right_rect = processor.rectify_images(left_img, right_img)
 
                 # Calcular disparidad DIRECTAMENTE desde los paths
-                self.progress_update.emit(30, "Calculando disparidad desde paths geométricos...")
+                self.progress_update.emit(30, "Calculating disparity from geometric paths...")
 
                 image_shape = left_rect.shape[:2]
                 disparity_result = processor.compute_disparity_from_wire_paths(
@@ -84,11 +84,11 @@ class ProcessingWorkerThread(QThread):
                 )
 
                 if not disparity_result['success']:
-                    raise RuntimeError("No se pudo calcular disparidad desde paths geométricos")
+                    raise RuntimeError("Could not calculate disparity from geometric paths")
 
                 # Generar nube de puntos DIRECTAMENTE desde los matches
                 # (NO desde disparity_map que pierde puntos por colisión de píxeles)
-                self.progress_update.emit(70, "Generando nube de puntos 3D desde matches...")
+                self.progress_update.emit(70, "Generating 3D point cloud from matches...")
 
                 point_cloud_result = processor.generate_point_cloud_from_matches(
                     disparity_result['matches'],
@@ -96,7 +96,7 @@ class ProcessingWorkerThread(QThread):
                     left_rect
                 )
 
-                self.log_message.emit(f"☁️ Nube generada: {point_cloud_result['num_points']} puntos 3D", "INFO")
+                self.log_message.emit(f"☁️ Cloud generated: {point_cloud_result['num_points']} 3D points", "INFO")
 
                 # Calcular profundidad para estadísticas (opcional)
                 depth_result = processor.disparity_to_depth(disparity_result['disparity_map'])
@@ -116,7 +116,7 @@ class ProcessingWorkerThread(QThread):
                 # Usar SGBM con máscara como filtro
                 # ============================================
                 mask_left, _ = self.cable_masks
-                self.log_message.emit("⚠️ Sin paths geométricos, usando SGBM + máscara", "WARNING")
+                self.log_message.emit("⚠️ No geometric paths, using SGBM + mask", "WARNING")
 
                 result = processor.process_stereo_pair(
                     left_img, right_img,
@@ -130,7 +130,7 @@ class ProcessingWorkerThread(QThread):
                 # ============================================
                 # MÉTODO TRADICIONAL: SGBM (sin nada)
                 # ============================================
-                self.log_message.emit("⚠️ Sin máscara de cable - usando SGBM tradicional", "WARNING")
+                self.log_message.emit("⚠️ No cable mask - using traditional SGBM", "WARNING")
 
                 result = processor.process_stereo_pair(
                     left_img, right_img,
@@ -141,7 +141,7 @@ class ProcessingWorkerThread(QThread):
                 )
 
             if not result['success']:
-                raise RuntimeError(f"Error en procesamiento: {result.get('error')}")
+                raise RuntimeError(f"Processing error: {result.get('error')}")
             
             # Emitir resultados intermedios
             self.intermediate_result.emit("disparity", result['disparity']['disparity_map'])
@@ -150,7 +150,7 @@ class ProcessingWorkerThread(QThread):
             
             # Exportar nube de puntos si se solicita
             if self.processing_params.get('export_point_cloud', True):
-                self.progress_update.emit(90, "Exportando nube de puntos...")
+                self.progress_update.emit(90, "Exporting point cloud...")
                 
                 exporter = PointCloudExporter()
                 
@@ -168,15 +168,15 @@ class ProcessingWorkerThread(QThread):
                     
                     if export_result['success']:
                         export_results.append(str(output_file))
-                        self.log_message.emit(f"Nube exportada: {output_file}", "INFO")
+                        self.log_message.emit(f"Cloud exported: {output_file}", "INFO")
                 
                 result['export_files'] = export_results
             
-            self.progress_update.emit(100, "Procesamiento completado")
+            self.progress_update.emit(100, "Processing completed")
             self.processing_complete.emit(True, result)
             
         except Exception as e:
-            self.log_message.emit(f"Error durante procesamiento: {e}", "ERROR")
+            self.log_message.emit(f"Error during processing: {e}", "ERROR")
             self.processing_complete.emit(False, {'error': str(e)})
     
     def progress_callback(self, progress, message):
@@ -206,20 +206,20 @@ class ResultsVisualizationWidget(QWidget):
         layout.addWidget(self.tabs)
         
         # Tab de disparidad
-        self.disparity_tab = self.create_image_tab("Mapa de Disparidad")
-        self.tabs.addTab(self.disparity_tab, "Disparidad")
+        self.disparity_tab = self.create_image_tab("Disparity Map")
+        self.tabs.addTab(self.disparity_tab, "Disparity")
         
         # Tab de profundidad
-        self.depth_tab = self.create_image_tab("Mapa de Profundidad")
-        self.tabs.addTab(self.depth_tab, "Profundidad")
+        self.depth_tab = self.create_image_tab("Depth Map")
+        self.tabs.addTab(self.depth_tab, "Depth")
         
         # Tab de confianza
-        self.confidence_tab = self.create_image_tab("Mapa de Confianza")
-        self.tabs.addTab(self.confidence_tab, "Confianza")
+        self.confidence_tab = self.create_image_tab("Confidence Map")
+        self.tabs.addTab(self.confidence_tab, "Confidence")
         
         # Tab de estadísticas
         self.stats_tab = self.create_stats_tab()
-        self.tabs.addTab(self.stats_tab, "Estadísticas")
+        self.tabs.addTab(self.stats_tab, "Statistics")
         
     def create_image_tab(self, title):
         """Crear tab para visualización de imagen"""
@@ -248,7 +248,7 @@ class ResultsVisualizationWidget(QWidget):
                 color: #666666;
             }
         """)
-        image_label.setText("Sin datos")
+        image_label.setText("No data")
         
         scroll_area.setWidget(image_label)
         layout.addWidget(scroll_area)
@@ -264,7 +264,7 @@ class ResultsVisualizationWidget(QWidget):
         layout = QVBoxLayout(widget)
         
         # Título
-        title = QLabel("Estadísticas de Procesamiento")
+        title = QLabel("Processing Statistics")
         title.setFont(QFont("Arial", 12, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
@@ -341,7 +341,7 @@ class ResultsVisualizationWidget(QWidget):
                 
                 self.depth_tab.image_label.setPixmap(pixmap)
             else:
-                self.depth_tab.image_label.setText("Sin datos de profundidad válidos")
+                self.depth_tab.image_label.setText("No valid depth data")
                 
         except Exception as e:
             logger.error(f"Error actualizando visualización de profundidad: {e}")
@@ -374,56 +374,56 @@ class ResultsVisualizationWidget(QWidget):
     def update_statistics(self, processing_result):
         """Actualizar estadísticas de procesamiento"""
         try:
-            stats_text = "=== ESTADÍSTICAS DE PROCESAMIENTO 3D ===\n\n"
+            stats_text = "=== 3D PROCESSING STATISTICS ===\n\n"
             
             # Información general
-            stats_text += f"Tiempo de procesamiento: {processing_result.get('processing_time_seconds', 0):.2f} segundos\n"
-            stats_text += f"Algoritmo usado: {processing_result.get('algorithm_used', 'N/A')}\n"
-            stats_text += f"Forma de entrada: {processing_result.get('input_shape', 'N/A')}\n\n"
+            stats_text += f"Processing time: {processing_result.get('processing_time_seconds', 0):.2f} seconds\n"
+            stats_text += f"Algorithm used: {processing_result.get('algorithm_used', 'N/A')}\n"
+            stats_text += f"Input shape: {processing_result.get('input_shape', 'N/A')}\n\n"
             
             # Estadísticas de disparidad
             if 'disparity' in processing_result:
                 disp_data = processing_result['disparity']
-                stats_text += "--- DISPARIDAD ---\n"
-                stats_text += f"Disparidad mínima: {disp_data.get('min_disparity', 0):.2f} píxeles\n"
-                stats_text += f"Disparidad máxima: {disp_data.get('max_disparity', 0):.2f} píxeles\n"
-                stats_text += f"Disparidad promedio: {disp_data.get('mean_disparity', 0):.2f} píxeles\n"
-                stats_text += f"Píxeles válidos: {disp_data.get('valid_pixels', 0):,}\n"
-                stats_text += f"Filtrado aplicado: {'Sí' if disp_data.get('filtered', False) else 'No'}\n\n"
+                stats_text += "--- DISPARITY ---\n"
+                stats_text += f"Minimum disparity: {disp_data.get('min_disparity', 0):.2f} pixels\n"
+                stats_text += f"Maximum disparity: {disp_data.get('max_disparity', 0):.2f} pixels\n"
+                stats_text += f"Average disparity: {disp_data.get('mean_disparity', 0):.2f} pixels\n"
+                stats_text += f"Valid pixels: {disp_data.get('valid_pixels', 0):,}\n"
+                stats_text += f"Filtering applied: {'Yes' if disp_data.get('filtered', False) else 'No'}\n\n"
             
             # Estadísticas de profundidad
             if 'depth' in processing_result:
                 depth_data = processing_result['depth']
-                stats_text += "--- PROFUNDIDAD ---\n"
-                stats_text += f"Profundidad mínima: {depth_data.get('min_depth', 0):.3f} metros\n"
-                stats_text += f"Profundidad máxima: {depth_data.get('max_depth', 0):.3f} metros\n"
-                stats_text += f"Profundidad promedio: {depth_data.get('mean_depth', 0):.3f} metros\n"
+                stats_text += "--- DEPTH ---\n"
+                stats_text += f"Minimum depth: {depth_data.get('min_depth', 0):.3f} meters\n"
+                stats_text += f"Maximum depth: {depth_data.get('max_depth', 0):.3f} meters\n"
+                stats_text += f"Average depth: {depth_data.get('mean_depth', 0):.3f} meters\n"
                 stats_text += f"Baseline: {depth_data.get('baseline_meters', 0)*1000:.1f} mm\n"
-                stats_text += f"Focal length: {depth_data.get('focal_length_pixels', 0):.1f} píxeles\n\n"
+                stats_text += f"Focal length: {depth_data.get('focal_length_pixels', 0):.1f} pixels\n\n"
             
             # Estadísticas de nube de puntos
             if 'point_cloud' in processing_result:
                 pc_data = processing_result['point_cloud']
-                stats_text += "--- NUBE DE PUNTOS ---\n"
-                stats_text += f"Número de puntos: {pc_data.get('num_points', 0):,}\n"
-                stats_text += f"Densidad: {pc_data.get('density', 0):.4f}\n"
+                stats_text += "--- POINT CLOUD ---\n"
+                stats_text += f"Number of points: {pc_data.get('num_points', 0):,}\n"
+                stats_text += f"Density: {pc_data.get('density', 0):.4f}\n"
                 
                 bounds = pc_data.get('bounds', {})
-                stats_text += f"Límites X: {bounds.get('x_min', 0):.3f} a {bounds.get('x_max', 0):.3f} m\n"
-                stats_text += f"Límites Y: {bounds.get('y_min', 0):.3f} a {bounds.get('y_max', 0):.3f} m\n"
-                stats_text += f"Límites Z: {bounds.get('z_min', 0):.3f} a {bounds.get('z_max', 0):.3f} m\n\n"
+                stats_text += f"X Bounds: {bounds.get('x_min', 0):.3f} to {bounds.get('x_max', 0):.3f} m\n"
+                stats_text += f"Y Bounds: {bounds.get('y_min', 0):.3f} to {bounds.get('y_max', 0):.3f} m\n"
+                stats_text += f"Z Bounds: {bounds.get('z_min', 0):.3f} to {bounds.get('z_max', 0):.3f} m\n\n"
             
             # Métricas de calidad
             if 'quality_metrics' in processing_result:
                 quality = processing_result['quality_metrics']
-                stats_text += "--- CALIDAD ---\n"
-                stats_text += f"Ratio píxeles válidos: {quality.get('valid_pixel_ratio', 0):.1%}\n"
-                stats_text += f"Confianza promedio: {quality.get('mean_confidence', 0):.3f}\n"
-                stats_text += f"Densidad de puntos: {quality.get('point_density', 0):.4f}\n\n"
+                stats_text += "--- QUALITY ---\n"
+                stats_text += f"Valid pixel ratio: {quality.get('valid_pixel_ratio', 0):.1%}\n"
+                stats_text += f"Average confidence: {quality.get('mean_confidence', 0):.3f}\n"
+                stats_text += f"Point density: {quality.get('point_density', 0):.4f}\n\n"
             
             # Archivos exportados
             if 'export_files' in processing_result:
-                stats_text += "--- ARCHIVOS EXPORTADOS ---\n"
+                stats_text += "--- EXPORTED FILES ---\n"
                 for file_path in processing_result['export_files']:
                     file_size = Path(file_path).stat().st_size / (1024 * 1024)  # MB
                     stats_text += f"• {Path(file_path).name} ({file_size:.1f} MB)\n"
@@ -432,7 +432,7 @@ class ResultsVisualizationWidget(QWidget):
             
         except Exception as e:
             logger.error(f"Error actualizando estadísticas: {e}")
-            self.stats_text.setText(f"Error cargando estadísticas: {e}")
+            self.stats_text.setText(f"Error loading statistics: {e}")
 
 class WireTrackingWorkerThread(QThread):
     """Hilo que ejecuta SmartWireTracker y emite el path parcial para animacion"""
@@ -464,7 +464,7 @@ class WireTrackingVisualizationDialog(QDialog):
     def __init__(self, left_img, right_img, mask_left, mask_right,
                  start_left, end_left, start_right, end_right, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Wire Tracking - Reconstruccion en vivo")
+        self.setWindowTitle("Wire Tracking - Live Reconstruction")
         self.setModal(True)
 
         # Guardar datos
@@ -504,7 +504,7 @@ class WireTrackingVisualizationDialog(QDialog):
         layout.setContentsMargins(6, 6, 6, 6)
 
         # Estado
-        self.status_label = QLabel("Preparando...")
+        self.status_label = QLabel("Preparing...")
         self.status_label.setFont(QFont("Arial", 11, QFont.Bold))
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setStyleSheet("color: #1976D2; margin: 2px;")
@@ -517,7 +517,7 @@ class WireTrackingVisualizationDialog(QDialog):
         left_frame = QFrame()
         left_frame_layout = QVBoxLayout(left_frame)
         left_frame_layout.setContentsMargins(2, 2, 2, 2)
-        self.left_header = QLabel("Izquierda - esperando...")
+        self.left_header = QLabel("Left - waiting...")
         self.left_header.setFont(QFont("Arial", 9, QFont.Bold))
         self.left_header.setAlignment(Qt.AlignCenter)
         self.left_header.setStyleSheet("color: #2196F3;")
@@ -532,7 +532,7 @@ class WireTrackingVisualizationDialog(QDialog):
         right_frame = QFrame()
         right_frame_layout = QVBoxLayout(right_frame)
         right_frame_layout.setContentsMargins(2, 2, 2, 2)
-        self.right_header = QLabel("Derecha - esperando...")
+        self.right_header = QLabel("Right - waiting...")
         self.right_header.setFont(QFont("Arial", 9, QFont.Bold))
         self.right_header.setAlignment(Qt.AlignCenter)
         self.right_header.setStyleSheet("color: #FF9800;")
@@ -546,7 +546,7 @@ class WireTrackingVisualizationDialog(QDialog):
         layout.addLayout(images_layout)
 
         # Boton cerrar (deshabilitado hasta que termine)
-        self.btn_close = QPushButton("Procesando...")
+        self.btn_close = QPushButton("Processing...")
         self.btn_close.setFixedHeight(30)
         self.btn_close.setEnabled(False)
         self.btn_close.clicked.connect(self.accept)
@@ -562,8 +562,8 @@ class WireTrackingVisualizationDialog(QDialog):
 
     def _start_left_tracking(self):
         self.phase = "left"
-        self.status_label.setText("Procesando imagen izquierda...")
-        self.left_header.setText("Izquierda - procesando...")
+        self.status_label.setText("Processing left image...")
+        self.left_header.setText("Left - processing...")
 
         self.worker = WireTrackingWorkerThread(
             self.mask_left, self.start_left, self.end_left
@@ -576,7 +576,7 @@ class WireTrackingVisualizationDialog(QDialog):
         self.current_path_left = path
         vis = self._draw_wire_on_image(self.left_img, path, "LEFT")
         self.left_image_label.setPixmap(self._cv2_to_pixmap(vis))
-        self.left_header.setText(f"Izquierda - {len(path)} pts (iter {iteration})")
+        self.left_header.setText(f"Left - {len(path)} pts (iter {iteration})")
 
     def _on_left_finished(self, result):
         self.result_left = result
@@ -585,15 +585,15 @@ class WireTrackingVisualizationDialog(QDialog):
         vis = self._draw_wire_on_image(self.left_img, result['path'], "LEFT")
         self.left_image_label.setPixmap(self._cv2_to_pixmap(vis))
         self.left_header.setText(
-            f"Izquierda - {len(result['path'])} pts | Cob: {result['coverage']*100:.1f}%"
+            f"Left - {len(result['path'])} pts | Cov: {result['coverage']*100:.1f}%"
         )
         # Iniciar derecha
         QTimer.singleShot(500, self._start_right_tracking)
 
     def _start_right_tracking(self):
         self.phase = "right"
-        self.status_label.setText("Procesando imagen derecha...")
-        self.right_header.setText("Derecha - procesando...")
+        self.status_label.setText("Processing right image...")
+        self.right_header.setText("Right - processing...")
 
         self.worker = WireTrackingWorkerThread(
             self.mask_right, self.start_right, self.end_right
@@ -606,7 +606,7 @@ class WireTrackingVisualizationDialog(QDialog):
         self.current_path_right = path
         vis = self._draw_wire_on_image(self.right_img, path, "RIGHT")
         self.right_image_label.setPixmap(self._cv2_to_pixmap(vis))
-        self.right_header.setText(f"Derecha - {len(path)} pts (iter {iteration})")
+        self.right_header.setText(f"Right - {len(path)} pts (iter {iteration})")
 
     def _on_right_finished(self, result):
         self.result_right = result
@@ -614,12 +614,12 @@ class WireTrackingVisualizationDialog(QDialog):
         vis = self._draw_wire_on_image(self.right_img, result['path'], "RIGHT")
         self.right_image_label.setPixmap(self._cv2_to_pixmap(vis))
         self.right_header.setText(
-            f"Derecha - {len(result['path'])} pts | Cob: {result['coverage']*100:.1f}%"
+            f"Right - {len(result['path'])} pts | Cov: {result['coverage']*100:.1f}%"
         )
         self.phase = "done"
-        self.status_label.setText("Reconstruccion completada")
+        self.status_label.setText("Reconstruction completed")
         self.status_label.setStyleSheet("color: #2E7D32; font-weight: bold;")
-        self.btn_close.setText("Cerrar")
+        self.btn_close.setText("Close")
         self.btn_close.setEnabled(True)
 
     def get_results(self):
@@ -675,7 +675,7 @@ class ProcessingDialog(QDialog):
         
     def init_ui(self):
         """Inicializar interfaz de usuario"""
-        self.setWindowTitle("Procesamiento 3D - Generación de Modelo")
+        self.setWindowTitle("3D Processing - Model Generation")
         self.setModal(True)
 
         # Ajustar al tamaño de pantalla disponible
@@ -693,7 +693,7 @@ class ProcessingDialog(QDialog):
         layout.setContentsMargins(6, 6, 6, 6)
 
         # Título
-        title = QLabel("Procesamiento 3D y Generacion de Modelo")
+        title = QLabel("3D Processing and Model Generation")
         title.setFont(QFont("Arial", 13, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: #1976D2; margin: 4px;")
@@ -755,11 +755,11 @@ class ProcessingDialog(QDialog):
     
     def create_images_selection_group(self):
         """Crear grupo de selección de imágenes"""
-        group = QGroupBox("📁 Selección de Imágenes")
+        group = QGroupBox("📁 Image Selection")
         layout = QVBoxLayout(group)
 
         # Información de última captura
-        self.capture_info_label = QLabel("Cargando información...")
+        self.capture_info_label = QLabel("Loading information...")
         self.capture_info_label.setWordWrap(True)
         self.capture_info_label.setStyleSheet("""
             QLabel {
@@ -772,7 +772,7 @@ class ProcessingDialog(QDialog):
         layout.addWidget(self.capture_info_label)
 
         # NUEVO: Botón para seleccionar carpeta de captura completa
-        self.btn_select_capture_folder = QPushButton("📁 Seleccionar Sesión de Captura")
+        self.btn_select_capture_folder = QPushButton("📁 Select Capture Session")
         self.btn_select_capture_folder.setStyleSheet("""
             QPushButton {
                 font-weight: bold;
@@ -799,7 +799,7 @@ class ProcessingDialog(QDialog):
         separator2.setStyleSheet("color: #999999; font-size: 9px; margin: 5px;")
         layout.addWidget(separator2)
 
-        self.btn_configure_cable_filter = QPushButton("🔧 Configurar Filtro de Cable")
+        self.btn_configure_cable_filter = QPushButton("🔧 Configure Cable Filter")
         self.btn_configure_cable_filter.setStyleSheet("""
             QPushButton {
                 font-weight: bold;
@@ -829,7 +829,7 @@ class ProcessingDialog(QDialog):
         self.cable_mask_right_rectified = None
         self.wire_tracking_result = None  # Resultado del SmartWireTracker (paths en coordenadas rectificadas)
 
-        self.filter_status_label = QLabel("⚠️ Filtro no configurado")
+        self.filter_status_label = QLabel("⚠️ Filter not configured")
         self.filter_status_label.setStyleSheet("""
             QLabel {
                 background-color: #FFF3E0;
@@ -846,24 +846,24 @@ class ProcessingDialog(QDialog):
     
     def create_algorithm_config_group(self):
         """Crear grupo de configuración de algoritmo"""
-        group = QGroupBox("⚙️ Configuración de Algoritmo")
+        group = QGroupBox("⚙️ Algorithm Configuration")
         layout = QGridLayout(group)
         
         # Algoritmo de matching
-        layout.addWidget(QLabel("Algoritmo de matching:"), 0, 0)
+        layout.addWidget(QLabel("Matching algorithm:"), 0, 0)
         self.algorithm_combo = QComboBox()
-        self.algorithm_combo.addItems(["SGBM (Recomendado)", "BM (Rápido)"])
+        self.algorithm_combo.addItems(["SGBM (Recommended)", "BM (Fast)"])
         layout.addWidget(self.algorithm_combo, 0, 1)
         
         # Calidad de procesamiento
-        layout.addWidget(QLabel("Calidad:"), 1, 0)
+        layout.addWidget(QLabel("Quality:"), 1, 0)
         self.quality_combo = QComboBox()
-        self.quality_combo.addItems(["Alta (Lento)", "Media (Balanceado)", "Rápida"])
+        self.quality_combo.addItems(["High (Slow)", "Medium (Balanced)", "Fast"])
         self.quality_combo.setCurrentIndex(1)  # Media por defecto
         layout.addWidget(self.quality_combo, 1, 1)
         
         # Filtrado de ruido
-        self.noise_filter_check = QCheckBox("Aplicar filtro de ruido WLS")
+        self.noise_filter_check = QCheckBox("Apply WLS noise filter")
         self.noise_filter_check.setChecked(True)
         layout.addWidget(self.noise_filter_check, 2, 0, 1, 2)
         
@@ -871,12 +871,12 @@ class ProcessingDialog(QDialog):
     
     def create_export_config_group(self):
         """Crear grupo de configuración de exportación"""
-        group = QGroupBox("💾 Configuración de Exportación")
+        group = QGroupBox("💾 Export Configuration")
         layout = QVBoxLayout(group)
         
         # Directorio de salida
         dir_layout = QHBoxLayout()
-        dir_layout.addWidget(QLabel("Directorio:"))
+        dir_layout.addWidget(QLabel("Directory:"))
         
         self.output_dir_label = QLabel("data/results")
         self.output_dir_label.setStyleSheet("QLabel { border: 1px solid #CCC; padding: 4px; }")
@@ -890,11 +890,11 @@ class ProcessingDialog(QDialog):
         layout.addLayout(dir_layout)
         
         # Formatos de exportación
-        layout.addWidget(QLabel("Formatos de nube de puntos:"))
+        layout.addWidget(QLabel("Point cloud formats:"))
         
         formats_layout = QGridLayout()
         
-        self.format_ply_check = QCheckBox("PLY (Recomendado)")
+        self.format_ply_check = QCheckBox("PLY (Recommended)")
         self.format_ply_check.setChecked(True)
         formats_layout.addWidget(self.format_ply_check, 0, 0)
         
@@ -913,7 +913,7 @@ class ProcessingDialog(QDialog):
     
     def create_progress_group(self):
         """Crear grupo de progreso"""
-        group = QGroupBox("📊 Progreso de Procesamiento")
+        group = QGroupBox("📊 Processing Progress")
         layout = QVBoxLayout(group)
         
         # Barra de progreso
@@ -923,7 +923,7 @@ class ProcessingDialog(QDialog):
         layout.addWidget(self.progress_bar)
         
         # Mensaje de estado
-        self.progress_message = QLabel("Listo para procesar")
+        self.progress_message = QLabel("Ready to process")
         self.progress_message.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.progress_message)
         
@@ -931,7 +931,7 @@ class ProcessingDialog(QDialog):
     
     def create_log_group(self):
         """Crear grupo de log"""
-        group = QGroupBox("📝 Log de Procesamiento")
+        group = QGroupBox("📝 Processing Log")
         layout = QVBoxLayout(group)
         
         self.log_text = QTextEdit()
@@ -953,7 +953,7 @@ class ProcessingDialog(QDialog):
         layout = QHBoxLayout()
         
         # Botón de inicio
-        self.btn_start = QPushButton("🚀 Iniciar Procesamiento")
+        self.btn_start = QPushButton("🚀 Start Processing")
         self.btn_start.setFixedHeight(34)
         self.btn_start.setStyleSheet("""
             QPushButton {
@@ -976,7 +976,7 @@ class ProcessingDialog(QDialog):
         layout.addWidget(self.btn_start)
         
         # Botón de cancelar
-        self.btn_cancel = QPushButton("⏹️ Cancelar")
+        self.btn_cancel = QPushButton("⏹️ Cancel")
         self.btn_cancel.setFixedHeight(34)
         self.btn_cancel.clicked.connect(self.cancel_processing)
         self.btn_cancel.setEnabled(False)
@@ -985,7 +985,7 @@ class ProcessingDialog(QDialog):
         layout.addStretch()
         
         # Botón de cerrar
-        self.btn_close = QPushButton("✅ Cerrar")
+        self.btn_close = QPushButton("✅ Close")
         self.btn_close.setFixedHeight(34)
         self.btn_close.clicked.connect(self.close)
         layout.addWidget(self.btn_close)
@@ -1023,11 +1023,11 @@ class ProcessingDialog(QDialog):
             captures_dir = Path("data/captures")
             if not captures_dir.exists():
                 self.capture_info_label.setText(
-                    "⚠️ No hay capturas disponibles\n\n"
-                    "Para procesar imágenes, primero debes:\n"
-                    "1️⃣ Capturar una foto con 'Capturar para Modelo 3D'\n"
-                    "   o\n"
-                    "2️⃣ Usar el botón de abajo para seleccionar imágenes manualmente"
+                    "⚠️ No captures available\n\n"
+                    "To process images, you must first:\n"
+                    "1️⃣ Capture a photo with 'Capture for 3D Model'\n"
+                    "   or\n"
+                    "2️⃣ Use the button below to manually select images"
                 )
                 self.capture_info_label.setStyleSheet("""
                     QLabel {
@@ -1046,11 +1046,11 @@ class ProcessingDialog(QDialog):
             session_dirs = [d for d in captures_dir.iterdir() if d.is_dir()]
             if not session_dirs:
                 self.capture_info_label.setText(
-                    "⚠️ No hay sesiones de captura guardadas\n\n"
-                    "Para procesar imágenes, primero debes:\n"
-                    "1️⃣ Capturar una foto con 'Capturar para Modelo 3D'\n"
-                    "   o\n"
-                    "2️⃣ Usar el botón de abajo para seleccionar imágenes manualmente"
+                    "⚠️ No saved capture sessions\n\n"
+                    "To process images, you must first:\n"
+                    "1️⃣ Capture a photo with 'Capture for 3D Model'\n"
+                    "   or\n"
+                    "2️⃣ Use the button below to manually select images"
                 )
                 self.capture_info_label.setStyleSheet("""
                     QLabel {
@@ -1079,20 +1079,20 @@ class ProcessingDialog(QDialog):
                 # Obtener información de timestamp
                 capture_time = datetime.fromtimestamp(latest_session.stat().st_mtime)
 
-                info_text = f"""✅ Última Captura Detectada
-📅 Fecha: {capture_time.strftime('%Y-%m-%d %H:%M:%S')}
-📁 Sesión: {latest_session.name}
-📷 Imágenes: Izquierda y Derecha disponibles
-🎯 Estado: Listo para procesar
+                info_text = f"""✅ Last Capture Detected
+📅 Date: {capture_time.strftime('%Y-%m-%d %H:%M:%S')}
+📁 Session: {latest_session.name}
+📷 Images: Left and Right available
+🎯 Status: Ready to process
 
-💡 Puedes seleccionar otra sesión con el botón de arriba"""
+💡 You can select another session with the button above"""
 
                 self.capture_info_label.setText(info_text)
                 self.btn_start.setEnabled(True)
             else:
                 self.capture_info_label.setText(
-                    "⚠️ La última sesión está incompleta\n\n"
-                    "Usa el botón 'Seleccionar Sesión de Captura' para elegir otra sesión"
+                    "⚠️ The last session is incomplete\n\n"
+                    "Use the 'Select Capture Session' button to choose another session"
                 )
                 self.capture_info_label.setStyleSheet("""
                     QLabel {
@@ -1117,10 +1117,10 @@ class ProcessingDialog(QDialog):
             captures_dir = Path("data/captures")
             if not captures_dir.exists():
                 QMessageBox.warning(
-                    self, "Sin Capturas",
-                    "No se encontró el directorio de capturas.\n\n"
-                    "Debes tomar al menos una foto con el botón 'Capturar para Modelo 3D' "
-                    "antes de poder procesar imágenes."
+                    self, "No Captures",
+                    "Capture directory not found.\n\n"
+                    "You must take at least one photo with the 'Capture for 3D Model' button "
+                    "before you can process images."
                 )
                 return
 
@@ -1130,23 +1130,23 @@ class ProcessingDialog(QDialog):
 
             if not session_dirs:
                 QMessageBox.warning(
-                    self, "Sin Sesiones",
-                    "No se encontraron sesiones de captura guardadas.\n\n"
-                    "Debes tomar al menos una foto con el botón 'Capturar para Modelo 3D' "
-                    "antes de poder procesar imágenes."
+                    self, "No Sessions",
+                    "No saved capture sessions found.\n\n"
+                    "You must take at least one photo with the 'Capture for 3D Model' button "
+                    "before you can process images."
                 )
                 return
 
             # Crear diálogo de selección
             dialog = QDialog(self)
-            dialog.setWindowTitle("Seleccionar Sesión de Captura")
+            dialog.setWindowTitle("Select Capture Session")
             dialog.setModal(True)
             dialog.resize(500, 400)
 
             layout = QVBoxLayout(dialog)
 
             # Título
-            title = QLabel("📁 Selecciona una sesión de captura para procesar")
+            title = QLabel("📁 Select a capture session to process")
             title.setFont(QFont("Arial", 12, QFont.Bold))
             title.setAlignment(Qt.AlignCenter)
             layout.addWidget(title)
@@ -1167,10 +1167,10 @@ class ProcessingDialog(QDialog):
                 # Crear item con información
                 if left_img.exists() and right_img.exists():
                     status_icon = "✅"
-                    status_text = "Completa"
+                    status_text = "Complete"
                 else:
                     status_icon = "⚠️"
-                    status_text = "Incompleta"
+                    status_text = "Incomplete"
 
                 item_text = f"{status_icon} {session_dir.name}\n    📅 {date_str} | {status_text}"
                 item = QListWidgetItem(item_text)
@@ -1185,19 +1185,19 @@ class ProcessingDialog(QDialog):
             layout.addWidget(list_widget)
 
             # Información adicional
-            info_label = QLabel(f"📊 Total de sesiones: {len(session_dirs)}")
+            info_label = QLabel(f"📊 Total sessions: {len(session_dirs)}")
             info_label.setStyleSheet("color: #666666; font-style: italic; padding: 5px;")
             layout.addWidget(info_label)
 
             # Botones
             buttons_layout = QHBoxLayout()
 
-            btn_ok = QPushButton("✅ Seleccionar")
+            btn_ok = QPushButton("✅ Select")
             btn_ok.setDefault(True)
             btn_ok.clicked.connect(dialog.accept)
             buttons_layout.addWidget(btn_ok)
 
-            btn_cancel = QPushButton("❌ Cancelar")
+            btn_cancel = QPushButton("❌ Cancel")
             btn_cancel.clicked.connect(dialog.reject)
             buttons_layout.addWidget(btn_cancel)
 
@@ -1217,11 +1217,11 @@ class ProcessingDialog(QDialog):
                     # Actualizar display
                     capture_time = datetime.fromtimestamp(selected_session.stat().st_mtime)
 
-                    info_text = f"""✅ Sesión Seleccionada
+                    info_text = f"""✅ Session Selected
 📁 {selected_session.name}
-📅 Fecha: {capture_time.strftime('%Y-%m-%d %H:%M:%S')}
-📷 Imágenes: Izquierda y Derecha cargadas
-🎯 Estado: Listo para procesar"""
+📅 Date: {capture_time.strftime('%Y-%m-%d %H:%M:%S')}
+📷 Images: Left and Right loaded
+🎯 Status: Ready to process"""
 
                     self.capture_info_label.setText(info_text)
 
@@ -1237,13 +1237,13 @@ class ProcessingDialog(QDialog):
                     """)
                     self.btn_start.setEnabled(True)
 
-                    self.add_log_message(f"Sesión cargada: {selected_session.name}")
+                    self.add_log_message(f"Session loaded: {selected_session.name}")
                 else:
-                    QMessageBox.information(self, "Sin Selección", "No seleccionaste ninguna sesión.")
+                    QMessageBox.information(self, "No Selection", "You did not select any session.")
 
         except Exception as e:
-            logger.error(f"Error seleccionando sesión de captura: {e}")
-            QMessageBox.critical(self, "Error", f"Error al seleccionar sesión:\n{e}")
+            logger.error(f"Error selecting capture session: {e}")
+            QMessageBox.critical(self, "Error", f"Error selecting session:\n{e}")
 
     def update_manual_selection_display(self):
         """Actualizar display de selección manual"""
@@ -1251,10 +1251,10 @@ class ProcessingDialog(QDialog):
             left_name = Path(self.selected_left_path).name
             right_name = Path(self.selected_right_path).name
 
-            info_text = f"""📁 Selección Manual
-📷 Izquierda: {left_name}
-📷 Derecha: {right_name}
-🎯 Estado: Listo para procesar"""
+            info_text = f"""📁 Manual Selection
+📷 Left: {left_name}
+📷 Right: {right_name}
+🎯 Status: Ready to process"""
 
             self.capture_info_label.setText(info_text)
             self.capture_info_label.setStyleSheet("""
@@ -1270,7 +1270,7 @@ class ProcessingDialog(QDialog):
     def select_output_directory(self):
         """Seleccionar directorio de salida"""
         dir_path = QFileDialog.getExistingDirectory(
-            self, "Seleccionar Directorio de Salida", "data/results"
+            self, "Select Output Directory", "data/results"
         )
         if dir_path:
             self.output_dir_label.setText(dir_path)
@@ -1293,12 +1293,12 @@ class ProcessingDialog(QDialog):
         try:
             # Validar selección de imágenes
             if not (self.selected_left_path and self.selected_right_path):
-                QMessageBox.warning(self, "Advertencia", 
-                                  "Debe seleccionar ambas imágenes (izquierda y derecha)")
+                QMessageBox.warning(self, "Warning", 
+                                  "You must select both images (left and right)")
                 return
             
             if not (Path(self.selected_left_path).exists() and Path(self.selected_right_path).exists()):
-                QMessageBox.critical(self, "Error", "Una o ambas imágenes no existen")
+                QMessageBox.critical(self, "Error", "One or both images do not exist")
                 return
             
             # Preparar directorio de salida
@@ -1319,7 +1319,7 @@ class ProcessingDialog(QDialog):
                 'output_dir': output_dir
             }
             
-            self.add_log_message("Iniciando procesamiento 3D...")
+            self.add_log_message("Starting 3D processing...")
             
             # Configurar UI
             self.btn_start.setEnabled(False)
@@ -1339,11 +1339,11 @@ class ProcessingDialog(QDialog):
                         'left': self.wire_tracking_result['left']['path'],
                         'right': self.wire_tracking_result['right']['path']
                     }
-                    self.add_log_message("✓ Usando paths geométricos ya calculados", "INFO")
+                    self.add_log_message("✓ Using pre-calculated geometric paths", "INFO")
                 else:
-                    self.add_log_message("⚠️ Wire tracking no disponible, usando solo máscaras", "WARNING")
+                    self.add_log_message("⚠️ Wire tracking unavailable, using masks only", "WARNING")
             else:
-                self.add_log_message("⚠️ Sin máscara de cable - procesando imagen completa", "WARNING")
+                self.add_log_message("⚠️ No cable mask - processing full image", "WARNING")
 
             # Crear y iniciar hilo de procesamiento
             self.processing_thread = ProcessingWorkerThread(
@@ -1363,13 +1363,13 @@ class ProcessingDialog(QDialog):
             self.processing_thread.start()
             
         except Exception as e:
-            self.add_log_message(f"Error iniciando procesamiento: {e}", "ERROR")
-            QMessageBox.critical(self, "Error", f"Error iniciando procesamiento:\n{e}")
+            self.add_log_message(f"Error starting processing: {e}", "ERROR")
+            QMessageBox.critical(self, "Error", f"Error starting processing:\n{e}")
     
     def cancel_processing(self):
         """Cancelar procesamiento en curso"""
         if self.processing_thread and self.processing_thread.isRunning():
-            self.add_log_message("Cancelando procesamiento...", "WARNING")
+            self.add_log_message("Canceling processing...", "WARNING")
             self.processing_thread.stop()
             
             if not self.processing_thread.wait(5000):
@@ -1400,7 +1400,7 @@ class ProcessingDialog(QDialog):
         """Callback cuando termina el procesamiento"""
         try:
             if success:
-                self.add_log_message("¡Procesamiento 3D completado exitosamente!", "INFO")
+                self.add_log_message("3D processing completed successfully!", "INFO")
                 
                 # Actualizar estadísticas
                 self.results_widget.update_statistics(result)
@@ -1411,21 +1411,21 @@ class ProcessingDialog(QDialog):
                 
                 QMessageBox.information(
                     self,
-                    "Procesamiento Exitoso",
-                    f"El modelo 3D se generó correctamente.\n\n"
-                    f"Tiempo: {result.get('processing_time_seconds', 0):.1f}s\n"
-                    f"Puntos 3D: {result.get('point_cloud', {}).get('num_points', 0):,}\n\n"
-                    f"Archivos generados:\n{files_info}"
+                    "Processing Successful",
+                    f"The 3D model was generated correctly.\n\n"
+                    f"Time: {result.get('processing_time_seconds', 0):.1f}s\n"
+                    f"3D Points: {result.get('point_cloud', {}).get('num_points', 0):,}\n\n"
+                    f"Generated files:\n{files_info}"
                 )
                 
             else:
-                error_msg = result.get('error', 'Error desconocido')
-                self.add_log_message(f"Procesamiento falló: {error_msg}", "ERROR")
+                error_msg = result.get('error', 'Unknown error')
+                self.add_log_message(f"Processing failed: {error_msg}", "ERROR")
                 
                 QMessageBox.critical(
                     self,
-                    "Error en Procesamiento",
-                    f"El procesamiento 3D falló:\n\n{error_msg}"
+                    "Processing Error",
+                    f"3D processing failed:\n\n{error_msg}"
                 )
                 
         except Exception as e:
@@ -1438,7 +1438,7 @@ class ProcessingDialog(QDialog):
         """Restaurar UI después del procesamiento"""
         self.btn_start.setEnabled(True)
         self.btn_cancel.setEnabled(False)
-        self.progress_message.setText("Procesamiento completado")
+        self.progress_message.setText("Processing completed")
     
     def add_log_message(self, message, level="INFO"):
         """Agregar mensaje al log"""
@@ -1482,7 +1482,7 @@ class ProcessingDialog(QDialog):
                 self.cable_filter_configured = True
 
                 # === DETECTAR ENDPOINTS Y ABRIR VISUALIZACION ANIMADA ===
-                self.add_log_message("Detectando endpoints del cable...", "INFO")
+                self.add_log_message("Detecting cable endpoints...", "INFO")
 
                 try:
                     from processing.endpoint_detector import detect_wire_endpoints
@@ -1509,13 +1509,13 @@ class ProcessingDialog(QDialog):
                     if tracking_results and tracking_results['success']:
                         self.wire_tracking_result = tracking_results
 
-                        self.add_log_message(f"Wire tracking exitoso:", "INFO")
+                        self.add_log_message(f"Wire tracking successful:", "INFO")
                         self.add_log_message(f"  LEFT: {len(tracking_results['left']['path'])} puntos, "
                                       f"Cob: {tracking_results['left']['coverage']*100:.1f}%", "INFO")
                         self.add_log_message(f"  RIGHT: {len(tracking_results['right']['path'])} puntos, "
                                       f"Cob: {tracking_results['right']['coverage']*100:.1f}%", "INFO")
 
-                        self.filter_status_label.setText("Filtro configurado + Wire tracking OK")
+                        self.filter_status_label.setText("Filter configured + Wire tracking OK")
                         self.filter_status_label.setStyleSheet("""
                             QLabel {
                                 background-color: #E8F5E9;
@@ -1527,10 +1527,10 @@ class ProcessingDialog(QDialog):
                             }
                         """)
                     else:
-                        self.add_log_message("Wire tracking no completo", "WARNING")
+                        self.add_log_message("Wire tracking incomplete", "WARNING")
                         self.wire_tracking_result = None
 
-                        self.filter_status_label.setText("Filtro OK, Wire tracking incompleto")
+                        self.filter_status_label.setText("Filter OK, Wire tracking incomplete")
                         self.filter_status_label.setStyleSheet("""
                             QLabel {
                                 background-color: #FFF3E0;
@@ -1547,7 +1547,7 @@ class ProcessingDialog(QDialog):
                     self.add_log_message(f"Error en wire tracking: {e}", "ERROR")
                     self.wire_tracking_result = None
 
-                    self.filter_status_label.setText("Filtro configurado (sin wire tracking)")
+                    self.filter_status_label.setText("Filter configured (no wire tracking)")
                     self.filter_status_label.setStyleSheet("""
                         QLabel {
                             background-color: #E8F5E9;
@@ -1559,26 +1559,26 @@ class ProcessingDialog(QDialog):
                         }
                     """)
 
-                    QMessageBox.information(self, "Aviso",
-                        f"Filtro de cable configurado.\n\n"
-                        f"Wire tracking falló ({e}), pero las máscaras están disponibles.")
+                    QMessageBox.information(self, "Notice",
+                        f"Cable filter configured.\n\n"
+                        f"Wire tracking failed ({e}), but masks are available.")
 
             else:
-                QMessageBox.information(self, "Cancelado",
-                    "Configuración de filtro cancelada.")
+                QMessageBox.information(self, "Cancelled",
+                    "Filter configuration canceled.")
 
         except Exception as e:
-            logger.error(f"Error abriendo configuración de filtro: {e}")
+            logger.error(f"Error opening filter configuration: {e}")
             QMessageBox.critical(self, "Error",
-                f"Error abriendo configuración de filtro:\n{e}")
+                f"Error opening filter configuration:\n{e}")
 
     def closeEvent(self, event):
         """Manejar cierre del diálogo"""
         if self.processing_thread and self.processing_thread.isRunning():
             msg = QMessageBox.question(
                 self,
-                "Procesamiento en Progreso",
-                "El procesamiento está en progreso. ¿Deseas cancelarlo y cerrar?",
+                "Processing in Progress",
+                "Processing is in progress. Do you want to cancel and close?",
                 QMessageBox.Yes | QMessageBox.No
             )
 
