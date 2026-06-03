@@ -45,12 +45,20 @@ class EdgeDetectionTuner(QDialog):
         # Variables de control
         self.mask_result = None  # Máscara resultante para usar en procesamiento
         self.processing_mode = False  # True cuando se llama desde el procesamiento
+        self._preview_img = None
+        self._preview_scale = 1.0
+
+        # Debounce timer: evita recalcular mientras el usuario arrastra el slider
+        self._update_timer = QTimer()
+        self._update_timer.setSingleShot(True)
+        self._update_timer.timeout.connect(self.update_detection)
 
         self.setup_ui()
         self.refresh_config_list()
         self.load_default_config()
 
-        # Actualizar visualización inicial
+        # Preparar preview y actualizar visualización inicial
+        self._prepare_preview()
         if self.original_img is not None:
             self.update_detection()
 
@@ -101,7 +109,7 @@ class EdgeDetectionTuner(QDialog):
         self.canny_low_slider = QSlider(Qt.Horizontal)
         self.canny_low_slider.setRange(1, 100)
         self.canny_low_slider.setValue(10)
-        self.canny_low_slider.valueChanged.connect(self.update_detection)
+        self.canny_low_slider.valueChanged.connect(self._schedule_update)
         canny_layout.addWidget(self.canny_low_slider, 0, 1)
         self.canny_low_label = QLabel("10")
         canny_layout.addWidget(self.canny_low_label, 0, 2)
@@ -111,7 +119,7 @@ class EdgeDetectionTuner(QDialog):
         self.canny_high_slider = QSlider(Qt.Horizontal)
         self.canny_high_slider.setRange(1, 200)
         self.canny_high_slider.setValue(30)
-        self.canny_high_slider.valueChanged.connect(self.update_detection)
+        self.canny_high_slider.valueChanged.connect(self._schedule_update)
         canny_layout.addWidget(self.canny_high_slider, 1, 1)
         self.canny_high_label = QLabel("30")
         canny_layout.addWidget(self.canny_high_label, 1, 2)
@@ -120,7 +128,7 @@ class EdgeDetectionTuner(QDialog):
         canny_layout.addWidget(QLabel("Aperture Size:"), 2, 0)
         self.canny_aperture_combo = QComboBox()
         self.canny_aperture_combo.addItems(["3", "5", "7"])
-        self.canny_aperture_combo.currentTextChanged.connect(self.update_detection)
+        self.canny_aperture_combo.currentTextChanged.connect(self._schedule_update)
         canny_layout.addWidget(self.canny_aperture_combo, 2, 1, 1, 2)
 
         self.canny_group.setLayout(canny_layout)
@@ -134,14 +142,14 @@ class EdgeDetectionTuner(QDialog):
         self.sobel_ksize_combo = QComboBox()
         self.sobel_ksize_combo.addItems(["1", "3", "5", "7"])
         self.sobel_ksize_combo.setCurrentText("3")
-        self.sobel_ksize_combo.currentTextChanged.connect(self.update_detection)
+        self.sobel_ksize_combo.currentTextChanged.connect(self._schedule_update)
         sobel_layout.addWidget(self.sobel_ksize_combo, 0, 1, 1, 2)
 
         sobel_layout.addWidget(QLabel("Threshold:"), 1, 0)
         self.sobel_thresh_slider = QSlider(Qt.Horizontal)
         self.sobel_thresh_slider.setRange(1, 100)
         self.sobel_thresh_slider.setValue(20)
-        self.sobel_thresh_slider.valueChanged.connect(self.update_detection)
+        self.sobel_thresh_slider.valueChanged.connect(self._schedule_update)
         sobel_layout.addWidget(self.sobel_thresh_slider, 1, 1)
         self.sobel_thresh_label = QLabel("20")
         sobel_layout.addWidget(self.sobel_thresh_label, 1, 2)
@@ -158,14 +166,14 @@ class EdgeDetectionTuner(QDialog):
         self.laplacian_ksize_combo = QComboBox()
         self.laplacian_ksize_combo.addItems(["1", "3", "5", "7"])
         self.laplacian_ksize_combo.setCurrentText("3")
-        self.laplacian_ksize_combo.currentTextChanged.connect(self.update_detection)
+        self.laplacian_ksize_combo.currentTextChanged.connect(self._schedule_update)
         laplacian_layout.addWidget(self.laplacian_ksize_combo, 0, 1, 1, 2)
 
         laplacian_layout.addWidget(QLabel("Threshold:"), 1, 0)
         self.laplacian_thresh_slider = QSlider(Qt.Horizontal)
         self.laplacian_thresh_slider.setRange(1, 100)
         self.laplacian_thresh_slider.setValue(20)
-        self.laplacian_thresh_slider.valueChanged.connect(self.update_detection)
+        self.laplacian_thresh_slider.valueChanged.connect(self._schedule_update)
         laplacian_layout.addWidget(self.laplacian_thresh_slider, 1, 1)
         self.laplacian_thresh_label = QLabel("20")
         laplacian_layout.addWidget(self.laplacian_thresh_label, 1, 2)
@@ -183,7 +191,7 @@ class EdgeDetectionTuner(QDialog):
         self.morphgrad_ksize_slider.setRange(3, 21)
         self.morphgrad_ksize_slider.setSingleStep(2)
         self.morphgrad_ksize_slider.setValue(5)
-        self.morphgrad_ksize_slider.valueChanged.connect(self.update_detection)
+        self.morphgrad_ksize_slider.valueChanged.connect(self._schedule_update)
         morphgrad_layout.addWidget(self.morphgrad_ksize_slider, 0, 1)
         self.morphgrad_ksize_label = QLabel("5")
         morphgrad_layout.addWidget(self.morphgrad_ksize_label, 0, 2)
@@ -192,7 +200,7 @@ class EdgeDetectionTuner(QDialog):
         self.morphgrad_thresh_slider = QSlider(Qt.Horizontal)
         self.morphgrad_thresh_slider.setRange(1, 100)
         self.morphgrad_thresh_slider.setValue(20)
-        self.morphgrad_thresh_slider.valueChanged.connect(self.update_detection)
+        self.morphgrad_thresh_slider.valueChanged.connect(self._schedule_update)
         morphgrad_layout.addWidget(self.morphgrad_thresh_slider, 1, 1)
         self.morphgrad_thresh_label = QLabel("20")
         morphgrad_layout.addWidget(self.morphgrad_thresh_label, 1, 2)
@@ -210,7 +218,7 @@ class EdgeDetectionTuner(QDialog):
         self.tophat_ksize_slider.setRange(3, 51)
         self.tophat_ksize_slider.setSingleStep(2)
         self.tophat_ksize_slider.setValue(11)
-        self.tophat_ksize_slider.valueChanged.connect(self.update_detection)
+        self.tophat_ksize_slider.valueChanged.connect(self._schedule_update)
         tophat_layout.addWidget(self.tophat_ksize_slider, 0, 1)
         self.tophat_ksize_label = QLabel("11")
         tophat_layout.addWidget(self.tophat_ksize_label, 0, 2)
@@ -219,7 +227,7 @@ class EdgeDetectionTuner(QDialog):
         self.tophat_thresh_slider = QSlider(Qt.Horizontal)
         self.tophat_thresh_slider.setRange(1, 100)
         self.tophat_thresh_slider.setValue(20)
-        self.tophat_thresh_slider.valueChanged.connect(self.update_detection)
+        self.tophat_thresh_slider.valueChanged.connect(self._schedule_update)
         tophat_layout.addWidget(self.tophat_thresh_slider, 1, 1)
         self.tophat_thresh_label = QLabel("20")
         tophat_layout.addWidget(self.tophat_thresh_label, 1, 2)
@@ -237,7 +245,7 @@ class EdgeDetectionTuner(QDialog):
         self.dilate_slider = QSlider(Qt.Horizontal)
         self.dilate_slider.setRange(0, 10)
         self.dilate_slider.setValue(1)
-        self.dilate_slider.valueChanged.connect(self.update_detection)
+        self.dilate_slider.valueChanged.connect(self._schedule_update)
         postproc_layout.addWidget(self.dilate_slider, 0, 1)
         self.dilate_label = QLabel("1")
         postproc_layout.addWidget(self.dilate_label, 0, 2)
@@ -247,7 +255,7 @@ class EdgeDetectionTuner(QDialog):
         self.erode_slider = QSlider(Qt.Horizontal)
         self.erode_slider.setRange(0, 10)
         self.erode_slider.setValue(0)
-        self.erode_slider.valueChanged.connect(self.update_detection)
+        self.erode_slider.valueChanged.connect(self._schedule_update)
         postproc_layout.addWidget(self.erode_slider, 1, 1)
         self.erode_label = QLabel("0")
         postproc_layout.addWidget(self.erode_label, 1, 2)
@@ -257,7 +265,7 @@ class EdgeDetectionTuner(QDialog):
         self.close_slider = QSlider(Qt.Horizontal)
         self.close_slider.setRange(0, 10)
         self.close_slider.setValue(0)
-        self.close_slider.valueChanged.connect(self.update_detection)
+        self.close_slider.valueChanged.connect(self._schedule_update)
         postproc_layout.addWidget(self.close_slider, 2, 1)
         self.close_label = QLabel("0")
         postproc_layout.addWidget(self.close_label, 2, 2)
@@ -274,7 +282,7 @@ class EdgeDetectionTuner(QDialog):
         self.cleanup_area_slider = QSlider(Qt.Horizontal)
         self.cleanup_area_slider.setRange(1, 50)
         self.cleanup_area_slider.setValue(10)
-        self.cleanup_area_slider.valueChanged.connect(self.update_detection)
+        self.cleanup_area_slider.valueChanged.connect(self._schedule_update)
         cleanup_layout.addWidget(self.cleanup_area_slider, 0, 1)
         self.cleanup_area_label = QLabel("10%")
         cleanup_layout.addWidget(self.cleanup_area_label, 0, 2)
@@ -283,7 +291,7 @@ class EdgeDetectionTuner(QDialog):
         from PyQt5.QtWidgets import QCheckBox
         self.cleanup_enable = QCheckBox("Enable Smart Cleanup")
         self.cleanup_enable.setChecked(True)
-        self.cleanup_enable.stateChanged.connect(self.update_detection)
+        self.cleanup_enable.stateChanged.connect(self._schedule_update)
         cleanup_layout.addWidget(self.cleanup_enable, 1, 0, 1, 3)
 
         cleanup_group.setLayout(cleanup_layout)
@@ -385,7 +393,7 @@ class EdgeDetectionTuner(QDialog):
         elif method == "Top-Hat":
             self.tophat_group.show()
 
-        self.update_detection()
+        self._schedule_update()
 
     def load_image(self):
         """Cargar imagen desde archivo"""
@@ -395,18 +403,45 @@ class EdgeDetectionTuner(QDialog):
         )
         if file_path:
             self.original_img = cv2.imread(file_path)
+            self._prepare_preview()
             self.update_detection()
+
+    def _prepare_preview(self):
+        """Generar imagen reducida para procesamiento rápido en tiempo real"""
+        if self.original_img is None:
+            self._preview_img = None
+            self._preview_scale = 1.0
+            return
+
+        h, w = self.original_img.shape[:2]
+        max_dim = 1280
+
+        if max(h, w) > max_dim:
+            scale = max_dim / max(h, w)
+            new_w = int(w * scale)
+            new_h = int(h * scale)
+            self._preview_img = cv2.resize(self.original_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            self._preview_scale = scale
+        else:
+            self._preview_img = self.original_img
+            self._preview_scale = 1.0
+
+    def _schedule_update(self):
+        """Debounce: espera 200ms tras el último cambio antes de recalcular"""
+        self._update_timer.start(200)
 
     def update_detection(self):
         """Actualizar detección de bordes"""
         if self.original_img is None:
             return
 
+        img = self._preview_img if self._preview_img is not None else self.original_img
+
         # Convertir a escala de grises
-        if len(self.original_img.shape) == 3:
-            gray = cv2.cvtColor(self.original_img, cv2.COLOR_BGR2GRAY)
+        if len(img.shape) == 3:
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         else:
-            gray = self.original_img.copy()
+            gray = img.copy()
 
         # Aplicar método seleccionado
         method = self.method_combo.currentText()
@@ -454,10 +489,14 @@ class EdgeDetectionTuner(QDialog):
             percentage = 100 * pixels_detected / edges.size
             self.stats_label.setText(f"Pixels detected: {pixels_detected} ({percentage:.2f}%)")
 
-        # Guardar máscara para uso externo
-        self.mask_result = edges
+        # Guardar máscara escalada a resolución completa para uso externo
+        if self._preview_scale < 1.0:
+            h_full, w_full = self.original_img.shape[:2]
+            self.mask_result = cv2.resize(edges, (w_full, h_full), interpolation=cv2.INTER_NEAREST)
+        else:
+            self.mask_result = edges
 
-        # Visualizar
+        # Visualizar (sobre imagen de preview para mayor velocidad)
         self.display_results(edges)
 
     def apply_canny(self, gray):
@@ -638,20 +677,23 @@ class EdgeDetectionTuner(QDialog):
         self.cleanup_area_slider.setValue(config.get('cleanup_area_percent', 10))
 
     def display_results(self, edges):
-        """Mostrar resultados"""
-        # Mostrar imagen original
-        original_rgb = cv2.cvtColor(self.original_img, cv2.COLOR_BGR2RGB)
+        """Mostrar resultados usando imagen de preview para mayor velocidad"""
+        disp_img = self._preview_img if self._preview_img is not None else self.original_img
+
+        # Mostrar imagen original (preview)
+        original_rgb = cv2.cvtColor(disp_img, cv2.COLOR_BGR2RGB)
         h, w = original_rgb.shape[:2]
-        qimg_original = QImage(original_rgb.data, w, h, 3*w, QImage.Format_RGB888)
+        bytes_per_line = 3 * w
+        qimg_original = QImage(bytes(original_rgb.data), w, h, bytes_per_line, QImage.Format_RGB888)
         self.original_label.setPixmap(QPixmap.fromImage(qimg_original))
 
         # Crear overlay con bordes detectados
-        overlay = self.original_img.copy()
+        overlay = disp_img.copy()
         overlay[edges > 0] = [0, 255, 0]
-        result = cv2.addWeighted(self.original_img, 0.7, overlay, 0.3, 0)
+        result = cv2.addWeighted(disp_img, 0.7, overlay, 0.3, 0)
         result_rgb = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
 
-        qimg_detection = QImage(result_rgb.data, w, h, 3*w, QImage.Format_RGB888)
+        qimg_detection = QImage(bytes(result_rgb.data), w, h, bytes_per_line, QImage.Format_RGB888)
         self.detection_label.setPixmap(QPixmap.fromImage(qimg_detection))
 
     def save_config(self):
@@ -910,6 +952,7 @@ class EdgeDetectionTuner(QDialog):
         """Configurar para modo procesamiento (mostrar ambas imágenes)"""
         self.processing_mode = True
         self.original_img = left_img
+        self._prepare_preview()
         self.left_img_data = left_img
         self.right_img_data = right_img
         self.left_path = left_path
@@ -962,6 +1005,7 @@ class EdgeDetectionTuner(QDialog):
             self.btn_switch.setText("↔️ Switch to RIGHT Image")
 
         # Actualizar detección con la nueva imagen
+        self._prepare_preview()
         self.update_detection()
 
 

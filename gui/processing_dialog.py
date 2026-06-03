@@ -447,9 +447,14 @@ class WireTrackingWorkerThread(QThread):
 
     def run(self):
         from processing.smart_wire_tracker import SmartWireTracker
+        # Escalar max_iterations según resolución de la máscara
+        h, w = self.mask.shape[:2]
+        resolution_scale = max(1.0, (h * w) / (1920 * 1440))
+        max_iter = int(10000 * min(resolution_scale, 10))  # Tope: 100k
+
         tracker = SmartWireTracker(self.mask, self.start_pt, self.end_pt)
         result = tracker.track_wire(
-            max_iterations=10000,
+            max_iterations=max_iter,
             step_callback=self._on_step
         )
         self.tracking_finished.emit(result)
@@ -517,14 +522,16 @@ class WireTrackingVisualizationDialog(QDialog):
         left_frame = QFrame()
         left_frame_layout = QVBoxLayout(left_frame)
         left_frame_layout.setContentsMargins(2, 2, 2, 2)
-        self.left_header = QLabel("Left - waiting...")
+        self.left_header = QLabel(f"Left - S:{self.start_left} E:{self.end_left}")
         self.left_header.setFont(QFont("Arial", 9, QFont.Bold))
         self.left_header.setAlignment(Qt.AlignCenter)
         self.left_header.setStyleSheet("color: #2196F3;")
         left_frame_layout.addWidget(self.left_header)
         self.left_image_label = QLabel()
         self.left_image_label.setAlignment(Qt.AlignCenter)
-        self.left_image_label.setPixmap(self._cv2_to_pixmap(self.left_img))
+        # Mostrar endpoints detectados en la imagen inicial
+        left_init = self._draw_wire_on_image(self.left_img, [], "LEFT")
+        self.left_image_label.setPixmap(self._cv2_to_pixmap(left_init))
         left_frame_layout.addWidget(self.left_image_label)
         images_layout.addWidget(left_frame)
 
@@ -532,14 +539,16 @@ class WireTrackingVisualizationDialog(QDialog):
         right_frame = QFrame()
         right_frame_layout = QVBoxLayout(right_frame)
         right_frame_layout.setContentsMargins(2, 2, 2, 2)
-        self.right_header = QLabel("Right - waiting...")
+        self.right_header = QLabel(f"Right - S:{self.start_right} E:{self.end_right}")
         self.right_header.setFont(QFont("Arial", 9, QFont.Bold))
         self.right_header.setAlignment(Qt.AlignCenter)
         self.right_header.setStyleSheet("color: #FF9800;")
         right_frame_layout.addWidget(self.right_header)
         self.right_image_label = QLabel()
         self.right_image_label.setAlignment(Qt.AlignCenter)
-        self.right_image_label.setPixmap(self._cv2_to_pixmap(self.right_img))
+        # Mostrar endpoints detectados en la imagen inicial
+        right_init = self._draw_wire_on_image(self.right_img, [], "RIGHT")
+        self.right_image_label.setPixmap(self._cv2_to_pixmap(right_init))
         right_frame_layout.addWidget(self.right_image_label)
         images_layout.addWidget(right_frame)
 
@@ -634,17 +643,43 @@ class WireTrackingVisualizationDialog(QDialog):
 
     def _draw_wire_on_image(self, img, path, side):
         vis = img.copy()
+
+        # Siempre dibujar los endpoints DETECTADOS (start/end del EndpointDetector)
+        if side == "LEFT":
+            det_start, det_end = self.start_left, self.end_left
+        else:
+            det_start, det_end = self.start_right, self.end_right
+
+        # Escalar el tamaño de los marcadores según resolución
+        h, w = vis.shape[:2]
+        marker_size = max(6, min(w, h) // 150)
+        font_scale = max(0.5, min(w, h) / 2000.0)
+        thickness = max(1, marker_size // 3)
+
+        # Dibujar endpoints detectados (siempre visibles)
+        cv2.circle(vis, (int(det_start[0]), int(det_start[1])),
+                   marker_size, (0, 255, 0), -1)  # Verde = START
+        cv2.circle(vis, (int(det_end[0]), int(det_end[1])),
+                   marker_size, (0, 0, 255), -1)    # Rojo = END
+        # Etiquetas
+        cv2.putText(vis, "START",
+                    (int(det_start[0]) + marker_size + 2, int(det_start[1]) + marker_size),
+                    cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 255, 0), thickness)
+        cv2.putText(vis, "END",
+                    (int(det_end[0]) + marker_size + 2, int(det_end[1]) + marker_size),
+                    cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), thickness)
+
         if len(path) < 2:
             return vis
+
+        # Dibujar path del tracker
         color = (0, 200, 255) if side == "LEFT" else (0, 165, 255)
+        line_thickness = max(1, marker_size // 3)
         for i in range(len(path) - 1):
             pt1 = (int(path[i][0]), int(path[i][1]))
             pt2 = (int(path[i+1][0]), int(path[i+1][1]))
-            cv2.line(vis, pt1, pt2, color, 2, cv2.LINE_AA)
-        start = (int(path[0][0]), int(path[0][1]))
-        end = (int(path[-1][0]), int(path[-1][1]))
-        cv2.circle(vis, start, 6, (0, 255, 0), -1)
-        cv2.circle(vis, end, 6, (0, 0, 255), -1)
+            cv2.line(vis, pt1, pt2, color, line_thickness, cv2.LINE_AA)
+
         return vis
 
     def _cv2_to_pixmap(self, cv_img):
@@ -1069,8 +1104,8 @@ class ProcessingDialog(QDialog):
             latest_session = max(session_dirs, key=lambda d: d.stat().st_mtime)
 
             # Buscar imágenes en la sesión
-            left_images = list(latest_session.glob("left.jpg"))
-            right_images = list(latest_session.glob("right.jpg"))
+            left_images = list(latest_session.glob("left.jpg")) + list(latest_session.glob("left.png"))
+            right_images = list(latest_session.glob("right.jpg")) + list(latest_session.glob("right.png"))
 
             if left_images and right_images:
                 self.selected_left_path = str(left_images[0])
@@ -1161,7 +1196,9 @@ class ProcessingDialog(QDialog):
 
             for session_dir in session_dirs:
                 left_img = session_dir / "left.jpg"
+                if not left_img.exists(): left_img = session_dir / "left.png"
                 right_img = session_dir / "right.jpg"
+                if not right_img.exists(): right_img = session_dir / "right.png"
 
                 capture_time = datetime.fromtimestamp(session_dir.stat().st_mtime)
                 date_str = capture_time.strftime('%Y-%m-%d %H:%M:%S')
@@ -1225,9 +1262,12 @@ class ProcessingDialog(QDialog):
                 if session_path is None:
                     return
 
-                for img_name, label in [("left.jpg", left_preview_label),
-                                        ("right.jpg", right_preview_label)]:
-                    img_path = session_path / img_name
+                for img_base, label in [("left", left_preview_label),
+                                        ("right", right_preview_label)]:
+                    img_path = session_path / f"{img_base}.jpg"
+                    if not img_path.exists():
+                        img_path = session_path / f"{img_base}.png"
+                        
                     if img_path.exists():
                         pixmap = QPixmap(str(img_path))
                         if not pixmap.isNull():
@@ -1237,9 +1277,9 @@ class ProcessingDialog(QDialog):
                             )
                             label.setPixmap(scaled)
                         else:
-                            label.setText(f"Cannot load {img_name}")
+                            label.setText(f"Cannot load {img_path.name}")
                     else:
-                        label.setText(f"No {img_name}")
+                        label.setText(f"No {img_base}.jpg/png")
 
             list_widget.currentItemChanged.connect(_update_preview)
 
@@ -1273,8 +1313,12 @@ class ProcessingDialog(QDialog):
                     selected_session = selected_items[0].data(Qt.UserRole)
 
                     # Cargar imágenes de la sesión seleccionada
-                    self.selected_left_path = str(selected_session / "left.jpg")
-                    self.selected_right_path = str(selected_session / "right.jpg")
+                    l_path = selected_session / "left.jpg"
+                    if not l_path.exists(): l_path = selected_session / "left.png"
+                    r_path = selected_session / "right.jpg"
+                    if not r_path.exists(): r_path = selected_session / "right.png"
+                    self.selected_left_path = str(l_path)
+                    self.selected_right_path = str(r_path)
                     self.current_session_path = selected_session
 
                     # Actualizar display

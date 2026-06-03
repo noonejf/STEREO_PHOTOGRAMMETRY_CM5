@@ -1,0 +1,38 @@
+{
+    "capture_name": "stereo_20260217_163259",
+    "timestamp": "2026-02-17T16:32:59.000000",
+    "left_camera": {
+        "id": 0,
+        "file": "data/captures/stereo_20260217_163259/left.png",
+        "resolution": [
+            6944,
+            9152,
+            3
+        ],
+        "size_bytes": 56666941,
+        "capture_time": 0
+    },
+    "right_camera": {
+        "id": 1,
+        "file": "data/captures/stereo_20260217_163259/right.png",
+        "resolution": [
+            6944,
+            9152,
+            3
+        ],
+        "size_bytes": 56901584,
+        "capture_time": 0
+    },
+    "synchronization": {
+        "time_difference_ms": 0,
+        "quality": "EXCELENTE",
+        "acceptable": true
+    },
+    "camera_config": {
+        "baseline_mm": 100.0,
+        "capture_resolution_used": [
+            9152,
+            6944
+        ]
+    }
+}
