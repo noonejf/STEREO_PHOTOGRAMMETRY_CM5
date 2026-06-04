@@ -649,6 +649,43 @@ class StereoProcessor:
 
             return disparity_result
 
+    @staticmethod
+    def _align_stereo_paths_vertical(path_left, path_right, start_left, start_right):
+        """
+        Recorta el exceso del path que empieza más arriba (y menor) en la imagen.
+        En un par estéreo horizontal rectificado, puntos correspondientes comparten Y.
+        Si la cámara derecha ve el cable desde y=568 y la izquierda desde y=2067,
+        los primeros tramos del path derecho no tienen correspondencia → recortar.
+
+        Retorna (path_left_trimmed, path_right_trimmed)
+        """
+        if not path_left or not path_right:
+            return path_left, path_right
+
+        y_left  = start_left[1]
+        y_right = start_right[1]
+        dy = abs(y_left - y_right)
+
+        if dy < 50:   # diferencia insignificante, no recortar
+            return path_left, path_right
+
+        if y_right < y_left:
+            # Derecha empieza más arriba → recortar inicio del path derecho
+            target_y = y_left
+            trim = next((i for i, pt in enumerate(path_right) if pt[1] >= target_y), 0)
+            if trim > 0:
+                path_right = path_right[trim:]
+                logger.info(f"[ALIGN] Path derecho recortado {trim} pts (y<{target_y:.0f})")
+        else:
+            # Izquierda empieza más arriba → recortar inicio del path izquierdo
+            target_y = y_right
+            trim = next((i for i, pt in enumerate(path_left) if pt[1] >= target_y), 0)
+            if trim > 0:
+                path_left = path_left[trim:]
+                logger.info(f"[ALIGN] Path izquierdo recortado {trim} pts (y<{target_y:.0f})")
+
+        return path_left, path_right
+
     def process_wire_masks(self,
                           mask_left: np.ndarray,
                           mask_right: np.ndarray,
@@ -689,7 +726,8 @@ class StereoProcessor:
                 mask_left,
                 method="skeleton",
                 visualize=save_debug,
-                vis_output_path="data/results/debug/endpoints_left.png" if save_debug else None
+                vis_output_path="data/results/debug/endpoints_left.png" if save_debug else None,
+                side="left"
             )
             logger.info(f"    Start LEFT: {start_left}, End LEFT: {end_left}")
 
@@ -718,7 +756,8 @@ class StereoProcessor:
                 mask_right,
                 method="skeleton",
                 visualize=save_debug,
-                vis_output_path="data/results/debug/endpoints_right.png" if save_debug else None
+                vis_output_path="data/results/debug/endpoints_right.png" if save_debug else None,
+                side="right"
             )
             logger.info(f"    Start RIGHT: {start_right}, End RIGHT: {end_right}")
 
@@ -860,21 +899,27 @@ class StereoProcessor:
         #      2c) Borde sup/inf, Y similar → safety trim 20px hacia adentro
         #   3) Ninguno toca borde → no recortar (puntas reales visibles)
 
-        EDGE_MARGIN = 2    # px para considerar que un punto toca el borde
         SAFETY_TRIM = 20   # px de safety trim cuando ambos tocan borde con mismo Y
         SAME_Y_THRESHOLD = 15  # px para considerar que dos Y son "el mismo"
 
         def _is_on_edge(point, h, w):
-            """Retorna qué borde toca el punto, o None."""
+            """
+            Retorna qué bordes toca el punto.
+            Usa margen del 2% de la dimensión (mínimo 2px) para capturar puntos
+            que están cerca del borde aunque no exactamente en él — p.ej. un cable
+            que entra por el borde izquierdo a x=171 en una imagen de 9152px (1.9%).
+            """
             x, y = point[0], point[1]
+            margin_x = max(2, int(w * 0.02))   # 2% del ancho
+            margin_y = max(2, int(h * 0.02))   # 2% del alto
             edges = []
-            if y <= EDGE_MARGIN:
+            if y <= margin_y:
                 edges.append('top')
-            if y >= h - EDGE_MARGIN:
+            if y >= h - margin_y:
                 edges.append('bottom')
-            if x <= EDGE_MARGIN:
+            if x <= margin_x:
                 edges.append('left')
-            if x >= w - EDGE_MARGIN:
+            if x >= w - margin_x:
                 edges.append('right')
             return edges
 
@@ -1009,21 +1054,30 @@ class StereoProcessor:
             y_min_trim = None
 
         elif start_L_on_edge and not start_R_on_edge:
-            # CASO 1: L toca borde, R es interior → recortar R para igualar a L
-            logger.info(f"   Start: CASO 1 - L en borde, R interior → recortar R al Y de L ({y_start_L:.1f})")
-            y_min_trim = y_start_L
+            # CASO 1: L toca borde, R es interior.
+            # La correspondencia empieza donde ambos cables son visibles → max(y_start)
+            y_min_trim = max(y_start_L, y_start_R)
+            logger.info(f"   Start: CASO 1 - L en borde, R interior → trim al mayor Y_start ({y_min_trim:.1f})")
 
         elif not start_L_on_edge and start_R_on_edge:
-            # CASO 1: R toca borde, L es interior → recortar L para igualar a R
-            logger.info(f"   Start: CASO 1 - R en borde, L interior → recortar L al Y de R ({y_start_R:.1f})")
-            y_min_trim = y_start_R
+            # CASO 1: R toca borde, L es interior.
+            # La correspondencia empieza donde ambos cables son visibles → max(y_start)
+            y_min_trim = max(y_start_L, y_start_R)
+            logger.info(f"   Start: CASO 1 - R en borde, L interior → trim al mayor Y_start ({y_min_trim:.1f})")
 
         else:
             # CASO 2: Ambos tocan borde
             if (start_L_is_lr and start_R_is_lr) and not (start_L_is_tb or start_R_is_tb):
-                # CASO 2a: Ambos tocan borde izquierdo/derecho (no sup/inf)
-                logger.info("   Start: CASO 2a - Ambos en borde lateral, no recortar")
-                y_min_trim = None
+                if abs(y_start_L - y_start_R) > SAME_Y_THRESHOLD:
+                    # CASO 2a': Ambos en borde lateral PERO con altura Y distinta.
+                    # El que entra más arriba (y menor) tiene un tramo sin correspondencia.
+                    y_min_trim = max(y_start_L, y_start_R)
+                    logger.info(f"   Start: CASO 2a' - Bordes laterales, Y diferente "
+                               f"(L={y_start_L:.1f}, R={y_start_R:.1f}) → trim a Y={y_min_trim:.1f}")
+                else:
+                    # CASO 2a: Ambos tocan borde izquierdo/derecho y entran a la misma altura
+                    logger.info("   Start: CASO 2a - Ambos en borde lateral, mismo Y, no recortar")
+                    y_min_trim = None
 
             elif abs(y_start_L - y_start_R) <= SAME_Y_THRESHOLD:
                 # CASO 2c: Ambos en borde sup/inf con MISMO Y
@@ -1056,21 +1110,26 @@ class StereoProcessor:
             y_max_trim = None
 
         elif end_L_on_edge and not end_R_on_edge:
-            # CASO 1: L toca borde, R es interior → recortar R para igualar a L
-            logger.info(f"   End: CASO 1 - L en borde, R interior → recortar R al Y de L ({y_end_L:.1f})")
-            y_max_trim = y_end_L
+            # CASO 1: L toca borde, R es interior → usar el menor y_end (el que termina antes)
+            y_max_trim = min(y_end_L, y_end_R)
+            logger.info(f"   End: CASO 1 - L en borde, R interior → trim al menor Y_end ({y_max_trim:.1f})")
 
         elif not end_L_on_edge and end_R_on_edge:
-            # CASO 1: R toca borde, L es interior → recortar L para igualar a R
-            logger.info(f"   End: CASO 1 - R en borde, L interior → recortar L al Y de R ({y_end_R:.1f})")
-            y_max_trim = y_end_R
+            # CASO 1: R toca borde, L es interior → usar el menor y_end
+            y_max_trim = min(y_end_L, y_end_R)
+            logger.info(f"   End: CASO 1 - R en borde, L interior → trim al menor Y_end ({y_max_trim:.1f})")
 
         else:
             # CASO 2: Ambos tocan borde
             if (end_L_is_lr and end_R_is_lr) and not (end_L_is_tb or end_R_is_tb):
-                # CASO 2a: Ambos tocan borde izquierdo/derecho
-                logger.info("   End: CASO 2a - Ambos en borde lateral, no recortar")
-                y_max_trim = None
+                if abs(y_end_L - y_end_R) > SAME_Y_THRESHOLD:
+                    # CASO 2a': Bordes laterales con Y final distinta
+                    y_max_trim = min(y_end_L, y_end_R)
+                    logger.info(f"   End: CASO 2a' - Bordes laterales, Y diferente "
+                               f"(L={y_end_L:.1f}, R={y_end_R:.1f}) → trim a Y={y_max_trim:.1f}")
+                else:
+                    logger.info("   End: CASO 2a - Ambos en borde lateral, mismo Y, no recortar")
+                    y_max_trim = None
 
             elif abs(y_end_L - y_end_R) <= SAME_Y_THRESHOLD:
                 # CASO 2c: Ambos en borde con MISMO Y
@@ -1142,13 +1201,26 @@ class StereoProcessor:
         else:
             logger.info("   ✓ No se requiere trimming")
 
-        # Calcular longitud de arco ACUMULADA para cada punto
         def calc_cumulative_arc_length(path_arr):
             diffs = np.diff(path_arr, axis=0)
             segment_lengths = np.sqrt(np.sum(diffs**2, axis=1))
             cumulative = np.zeros(len(path_arr))
             cumulative[1:] = np.cumsum(segment_lengths)
             return cumulative
+
+        def deduplicate_path(path_arr):
+            """Elimina puntos consecutivos idénticos para evitar arc-length=0 en interp1d."""
+            if len(path_arr) < 2:
+                return path_arr
+            keep = np.concatenate([[True], np.sum(np.diff(path_arr, axis=0)**2, axis=1) > 1e-10])
+            result = path_arr[keep]
+            removed = len(path_arr) - len(result)
+            if removed > 0:
+                logger.debug(f"   [dedup] Eliminados {removed} puntos duplicados del path")
+            return result
+
+        path_left_arr  = deduplicate_path(path_left_arr)
+        path_right_arr = deduplicate_path(path_right_arr)
 
         arc_cum_left = calc_cumulative_arc_length(path_left_arr)
         arc_cum_right = calc_cumulative_arc_length(path_right_arr)
@@ -1456,7 +1528,7 @@ class StereoProcessor:
             logger.info("📍 PASO 1: Detectando endpoints y tracking...")
 
             # Máscara izquierda
-            start_left, end_left = detect_wire_endpoints(mask_left, method="skeleton")
+            start_left, end_left = detect_wire_endpoints(mask_left, method="skeleton", side="left")
             tracker_left = SmartWireTracker(mask_left, start_left, end_left)
             track_left = tracker_left.track_wire(max_iterations=10000)
 
@@ -1469,7 +1541,7 @@ class StereoProcessor:
             if progress_callback:
                 progress_callback(20, "Tracking cable derecho...")
 
-            start_right, end_right = detect_wire_endpoints(mask_right, method="skeleton")
+            start_right, end_right = detect_wire_endpoints(mask_right, method="skeleton", side="right")
             tracker_right = SmartWireTracker(mask_right, start_right, end_right)
             track_right = tracker_right.track_wire(max_iterations=10000)
 
@@ -1478,15 +1550,20 @@ class StereoProcessor:
 
             logger.info(f"   RIGHT: {len(track_right['path'])} puntos, cobertura {track_right['coverage']*100:.1f}%")
 
+            # Alinear paths verticalmente (recortar tramos sin correspondencia estéreo)
+            path_left_a, path_right_a = self._align_stereo_paths_vertical(
+                track_left['path'], track_right['path'], start_left, start_right
+            )
+
             result['wire_tracking'] = {
                 'left': {
-                    'path': track_left['path'],
+                    'path': path_left_a,
                     'coverage': track_left['coverage'],
                     'start': start_left,
                     'end': end_left
                 },
                 'right': {
-                    'path': track_right['path'],
+                    'path': path_right_a,
                     'coverage': track_right['coverage'],
                     'start': start_right,
                     'end': end_right

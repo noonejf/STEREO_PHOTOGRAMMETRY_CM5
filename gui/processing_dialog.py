@@ -1594,8 +1594,8 @@ class ProcessingDialog(QDialog):
                 try:
                     from processing.endpoint_detector import detect_wire_endpoints
 
-                    start_left, end_left = detect_wire_endpoints(self.cable_mask_left)
-                    start_right, end_right = detect_wire_endpoints(self.cable_mask_right)
+                    start_left, end_left = detect_wire_endpoints(self.cable_mask_left, side="left")
+                    start_right, end_right = detect_wire_endpoints(self.cable_mask_right, side="right")
 
                     self.add_log_message(f"  LEFT endpoints: {start_left} -> {end_left}", "INFO")
                     self.add_log_message(f"  RIGHT endpoints: {start_right} -> {end_right}", "INFO")

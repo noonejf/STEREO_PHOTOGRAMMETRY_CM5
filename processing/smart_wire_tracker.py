@@ -29,13 +29,35 @@ class SmartWireTracker:
     """Tracker inteligente con Backtracking (DFS) y verificación de conectividad."""
 
     def __init__(self, mask: np.ndarray, start: Tuple[int, int], end: Tuple[int, int]):
+        # --- AUTO-SCALE: si el cable es demasiado grueso, escalar la máscara ---
+        # Los parámetros del tracker (step=5, search=20) fueron diseñados para
+        # cables de ~10-20px de radio. Si la máscara tiene cables más gruesos
+        # (p.ej. upscaleada desde preview), escalar hacia abajo.
+        self._internal_scale = 1.0
+        _dt_init = cv2.distanceTransform((mask > 0).astype(np.uint8), cv2.DIST_L2, 5)
+        _dt_max_init = float(np.max(_dt_init)) if np.any(mask > 0) else 1.0
+        _TARGET_MAX_DT = 15.0  # radio objetivo en píxeles
+
+        if _dt_max_init > _TARGET_MAX_DT * 1.5:  # cable >22px de radio → escalar
+            self._internal_scale = _TARGET_MAX_DT / _dt_max_init
+            nh = max(100, int(mask.shape[0] * self._internal_scale))
+            nw = max(100, int(mask.shape[1] * self._internal_scale))
+            ms = cv2.resize(mask, (nw, nh), interpolation=cv2.INTER_AREA)
+            mask = (ms > 127).astype(np.uint8) * 255
+            s = self._internal_scale
+            start = (max(0, min(nw - 1, int(start[0] * s))),
+                     max(0, min(nh - 1, int(start[1] * s))))
+            end   = (max(0, min(nw - 1, int(end[0]   * s))),
+                     max(0, min(nh - 1, int(end[1]   * s))))
+            print(f"  [AUTO-SCALE] Cable grueso (DT_max={_dt_max_init:.0f}px). "
+                  f"Escalando {self._internal_scale:.3f}x → {nw}×{nh}px")
+
         self.mask = mask
         self.start = start
         self.end = end
 
         # Estado del tracking
         self.path: List[Tuple[int, int]] = []
-        # Mapa de visitados (será nuestra "memoria" visual)
         self.visited_map = np.zeros_like(mask, dtype=np.uint8)
         self.decision_points: List[DecisionPoint] = []
 
@@ -44,40 +66,59 @@ class SmartWireTracker:
         self.distance_transform = cv2.distanceTransform(mask, cv2.DIST_L2, 5)
 
         # --- PARÁMETROS AJUSTADOS ---
-        self.step_size = 5         # Pasos un poco más largos para no atascarse en ruido
-        self.search_radius = 20    # Buscar un poco más lejos
-        self.wire_radius = 9       # Estimación del grosor (para otros cálculos)
-        self.min_coverage_radius = 8   # Radio mínimo para zonas delgadas
-        self.max_coverage_radius = 30  # Radio máximo para zonas anchas
+        self.step_size = 5
+        self.search_radius = 20
+        # wire_radius adapta al grosor real del cable (afecta agrupación de candidatos)
+        # Con DT_max=15 (nuestro target), wire_radius=15 → umbral de grupo = 30px = diámetro completo
+        _dt_max_actual = float(np.max(self.distance_transform)) if np.any(mask > 0) else 9.0
+        self.wire_radius = max(9, int(_dt_max_actual))
+        self.min_coverage_radius = 4
+        # INVARIANTE: max_coverage_radius < search_radius para que siempre quede
+        # territorio no-visitado dentro del radio de búsqueda después de marcar.
+        # Si max_coverage_radius >= search_radius el tracker queda ciego en el siguiente paso.
+        self.max_coverage_radius = self.search_radius - self.step_size  # = 15px
+
+        # Snap START/END al pixel de cable más cercano (corrige DT=0 en bordes de imagen)
+        self.start = self._snap_to_mask(self.start)
+        self.end   = self._snap_to_mask(self.end)
 
         # Estadísticas
         self.total_mask_pixels = np.sum(mask > 0)
 
     def track_wire(self, max_iterations: int = 5000, step_callback=None) -> Dict:
-        print("\n" + "="*70)
-        print("SMART WIRE TRACKER (CON BACKTRACKING)")
-        print("="*70)
+        h, w = self.mask.shape
+        dt_max = float(np.max(self.distance_transform))
+        print(f"\n=== WIRE TRACKER ===")
+        print(f"Máscara {w}×{h} | Cable ~{dt_max*2:.0f}px diámetro | "
+              f"step={self.step_size} search={self.search_radius} mark_max={self.max_coverage_radius} wire_r={self.wire_radius}")
+        print(f"START={self.start}  END={self.end}")
+        if self._internal_scale != 1.0:
+            print(f"[Auto-scale activo: {self._internal_scale:.3f}x desde imagen original]")
 
         self.path = [self.start]
         current = self.start
         self._mark_visited(current)
 
+        best_path = [self.start]   # guarda el path más largo visto
+        backtrack_count = 0
+        dp_total_created = 0
+        COVERAGE_STOP = 0.95       # parar cuando se cubre el 95%
         iteration = 0
+
         while iteration < max_iterations:
             iteration += 1
-            
+
             # 1. Verificar si llegamos al END
             dist_to_end = np.linalg.norm(np.array(current) - np.array(self.end))
             if dist_to_end < self.step_size * 3:
                 self.path.append(self.end)
-                print(f"\n[OK] LLEGADA EXITOSA al END en iteración {iteration}")
+                print(f"[OK] Llegada al END en iter {iteration}")
                 break
 
             # 2. Calcular opciones
             candidates = self._find_candidates(current)
 
-            # 3. Filtrar candidatos: preferir no-visitados, pero permitir
-            #    cruzar una zona visitada si la trayectoria es recta (crossing exception)
+            # 3. Filtrar candidatos: no-visitados primero, luego crossing exception
             momentum = self._get_momentum_direction()
             valid_candidates = []
             visited_crossing_candidates = []
@@ -86,63 +127,63 @@ class SmartWireTracker:
                 if self.visited_map[c[1], c[0]] == 0:
                     valid_candidates.append(c)
                 else:
-                    # Candidato visitado: evaluar si es un cruce legítimo
-                    # Solo permitir si hay momentum claro y la dirección está alineada
                     if np.linalg.norm(momentum) > 0.1:
                         direction = np.array(c, dtype=np.float64) - np.array(current, dtype=np.float64)
                         norm = np.linalg.norm(direction)
                         if norm > 0:
                             direction /= norm
                             dot = np.dot(direction, momentum)
-                            # Umbral alto (0.85): solo cruzar si va muy recto
                             if dot > 0.85:
                                 visited_crossing_candidates.append(c)
 
-            # Usar candidatos visitados SOLO si los no-visitados son escasos
+            # Info detallada solo en iter 1
+            if iteration == 1:
+                ar = self._compute_adaptive_radius_at(current)
+                status = "⚠️ BLOQUEADO" if ar >= self.search_radius else "✓"
+                print(f"[Iter-1] candidatos={len(valid_candidates)} válidos / {len(candidates)} brutos | "
+                      f"mark_r={ar}px {status}")
+                if len(valid_candidates) == 0:
+                    sx, sy = int(current[0]), int(current[1])
+                    mask_near = int(np.sum(self.mask[
+                        max(0,sy-self.search_radius):min(h,sy+self.search_radius+1),
+                        max(0,sx-self.search_radius):min(w,sx+self.search_radius+1)] > 0))
+                    print(f"       PROBLEMA: 0 válidos, {mask_near} px de máscara en radio {self.search_radius}")
+
+            # Usar crossing exception si hay pocos candidatos válidos
             if len(valid_candidates) < 3 and len(visited_crossing_candidates) > 0:
                 valid_candidates.extend(visited_crossing_candidates)
-            
-            # 4. Análisis de Flujo (Momentum y Agrupación)
-            # (momentum ya calculado arriba para crossing check)
+
+            # 4. Análisis de flujo
             end_direction = self._get_direction_to_end(current)
-            
             flow_options = self._analyze_flow_options(
                 current, np.array(valid_candidates), momentum, end_direction
             )
 
             next_step = None
 
-            # CASO A: Camino único o mejor opción clara
             if len(flow_options) == 1:
                 next_step = flow_options[0]
-            
-            # CASO B: Bifurcación (Cruce o Paralelas)
+
             elif len(flow_options) > 1:
-                # Crear punto de decisión
-                # Ordenamos las opciones por "calidad" para probar la mejor primero
                 sorted_options = self._sort_options(current, flow_options, momentum)
-                
-                # Elegimos la primera, guardamos las demás
                 next_step = sorted_options[0]
                 alternatives = sorted_options[1:]
-                
-                # Guardamos el índice actual del path para saber dónde volver
                 dp = DecisionPoint(
                     location=current,
-                    alternatives=alternatives, # Las que quedan pendientes
-                    chosen_index=len(self.path) # Indice en el path donde ocurrió
+                    alternatives=alternatives,
+                    chosen_index=len(self.path)
                 )
                 self.decision_points.append(dp)
-                print(f"  [+] Bifurcación en {current}. Opciones: {len(flow_options)}. Guardando checkpoint.")
+                dp_total_created += 1
 
-            # CASO C: Sin camino (Atascado) -> BACKTRACKING
+            # CASO C: Sin camino → BACKTRACKING
             if next_step is None:
                 if self._perform_backtracking():
-                    current = self.path[-1] # El path se ha rebobinado
-                    print(f"  [<] Retrocediendo a {current}...")
-                    continue # Siguiente iteración desde el punto restaurado
+                    backtrack_count += 1
+                    current = self.path[-1]
+                    continue
                 else:
-                    print(f"\n[!] ATASCADO FINAL. No quedan puntos de decisión.")
+                    print(f"[!] Sin camino. Backtracks={backtrack_count} DPs creados={dp_total_created}")
                     break
 
             # Avanzar
@@ -150,95 +191,131 @@ class SmartWireTracker:
             current = next_step
             self._mark_visited(next_step)
 
-            # Notificar progreso para visualizacion en tiempo real
+            # Guardar el mejor path visto (el backtracking puede truncarlo después)
+            if len(self.path) > len(best_path):
+                best_path = list(self.path)
+
+            # Callback para visualización en tiempo real
             if step_callback and iteration % 5 == 0:
-                step_callback(list(self.path), iteration)
+                cb_path = list(best_path)
+                if self._internal_scale != 1.0:
+                    inv = 1.0 / self._internal_scale
+                    cb_path = [(int(p[0] * inv), int(p[1] * inv)) for p in cb_path]
+                step_callback(cb_path, iteration)
 
-            if iteration % 200 == 0:
-                print(f"  Iter {iteration}: Path len {len(self.path)}")
+            # Progreso periódico + early stop por cobertura
+            if iteration % 50 == 0:
+                cov = self._compute_coverage()
+                if iteration % 200 == 0:
+                    cx, cy = int(current[0]), int(current[1])
+                    dt_here = float(self.distance_transform[cy, cx])
+                    print(f"[{iteration:5d}] pos=({cx},{cy})  path={len(self.path)}pts  "
+                          f"cov={cov*100:.1f}%  DT@pos={dt_here:.1f}px  BT={backtrack_count}")
 
-        # Métricas finales
+                # Detección de estancamiento: si tras 600 iters la cobertura
+                # sigue por debajo del 3% y no hubo DPs, los endpoints son incorrectos
+                if iteration == 600 and cov < 0.03 and dp_total_created == 0:
+                    print(f"[!] ABORT: {cov*100:.1f}% cobertura tras 600 iters sin DPs "
+                          f"→ endpoints incorrectos (START={self.start} END={self.end})")
+                    break
+
+                if cov >= COVERAGE_STOP:
+                    # Solo parar si el END ya fue alcanzado o está muy cerca
+                    dist_end = float(np.linalg.norm(np.array(current) - np.array(self.end)))
+                    if dist_end < self.step_size * 8:
+                        print(f"[OK] Cov={cov*100:.1f}% + cerca END ({dist_end:.0f}px) → completado")
+                        break
+                    # Si el END está lejos, seguir aunque la cobertura sea alta
+
+        # Si el tracker terminó cerca del END pero no llegó, conectar directamente
+        if self.path:
+            dist_end = float(np.linalg.norm(np.array(self.path[-1]) - np.array(self.end)))
+            if dist_end < self.step_size * 15 and tuple(self.path[-1]) != tuple(self.end):
+                self.path.append(self.end)
+                print(f"[END] Conectado al END (d={dist_end:.0f}px)")
+
         final_coverage = self._compute_coverage()
-        print(f"\n[FIN] Path: {len(self.path)} pts | Cobertura: {final_coverage*100:.1f}%")
-        
+        print(f"[FIN] {len(self.path)}pts | cov={final_coverage*100:.1f}% | "
+              f"iters={iteration} | BT={backtrack_count} | DPs_creados={dp_total_created}")
+
+        self._save_tracker_debug_end(iteration)
+
+        result_path = self.path
+        if self._internal_scale != 1.0:
+            inv = 1.0 / self._internal_scale
+            result_path = [(int(p[0] * inv), int(p[1] * inv)) for p in self.path]
+
         return {
             'success': True,
-            'path': self.path,
+            'path': result_path,
             'coverage': final_coverage
         }
 
     def _perform_backtracking(self) -> bool:
         """
         Retrocede al último punto de decisión con opciones disponibles.
-        Devuelve True si logró retroceder, False si no hay más opciones.
+        Desmarca el segmento fallido para que las alternativas puedan
+        cruzar por esa zona (necesario para cuerdas enredadas con cruces).
         """
         while self.decision_points:
             last_dp = self.decision_points[-1]
-            
+
             if not last_dp.alternatives:
-                # Si este punto ya no tiene opciones, lo descartamos y seguimos buscando atrás
                 self.decision_points.pop()
                 continue
-            
-            # Tenemos un punto con opciones!
-            
-            # 1. Identificar el segmento "malo" (desde el DP hasta el final actual)
-            # El path index guardado es donde estaba el current cuando se creó el DP
-            cut_index = last_dp.chosen_index + 1 
+
+            cut_index = last_dp.chosen_index + 1
             bad_segment = self.path[cut_index:]
-            
-            # 2. "Des-visitar" el segmento malo en el mapa
-            # Esto permite que otros caminos crucen por aquí si es necesario,
-            # o simplemente limpia el mapa.
+
+            # Desmarcar el segmento fallido para liberar cruces
             for p in bad_segment:
                 self._unmark_visited(p)
-            
-            # 3. Cortar el path
+
             self.path = self.path[:cut_index]
-            
-            # 4. Tomar la siguiente alternativa disponible
-            next_option = last_dp.alternatives.pop(0) # Sacamos la siguiente opción
-            
-            # 5. Agregar la nueva opción al path y marcarla
+
+            next_option = last_dp.alternatives.pop(0)
             self.path.append(next_option)
             self._mark_visited(next_option)
-            
-            return True # Backtracking exitoso
-            
-        return False # No hay dónde volver
+
+            return True
+
+        return False
 
     def _mark_visited(self, point: Tuple[int, int]):
         """
         Marca el área alrededor del punto como visitada.
-        CLAVE: Usa Distance Transform para adaptar el radio al grosor local de la cuerda.
+        INVARIANTE: mark_radius < local_search_radius para que siempre quede
+        territorio no visitado dentro del radio de búsqueda del siguiente paso.
+        Los umbrales son exactamente los mismos que en _find_candidates.
         """
-        x, y = point
+        x, y = int(point[0]), int(point[1])
+        h, w = self.mask.shape
+        x = max(0, min(w - 1, x))
+        y = max(0, min(h - 1, y))
 
-        # ESTRATEGIA HÍBRIDA:
-        # 1. DT del punto actual (puede ser bajo si estamos en el borde)
-        # 2. DT máximo en área pequeña (grosor real de la cuerda aquí)
-        # Usamos un promedio ponderado para no ser ni muy conservador ni muy agresivo
+        dt_point = float(self.distance_transform[y, x])
 
-        dt_point = self.distance_transform[y, x]
+        s = 8
+        roi_dt = self.distance_transform[max(0,y-s):min(h,y+s),
+                                          max(0,x-s):min(w,x+s)]
+        dt_max_local = float(np.max(roi_dt))
 
-        search_size = 8
-        y_min_search = max(0, y - search_size)
-        y_max_search = min(self.distance_transform.shape[0], y + search_size)
-        x_min_search = max(0, x - search_size)
-        x_max_search = min(self.distance_transform.shape[1], x + search_size)
+        # Mismos umbrales que _find_candidates para garantizar coherencia
+        if dt_point < 3:       # cable muy fino: no mezclar con local_max
+            local_search_r = 6
+            effective_distance = dt_point
+        elif dt_point < 6:     # cable medio
+            local_search_r = 12
+            effective_distance = dt_point * 0.7 + dt_max_local * 0.3
+        else:                  # cable normal/grueso
+            local_search_r = self.search_radius
+            effective_distance = dt_point * 0.7 + dt_max_local * 0.3
 
-        roi_dt = self.distance_transform[y_min_search:y_max_search, x_min_search:x_max_search]
-        dt_max_local = np.max(roi_dt)
+        adaptive_radius = int(effective_distance * 1.5) + 2
 
-        # Promedio ponderado: 70% del punto actual + 30% del máximo local
-        # Esto da cobertura sin bloquear demasiado
-        effective_distance = dt_point * 0.7 + dt_max_local * 0.3
-
-        # Radio: 1.5x la distancia efectiva + pequeño margen
-        adaptive_radius = int(effective_distance * 1.5) + 4
-
-        # Limitar entre min y max
-        adaptive_radius = max(self.min_coverage_radius, min(self.max_coverage_radius, adaptive_radius))
+        # INVARIANTE: mark_r < local_search_r (siempre queda anillo libre)
+        adaptive_radius = max(1, min(adaptive_radius, local_search_r - 2))
+        adaptive_radius = min(adaptive_radius, self.max_coverage_radius)
 
         # Crear una máscara circular del área a marcar
         y_min = max(0, y - adaptive_radius)
@@ -310,48 +387,83 @@ class SmartWireTracker:
         self.visited_map[y_min:y_max, x_min:x_max] = roi_visited
 
     def _find_candidates(self, current: Tuple[int, int]) -> List[Tuple[int, int]]:
-        """Busca píxeles de cuerda en el radio, verificando conectividad."""
+        """
+        Busca píxeles de cuerda en el radio, verificando conectividad.
+        Usa parámetros adaptativos: radio y paso menores cuando el cable es fino,
+        para que la línea de conectividad no se salga en zonas curvas delgadas.
+        """
         x, y = current
-        y_min = max(0, y - self.search_radius)
-        y_max = min(self.mask.shape[0], y + self.search_radius + 1)
-        x_min = max(0, x - self.search_radius)
-        x_max = min(self.mask.shape[1], x + self.search_radius + 1)
+        h, w = self.mask.shape
+        cx_c, cy_c = max(0, min(w-1, int(x))), max(0, min(h-1, int(y)))
+        dt_here = float(self.distance_transform[cy_c, cx_c])
+
+        # Parámetros adaptativos según grosor local
+        if dt_here < 3:      # cable muy fino (1-2px): paso y búsqueda mínimos
+            search_r = 6
+            min_dist  = 1.0
+            allow_gap = True   # tolerar 1px de hueco en la conectividad
+        elif dt_here < 6:    # cable medio
+            search_r = 12
+            min_dist  = 2.0
+            allow_gap = True
+        else:                # cable normal/grueso
+            search_r  = self.search_radius
+            min_dist  = self.step_size * 0.5
+            allow_gap = False
+
+        y_min = max(0, y - search_r)
+        y_max = min(h, y + search_r + 1)
+        x_min = max(0, x - search_r)
+        x_max = min(w, x + search_r + 1)
 
         mask_slice = self.mask[y_min:y_max, x_min:x_max]
         if not (mask_slice > 0).any():
             return []
 
-        # Obtener coordenadas globales
         ys, xs = np.where(mask_slice > 0)
         global_xs = xs + x_min
         global_ys = ys + y_min
-        
+
         candidates = []
         for cx, cy in zip(global_xs, global_ys):
             dist = np.hypot(cx - x, cy - y)
-            if self.step_size * 0.5 < dist < self.search_radius:
-                # AQUÍ LA CLAVE: Chequeo estricto de no saltar vacío
-                if self._check_connectivity(current, (cx, cy)):
+            if min_dist < dist < search_r:
+                if self._check_connectivity(current, (cx, cy), allow_gap=allow_gap):
                     candidates.append((cx, cy))
         return candidates
 
-    def _check_connectivity(self, p1: Tuple[int, int], p2: Tuple[int, int]) -> bool:
-        """Verifica línea de visión sin saltar huecos negros."""
+    def _check_connectivity(self, p1: Tuple[int, int], p2: Tuple[int, int],
+                             allow_gap: bool = False) -> bool:
+        """
+        Verifica que haya cable continuo entre p1 y p2.
+        allow_gap=True: tolera 1px de hueco (para cable fino y curvo).
+        """
         x1, y1 = p1
         x2, y2 = p2
         dist = np.hypot(x2 - x1, y2 - y1)
-        if dist < 1.0: return True
-        
-        steps = int(dist * 2.0) # Mayor resolución
+        if dist < 1.0:
+            return True
+
+        h, w = self.mask.shape
+        steps = int(dist * 2.0)
         for i in range(steps + 1):
             t = i / steps
             x = int(x1 + (x2 - x1) * t)
             y = int(y1 + (y2 - y1) * t)
-            
-            if not (0 <= y < self.mask.shape[0] and 0 <= x < self.mask.shape[1]):
+
+            if not (0 <= y < h and 0 <= x < w):
                 return False
+
             if self.mask[y, x] == 0:
-                return False
+                if not allow_gap:
+                    return False
+                # Tolerancia: buscar cable en vecindad 3×3
+                found = any(
+                    0 <= y + dy < h and 0 <= x + dx < w and self.mask[y+dy, x+dx] > 0
+                    for dy in (-1, 0, 1) for dx in (-1, 0, 1)
+                )
+                if not found:
+                    return False
         return True
 
     def _sort_options(self, current, options, momentum) -> List[Tuple[int, int]]:
@@ -460,8 +572,9 @@ class SmartWireTracker:
         for i in range(1, len(projections)):
             lateral_diff = abs(projections[i][0] - projections[i-1][0])
 
-            # Umbral más estricto para agrupar: si están separados >0.8 diámetros, son líneas diferentes
-            if lateral_diff < self.wire_radius * 0.8:
+            # Umbral = diámetro completo del cable: candidatos dentro del grosor
+            # del cable son la MISMA línea (no paralelas)
+            if lateral_diff < self.wire_radius * 2.0:
                 current_group.append(projections[i][2])
             else:
                 # Nueva línea paralela
@@ -528,8 +641,9 @@ class SmartWireTracker:
                 if visited_cand[j]: continue
                 dist = np.linalg.norm(candidates[i] - candidates[j])
                 
-                # UMBRAL DINÁMICO: Si están más cerca que el diámetro del cable, son el mismo grupo
-                if dist < self.wire_radius * 2.0: 
+                # Umbral = diámetro del cable (radio * 2).
+                # Agrupa candidatos del mismo cable sin mezclar hebras cruzadas.
+                if dist < self.wire_radius * 2.0:
                     group.append(candidates[j])
                     visited_cand[j] = True
             
@@ -557,18 +671,21 @@ class SmartWireTracker:
         # Mezclar para ver transparencia
         cv2.addWeighted(overlay, 0.6, base, 0.4, 0, base)
         
-        # 3. Dibujar PATH en CIAN brillante
+        # 3. Dibujar PATH en CIAN brillante (self.path puede estar en coords originales)
         if len(self.path) > 1:
-            pts = np.array(self.path, np.int32)
-            pts = pts.reshape((-1, 1, 2))
+            draw_path = self.path
+            if self._internal_scale != 1.0:
+                s = self._internal_scale
+                draw_path = [(int(p[0] * s), int(p[1] * s)) for p in self.path]
+            pts = np.array(draw_path, np.int32).reshape((-1, 1, 2))
             cv2.polylines(base, [pts], False, (255, 255, 0), 2)
-        
+
         # 4. Dibujar puntos de decisión y Start/End
         for dp in self.decision_points:
-            cv2.circle(base, dp.location, 6, (0, 255, 255), -1) # Amarillo para decisiones
+            cv2.circle(base, dp.location, 6, (0, 255, 255), -1)
 
-        cv2.circle(base, self.start, 8, (0, 255, 0), -1) # Verde Start
-        cv2.circle(base, self.end, 8, (0, 0, 255), -1)   # Rojo End
+        cv2.circle(base, self.start, 8, (0, 255, 0), -1)
+        cv2.circle(base, self.end, 8, (0, 0, 255), -1)
         
         # Usar backend no interactivo para evitar bloqueos desde threads
         import matplotlib
@@ -583,6 +700,119 @@ class SmartWireTracker:
         plt.savefig(output_path)
         print(f"Imagen guardada en {output_path}")
         plt.close(fig)  # Cerrar figura sin mostrar
+
+    # ------------------------------------------------------------------ #
+    #  HELPERS                                                             #
+    # ------------------------------------------------------------------ #
+
+    def _snap_to_mask(self, point: Tuple[int, int]) -> Tuple[int, int]:
+        """Mueve el punto al pixel de cable más cercano si está en fondo (DT=0)."""
+        h, w = self.mask.shape
+        x = max(0, min(w - 1, int(point[0])))
+        y = max(0, min(h - 1, int(point[1])))
+        if self.mask[y, x] > 0:
+            return (x, y)
+        for r in range(1, 60):
+            y0, y1 = max(0, y - r), min(h, y + r + 1)
+            x0, x1 = max(0, x - r), min(w, x + r + 1)
+            roi = self.mask[y0:y1, x0:x1]
+            ys, xs = np.where(roi > 0)
+            if len(ys) > 0:
+                dists = np.hypot(xs - (x - x0), ys - (y - y0))
+                idx = int(np.argmin(dists))
+                nx, ny = int(xs[idx]) + x0, int(ys[idx]) + y0
+                print(f"  [SNAP] ({point[0]},{point[1]}) fuera del cable → ({nx},{ny}) ({r}px)")
+                return (nx, ny)
+        return (x, y)
+
+    def _compute_adaptive_radius_at(self, point: Tuple[int, int]) -> int:
+        """Mismo cálculo que _mark_visited (para debug coherente)."""
+        x, y = int(point[0]), int(point[1])
+        h, w = self.mask.shape
+        dt_point = float(self.distance_transform[max(0,min(h-1,y)), max(0,min(w-1,x))])
+        s = 8
+        roi = self.distance_transform[max(0,y-s):min(h,y+s), max(0,x-s):min(w,x+s)]
+        dt_max_local = float(np.max(roi))
+        if dt_point < 3:
+            local_search_r = 6
+            eff = dt_point
+        elif dt_point < 6:
+            local_search_r = 12
+            eff = dt_point * 0.7 + dt_max_local * 0.3
+        else:
+            local_search_r = self.search_radius
+            eff = dt_point * 0.7 + dt_max_local * 0.3
+        r = int(eff * 1.5) + 2
+        return max(1, min(r, local_search_r - 2, self.max_coverage_radius))
+
+    def _save_tracker_debug_end(self, iterations: int):
+        """Guarda imagen de resultado final + mapa de grosor del cable."""
+        from pathlib import Path
+        d = Path("data/results/debug/tracker")
+        d.mkdir(parents=True, exist_ok=True)
+        cov = self._compute_coverage() * 100
+
+        # --- Imagen 1: result.png — máscara + visitado + path ---
+        vis = cv2.cvtColor(self.mask, cv2.COLOR_GRAY2BGR)
+        vis[self.mask > 0] = [60, 60, 60]
+        overlay = vis.copy()
+        overlay[self.visited_map > 0] = [0, 0, 180]
+        cv2.addWeighted(overlay, 0.5, vis, 0.5, 0, vis)
+
+        if len(self.path) > 1:
+            pts = np.array(self.path, np.int32).reshape((-1, 1, 2))
+            cv2.polylines(vis, [pts], False, (0, 220, 255), 2)
+
+        last_pos = tuple(int(v) for v in self.path[-1]) if self.path else self.start
+        cv2.circle(vis, last_pos, 10, (0, 255, 255), 2)  # última posición del tracker
+        cv2.circle(vis, self.start, 8, (0, 255, 0), -1)
+        cv2.circle(vis, self.end,   8, (0, 0, 255), -1)
+        cv2.putText(vis, f"{len(self.path)}pts  cov={cov:.1f}%  iters={iterations}",
+                    (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (220, 220, 220), 2)
+        cv2.putText(vis, "Cyan=last pos  Amarillo=path  Azul=visitado",
+                    (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (180, 180, 180), 1)
+        cv2.imwrite(str(d / "result.png"), vis)
+
+        # --- Imagen 2: thickness.png — DT como heatmap + path encima ---
+        dt_norm = cv2.normalize(self.distance_transform, None, 0, 255,
+                                cv2.NORM_MINMAX).astype(np.uint8)
+        dt_color = cv2.applyColorMap(dt_norm, cv2.COLORMAP_JET)
+        # Solo colorear donde hay cable; fondo negro
+        dt_color[self.mask == 0] = [0, 0, 0]
+
+        # Marcar zonas peligrosamente delgadas (DT < 3px) en rojo brillante
+        thin_zone = (self.mask > 0) & (self.distance_transform < 3)
+        dt_color[thin_zone] = [0, 0, 255]
+
+        if len(self.path) > 1:
+            pts = np.array(self.path, np.int32).reshape((-1, 1, 2))
+            cv2.polylines(dt_color, [pts], False, (255, 255, 255), 2)
+
+        cv2.circle(dt_color, last_pos, 10, (0, 255, 255), 2)
+        cv2.circle(dt_color, self.start, 8, (0, 255, 0), -1)
+        cv2.circle(dt_color, self.end,   8, (255, 0, 255), -1)
+
+        dt_max = float(np.max(self.distance_transform))
+        thin_px = int(np.sum(thin_zone))
+        cv2.putText(dt_color,
+                    f"DT_max={dt_max:.1f}px  Rojo=zona fina(<3px): {thin_px}px",
+                    (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (220, 220, 220), 2)
+        cv2.putText(dt_color,
+                    "Azul=grueso  Verde/Amarillo=medio  Rojo=fino(<3px)",
+                    (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (180, 180, 180), 1)
+        cv2.imwrite(str(d / "thickness.png"), dt_color)
+
+        # DT a lo largo del path (print)
+        if len(self.path) > 5:
+            step = max(1, len(self.path) // 10)
+            dt_profile = []
+            for p in self.path[::step]:
+                px, py = int(p[0]), int(p[1])
+                dt_profile.append(f"{self.distance_transform[py, px]:.0f}")
+            print(f"[DT a lo largo del path]: {' → '.join(dt_profile)}")
+
+        print(f"[Imagen] result.png + thickness.png en {d}")
+
 
 def main():
     """Test del tracker."""

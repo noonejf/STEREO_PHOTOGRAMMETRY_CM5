@@ -930,7 +930,7 @@ class EdgeDetectionTuner(QDialog):
                 # Guardar máscara actual (dependiendo de qué imagen se esté mostrando)
                 if self.processing_mode:
                     # Guardar máscara de la imagen actual (left o right)
-                    current_name = "left" if self.current_image == "left" else "right"
+                    current_name = "left" if self.current_view == "left" else "right"
                     mask_path = mask_dir / f"cable_mask_{current_name}.png"
                     cv2.imwrite(str(mask_path), self.mask_result)
                     print(f"✓ Mask saved: {mask_path}")
@@ -1122,30 +1122,20 @@ def open_cable_detection_tuner_with_switch(left_img, right_img, left_path="", ri
             current_config['tophat_ksize'] = tuner.tophat_ksize_slider.value()
             current_config['tophat_thresh'] = tuner.tophat_thresh_slider.value()
 
-        # Aplicar la misma configuración a ambas imágenes
-        tuner_temp = EdgeDetectionTuner()
-        tuner_temp.original_img = left_img
+        # Reusar el tuner (ya tiene los parámetros correctos) para computar
+        # las máscaras finales a la misma escala que el usuario vio.
+        # IMPORTANTE: _prepare_preview() debe llamarse cada vez que cambia la imagen
+        # para que el threshold se calcule sobre el histograma correcto.
 
-        # Cargar configuración
-        tuner_temp.method_combo.setCurrentText(method)
-        if method == "Top-Hat":
-            tuner_temp.tophat_ksize_slider.setValue(current_config['tophat_ksize'])
-            tuner_temp.tophat_thresh_slider.setValue(current_config['tophat_thresh'])
+        tuner.original_img = left_img
+        tuner._prepare_preview()
+        tuner.update_detection()
+        mask_left = tuner.get_current_mask()
 
-        tuner_temp.dilate_slider.setValue(current_config['dilate'])
-        tuner_temp.erode_slider.setValue(current_config['erode'])
-        tuner_temp.close_slider.setValue(current_config['close'])
-        tuner_temp.cleanup_enable.setChecked(current_config['cleanup_enabled'])
-        tuner_temp.cleanup_area_slider.setValue(current_config['cleanup_area_percent'])
-
-        # Actualizar para obtener máscara izquierda
-        tuner_temp.update_detection()
-        mask_left = tuner_temp.get_current_mask()
-
-        # Actualizar para imagen derecha
-        tuner_temp.original_img = right_img
-        tuner_temp.update_detection()
-        mask_right = tuner_temp.get_current_mask()
+        tuner.original_img = right_img
+        tuner._prepare_preview()
+        tuner.update_detection()
+        mask_right = tuner.get_current_mask()
 
         # NUEVO: Guardar máscaras a disco para tests
         try:
