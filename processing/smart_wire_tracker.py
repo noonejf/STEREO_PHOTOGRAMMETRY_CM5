@@ -176,6 +176,10 @@ class SmartWireTracker:
                 self.decision_points.append(dp)
                 dp_total_created += 1
 
+                # DEBUG: imprimir detalle de cada DP para diagnóstico de cruces
+                self._debug_decision_point(dp_total_created, current, momentum,
+                                           flow_options, sorted_options)
+
             # CASO C: Sin camino → BACKTRACKING
             if next_step is None:
                 if self._perform_backtracking():
@@ -480,7 +484,6 @@ class SmartWireTracker:
 
         scores = []
         current_arr = np.array(current)
-        end_arr = np.array(self.end)
 
         # Obtener el grosor del cable en el punto actual
         current_thickness = self.distance_transform[current[1], current[0]]
@@ -516,16 +519,16 @@ class SmartWireTracker:
             # Esto ayuda a que el path se quede en el centro y no se vaya al borde
             centeredness_score = opt_thickness / max(self.wire_radius, 1.0)  # 0 a ~1+
 
-            # 5. DIRECCIÓN AL DESTINO (menor peso que antes)
-            dist_to_end = -np.linalg.norm(opt_arr - end_arr)
-
-            # 6. COMBINACIÓN DE SCORES
+            # 5. COMBINACIÓN DE SCORES
+            # Nota: dist_to_end eliminado del scoring de cruces — en cruce la dirección
+            # al END puede apuntar al strand INCORRECTO (el otro extremo del cable),
+            # causando que el tracker cambie de hebra. El momentum (1200) y el grosor (600)
+            # son suficientes para mantener la hebra correcta en todos los casos.
             total_score = (
-                geometric_score * 1200 +      # Continuidad geométrica
+                geometric_score * 1200 +      # Continuidad geométrica (dominante)
                 thickness_score * 600 +       # Continuidad de grosor
-                centeredness_score * 300 +    # ALTA PRIORIDAD: Preferencia por el centro del cable
-                dist_to_end * 0.5 +           # Progreso hacia el final
-                lateral_penalty               # Penalización suave por salto lateral (paralelas)
+                centeredness_score * 300 +    # Preferencia por el centro del cable
+                lateral_penalty               # Penalización por salto lateral (paralelas)
             )
 
             scores.append((total_score, opt))
@@ -533,6 +536,55 @@ class SmartWireTracker:
         # Ordenar descendente (mayor score primero)
         scores.sort(key=lambda x: x[0], reverse=True)
         return [x[1] for x in scores]
+
+    def _debug_decision_point(self, dp_num: int, current, momentum,
+                               flow_options, sorted_options):
+        """Imprime diagnóstico completo de un Decision Point."""
+        cx, cy = int(current[0]), int(current[1])
+        dt_here = float(self.distance_transform[cy, cx])
+        iter_num = len(self.path)
+
+        mom_angle = float(np.degrees(np.arctan2(momentum[1], momentum[0]))) if np.linalg.norm(momentum) > 0.01 else 0.0
+        print(f"\n┌─ DP#{dp_num} @ iter {iter_num} | pos=({cx},{cy}) DT={dt_here:.1f}px")
+        print(f"│  Momentum: ({momentum[0]:+.3f}, {momentum[1]:+.3f}) → {mom_angle:.0f}° "
+              f"({'↑' if momentum[1]<-0.5 else '↓' if momentum[1]>0.5 else '→' if momentum[0]>0.5 else '←'})")
+
+        current_arr = np.array(current)
+        for rank, opt in enumerate(sorted_options):
+            opt_arr   = np.array(opt)
+            direction = (opt_arr - current_arr).astype(np.float32)
+            norm      = np.linalg.norm(direction)
+            if norm > 0:
+                direction /= norm
+
+            opt_angle = float(np.degrees(np.arctan2(direction[1], direction[0])))
+            geo = float(np.dot(direction, momentum)) if np.linalg.norm(momentum) > 0.01 else 0.0
+
+            opt_dt = float(self.distance_transform[int(opt[1]), int(opt[0])])
+            current_dt = float(self.distance_transform[cy, cx])
+            thick_diff = abs(current_dt - opt_dt)
+            thick = float(np.exp(-thick_diff / 5.0))
+            center = opt_dt / max(self.wire_radius, 1.0)
+
+            parallel_groups = self._detect_parallel_lines(current, flow_options, momentum)
+            lat_pen = 0
+            if len(parallel_groups) > 1:
+                lat = self._get_lateral_distance(current, opt, momentum)
+                if lat > self.wire_radius * 1.1:
+                    lat_pen = -800
+
+            total = geo * 1200 + thick * 600 + center * 300 + lat_pen
+
+            chosen = "← ELEGIDO" if rank == 0 else ""
+            dir_arrow = ('↑' if direction[1]<-0.5 else '↓' if direction[1]>0.5
+                         else '→' if direction[0]>0.5 else '←')
+            print(f"│  Opción {rank+1}: ({int(opt[0])},{int(opt[1])}) {dir_arrow} {opt_angle:.0f}° | "
+                  f"geo={geo:+.3f}({geo*1200:+.0f}) "
+                  f"thick={thick:.2f}({thick*600:.0f}) "
+                  f"center={center:.2f}({center*300:.0f}) "
+                  f"lat={lat_pen:+.0f} "
+                  f"TOTAL={total:+.0f}  {chosen}")
+        print(f"└─ Elegido: ({int(sorted_options[0][0])},{int(sorted_options[0][1])})")
 
     def _detect_parallel_lines(self, current, options, momentum) -> List[List[Tuple[int, int]]]:
         """
@@ -627,31 +679,52 @@ class SmartWireTracker:
 
     def _analyze_flow_options(self, current, candidates, momentum, end_dir) -> List[Tuple[int, int]]:
         if len(candidates) == 0: return []
-        
+
+        current_arr = np.array(current, dtype=np.float64)
         centers = []
         visited_cand = [False] * len(candidates)
-        
+
+        # Pre-computar direcciones normalizadas desde current para cada candidato
+        dirs = []
+        for c in candidates:
+            v = c.astype(np.float64) - current_arr
+            n = np.linalg.norm(v)
+            dirs.append(v / n if n > 3.0 else None)
+
         for i in range(len(candidates)):
             if visited_cand[i]: continue
-            
+
             group = [candidates[i]]
             visited_cand[i] = True
-            
+
             for j in range(i+1, len(candidates)):
                 if visited_cand[j]: continue
                 dist = np.linalg.norm(candidates[i] - candidates[j])
-                
-                # Umbral = diámetro del cable (radio * 2).
-                # Agrupa candidatos del mismo cable sin mezclar hebras cruzadas.
+
+                # Umbral de distancia: diámetro del cable
                 if dist < self.wire_radius * 2.0:
-                    group.append(candidates[j])
-                    visited_cand[j] = True
-            
+                    # Verificación angular: solo fusionar si apuntan en dirección similar
+                    # desde la posición actual. Esto evita mezclar hebras cruzadas que
+                    # están cerca en distancia pero divergen en dirección.
+                    should_merge = True
+                    if dirs[i] is not None and dirs[j] is not None:
+                        cos_a = np.clip(np.dot(dirs[i], dirs[j]), -1.0, 1.0)
+                        angle_diff = np.degrees(np.arccos(cos_a))
+                        # Umbral 50°: separa hebras cruzadas (~60° de separación mínima)
+                        # sin fragmentar cables normales (candidatos del mismo cable
+                        # con tracker en el centro quedan dentro de ~40° de spread).
+                        if angle_diff > 50.0:
+                            should_merge = False
+
+                    if should_merge:
+                        group.append(candidates[j])
+                        visited_cand[j] = True
+
             # Calcular centro del grupo
-            group = np.array(group)
-            center = tuple(np.mean(group, axis=0).astype(int))
+            group_arr = np.array(group)
+            center = tuple(np.mean(group_arr, axis=0).astype(int))
             centers.append(center)
-            
+
         return centers
 
     def _compute_coverage(self) -> float:
