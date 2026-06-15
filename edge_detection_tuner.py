@@ -836,6 +836,9 @@ class EdgeDetectionTuner(QDialog):
                     self.config_selector.setCurrentIndex(index)
 
         self.config_selector.blockSignals(False)
+        # Cargar parámetros del item seleccionado: el signal estaba bloqueado
+        # durante el setCurrentIndex, así que hay que dispararlo manualmente.
+        self.load_saved_config(self.config_selector.currentText())
 
     def load_saved_config(self, config_name):
         """Cargar configuración guardada"""

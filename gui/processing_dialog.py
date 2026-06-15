@@ -101,13 +101,34 @@ class ProcessingWorkerThread(QThread):
                 # Calcular profundidad para estadísticas (opcional)
                 depth_result = processor.disparity_to_depth(disparity_result['disparity_map'])
 
+                # Métricas cuantitativas 3D del cable
+                wire_metrics_summary = None
+                try:
+                    from processing.wire_metrics import compute_wire_metrics
+                    wm = compute_wire_metrics(
+                        matches          = disparity_result.get('matches', []),
+                        disparities      = disparity_result.get('disparities', []),
+                        calibration_data = processor.calibration_data,
+                        dt_profile_left  = self.wire_paths.get('dt_profile_left'),
+                    )
+                    if wm is not None:
+                        wire_metrics_summary = wm.summary()
+                        m = wire_metrics_summary
+                        self.log_message.emit(
+                            f"📐 Cable: {m['total_length_m']*100:.1f} cm | "
+                            f"rectitud={m['straightness']:.3f} | "
+                            f"prof={m['min_depth_m']*100:.1f}–{m['max_depth_m']*100:.1f} cm", "INFO")
+                except Exception as _e:
+                    self.log_message.emit(f"⚠️ Wire metrics skipped: {_e}", "WARNING")
+
                 # Construir resultado final
                 result = {
                     'success': True,
                     'algorithm': 'GEOMETRIC_PATH',
                     'disparity': disparity_result,
                     'depth': depth_result,
-                    'point_cloud': point_cloud_result
+                    'point_cloud': point_cloud_result,
+                    'wire_metrics': wire_metrics_summary,
                 }
 
             elif self.cable_masks is not None:
@@ -421,13 +442,33 @@ class ResultsVisualizationWidget(QWidget):
                 stats_text += f"Average confidence: {quality.get('mean_confidence', 0):.3f}\n"
                 stats_text += f"Point density: {quality.get('point_density', 0):.4f}\n\n"
             
+            # Métricas cuantitativas del cable
+            if processing_result.get('wire_metrics') is not None:
+                wm = processing_result['wire_metrics']
+                d_min = wm.get('min_depth_m', 0) * 100
+                d_max = wm.get('max_depth_m', 0) * 100
+                start = wm.get('start_3d_m', [0, 0, 0])
+                end   = wm.get('end_3d_m',   [0, 0, 0])
+                stats_text += "--- WIRE METRICS ---\n"
+                stats_text += f"3D length:        {wm.get('total_length_m', 0)*100:.1f} cm\n"
+                stats_text += f"Straightness:     {wm.get('straightness', 0):.3f}  (1.0 = straight)\n"
+                stats_text += f"Depth range:      {d_min:.1f} - {d_max:.1f} cm\n"
+                stats_text += f"Mean depth:       {wm.get('mean_depth_m', 0)*100:.1f} cm\n"
+                if wm.get('mean_diameter_mm', 0) > 0:
+                    stats_text += f"Est. diameter:    {wm.get('mean_diameter_mm', 0):.2f} mm\n"
+                stats_text += f"Curvature p95:    {wm.get('p95_curvature_rad_m', 0):.3f} rad/m\n"
+                stats_text += f"Mean curvature:   {wm.get('mean_curvature_rad_m', 0):.3f} rad/m\n"
+                stats_text += f"Start 3D:         ({start[0]*100:.1f}, {start[1]*100:.1f}, {start[2]*100:.1f}) cm\n"
+                stats_text += f"End 3D:           ({end[0]*100:.1f}, {end[1]*100:.1f}, {end[2]*100:.1f}) cm\n"
+                stats_text += "\n"
+
             # Archivos exportados
             if 'export_files' in processing_result:
                 stats_text += "--- EXPORTED FILES ---\n"
                 for file_path in processing_result['export_files']:
                     file_size = Path(file_path).stat().st_size / (1024 * 1024)  # MB
                     stats_text += f"• {Path(file_path).name} ({file_size:.1f} MB)\n"
-            
+
             self.stats_text.setText(stats_text)
             
         except Exception as e:
@@ -883,26 +924,60 @@ class ProcessingDialog(QDialog):
         """Crear grupo de configuración de algoritmo"""
         group = QGroupBox("⚙️ Algorithm Configuration")
         layout = QGridLayout(group)
-        
-        # Algoritmo de matching
-        layout.addWidget(QLabel("Matching algorithm:"), 0, 0)
+
+        # --- Modo de procesamiento ---
+        layout.addWidget(QLabel("Processing mode:"), 0, 0)
+        self.processing_mode_combo = QComboBox()
+        self.processing_mode_combo.addItems([
+            "Geometric (Wire Tracking)",
+            "Dense SGBM (Traditional)",
+        ])
+        self.processing_mode_combo.setToolTip(
+            "Geometric: sigue el esqueleto del cable con tracking — requiere Configure Cable Filter.\n"
+            "Dense SGBM: disparidad densa sobre toda la imagen — requiere fondo texturado."
+        )
+        layout.addWidget(self.processing_mode_combo, 0, 1)
+
+        # Algoritmo de matching (solo relevante en modo Dense)
+        self.label_algorithm = QLabel("Matching algorithm:")
+        layout.addWidget(self.label_algorithm, 1, 0)
         self.algorithm_combo = QComboBox()
         self.algorithm_combo.addItems(["SGBM (Recommended)", "BM (Fast)"])
-        layout.addWidget(self.algorithm_combo, 0, 1)
-        
+        layout.addWidget(self.algorithm_combo, 1, 1)
+
         # Calidad de procesamiento
-        layout.addWidget(QLabel("Quality:"), 1, 0)
+        layout.addWidget(QLabel("Quality:"), 2, 0)
         self.quality_combo = QComboBox()
         self.quality_combo.addItems(["High (Slow)", "Medium (Balanced)", "Fast"])
-        self.quality_combo.setCurrentIndex(1)  # Media por defecto
-        layout.addWidget(self.quality_combo, 1, 1)
-        
+        self.quality_combo.setCurrentIndex(1)
+        layout.addWidget(self.quality_combo, 2, 1)
+
         # Filtrado de ruido
         self.noise_filter_check = QCheckBox("Apply WLS noise filter")
         self.noise_filter_check.setChecked(True)
-        layout.addWidget(self.noise_filter_check, 2, 0, 1, 2)
-        
+        layout.addWidget(self.noise_filter_check, 3, 0, 1, 2)
+
+        # Actualizar controles al cambiar modo
+        self.processing_mode_combo.currentIndexChanged.connect(self._on_processing_mode_changed)
+        self._on_processing_mode_changed(0)  # estado inicial
+
         return group
+
+    def _on_processing_mode_changed(self, index):
+        """Habilita/deshabilita controles según el modo seleccionado."""
+        is_dense = index == 1  # Dense SGBM
+        # En modo geométrico el algoritmo SGBM/BM no aplica
+        self.label_algorithm.setEnabled(is_dense)
+        self.algorithm_combo.setEnabled(is_dense)
+        # El botón de Cable Filter solo es necesario en modo geométrico
+        if hasattr(self, 'btn_configure_cable_filter'):
+            self.btn_configure_cable_filter.setEnabled(not is_dense)
+            if is_dense:
+                self.btn_configure_cable_filter.setToolTip(
+                    "No necesario en modo Dense SGBM"
+                )
+            else:
+                self.btn_configure_cable_filter.setToolTip("")
     
     def create_export_config_group(self):
         """Crear grupo de configuración de exportación"""
@@ -1433,24 +1508,32 @@ class ProcessingDialog(QDialog):
             self.btn_cancel.setEnabled(True)
             self.progress_bar.setValue(0)
 
-            # Preparar máscaras y paths de cable si están configurados
+            # Preparar máscaras y paths de cable según el modo seleccionado
             cable_masks = None
             wire_paths = None
 
-            if self.cable_filter_configured and self.cable_mask_left is not None and self.cable_mask_right is not None:
-                cable_masks = (self.cable_mask_left, self.cable_mask_right)
+            use_dense_mode = self.processing_mode_combo.currentIndex() == 1
 
-                # Usar paths geométricos si ya fueron calculados
-                if self.wire_tracking_result is not None and self.wire_tracking_result.get('success'):
-                    wire_paths = {
-                        'left': self.wire_tracking_result['left']['path'],
-                        'right': self.wire_tracking_result['right']['path']
-                    }
-                    self.add_log_message("✓ Using pre-calculated geometric paths", "INFO")
-                else:
-                    self.add_log_message("⚠️ Wire tracking unavailable, using masks only", "WARNING")
+            if use_dense_mode:
+                # --- MODO DENSE SGBM: ignorar cable filter, procesar imagen completa ---
+                self.add_log_message("🔲 Dense SGBM mode — full image disparity", "INFO")
             else:
-                self.add_log_message("⚠️ No cable mask - processing full image", "WARNING")
+                # --- MODO GEOMÉTRICO: usar mask + wire tracking ---
+                if self.cable_filter_configured and self.cable_mask_left is not None and self.cable_mask_right is not None:
+                    cable_masks = (self.cable_mask_left, self.cable_mask_right)
+
+                    if self.wire_tracking_result is not None and self.wire_tracking_result.get('success'):
+                        wire_paths = {
+                            'left': self.wire_tracking_result['left']['path'],
+                            'right': self.wire_tracking_result['right']['path'],
+                            'dt_profile_left':    self.wire_tracking_result['left'].get('dt_profile'),
+                            'decision_points_2d': self.wire_tracking_result['left'].get('decision_points_2d'),
+                        }
+                        self.add_log_message("✓ Using pre-calculated geometric paths", "INFO")
+                    else:
+                        self.add_log_message("⚠️ Wire tracking unavailable, using masks only", "WARNING")
+                else:
+                    self.add_log_message("⚠️ No cable mask configured — run Configure Cable Filter first", "WARNING")
 
             # Crear y iniciar hilo de procesamiento
             self.processing_thread = ProcessingWorkerThread(

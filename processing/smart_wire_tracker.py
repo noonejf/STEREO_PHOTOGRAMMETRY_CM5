@@ -244,15 +244,29 @@ class SmartWireTracker:
 
         self._save_tracker_debug_end(iteration)
 
+        # Perfil de Distance Transform a lo largo del path (radio del cable en px originales)
+        inv_scale = 1.0 / self._internal_scale
+        dt_profile = []
+        for x, y in self.path:
+            xi, yi = max(0, min(self.mask.shape[1]-1, int(x))), max(0, min(self.mask.shape[0]-1, int(y)))
+            dt_profile.append(float(self.distance_transform[yi, xi]) * inv_scale)
+
+        # Posiciones 2D de los cruces detectados (en coordenadas originales)
+        decision_points_2d = [
+            (int(dp.location[0] * inv_scale), int(dp.location[1] * inv_scale))
+            for dp in self.decision_points
+        ]
+
         result_path = self.path
         if self._internal_scale != 1.0:
-            inv = 1.0 / self._internal_scale
-            result_path = [(int(p[0] * inv), int(p[1] * inv)) for p in self.path]
+            result_path = [(int(p[0] * inv_scale), int(p[1] * inv_scale)) for p in self.path]
 
         return {
             'success': True,
             'path': result_path,
-            'coverage': final_coverage
+            'coverage': final_coverage,
+            'dt_profile': dt_profile,
+            'decision_points_2d': decision_points_2d
         }
 
     def _perform_backtracking(self) -> bool:

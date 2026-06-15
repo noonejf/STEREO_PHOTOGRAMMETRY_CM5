@@ -1590,6 +1590,29 @@ class StereoProcessor:
             if not disparity_result['success']:
                 raise RuntimeError("No se pudo calcular disparidad desde paths")
 
+            # === PASO 2b: Métricas cuantitativas 3D del cable ===
+            try:
+                from processing.wire_metrics import compute_wire_metrics
+                wire_metrics = compute_wire_metrics(
+                    matches           = disparity_result.get('matches', []),
+                    disparities       = disparity_result.get('disparities', []),
+                    calibration_data  = self.calibration_data,
+                    dt_profile_left   = track_left.get('dt_profile'),
+                    decision_points_2d= track_left.get('decision_points_2d'),
+                )
+                if wire_metrics is not None:
+                    result['wire_metrics'] = wire_metrics.summary()
+                    m = wire_metrics.summary()
+                    logger.info(f"📐 Métricas del cable:")
+                    logger.info(f"   Longitud 3D:    {m['total_length_m']*100:.1f} cm")
+                    logger.info(f"   Rectitud:       {m['straightness']:.3f}")
+                    logger.info(f"   Profundidad:    {m['min_depth_m']*100:.1f} – {m['max_depth_m']*100:.1f} cm")
+                    logger.info(f"   Diámetro medio: {m['mean_diameter_mm']:.2f} mm")
+                    if m['num_crossings']:
+                        logger.info(f"   Cruces 3D:      {m['num_crossings']} detectado(s)")
+            except Exception as _e_metrics:
+                logger.warning(f"⚠️ No se pudieron calcular métricas: {_e_metrics}")
+
             # === PASO 3: Convertir disparidad a profundidad ===
             if progress_callback:
                 progress_callback(60, "Calculando profundidad...")
