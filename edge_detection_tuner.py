@@ -15,6 +15,8 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QDialog, QWidget, QVBoxL
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QImage, QPixmap
 
+from utils.dataset_manager import DatasetManager
+
 
 class EdgeDetectionTuner(QDialog):
     """GUI para ajustar parámetros de detección de bordes"""
@@ -47,6 +49,7 @@ class EdgeDetectionTuner(QDialog):
         self.processing_mode = False  # True cuando se llama desde el procesamiento
         self._preview_img = None
         self._preview_scale = 1.0
+        self.dataset_manager = DatasetManager()
 
         # Debounce timer: evita recalcular mientras el usuario arrastra el slider
         self._update_timer = QTimer()
@@ -300,6 +303,28 @@ class EdgeDetectionTuner(QDialog):
         # Estadísticas
         self.stats_label = QLabel("Pixels detected: 0 (0.00%)")
         layout.addWidget(self.stats_label)
+
+        # === DATASET IA ===
+        dataset_group = QGroupBox("Dataset IA")
+        dataset_layout = QVBoxLayout()
+
+        count = self.dataset_manager.count()
+        self.dataset_count_label = QLabel(f"Muestras guardadas: {count}")
+        dataset_layout.addWidget(self.dataset_count_label)
+
+        btn_save_ds = QPushButton("💾 Guardar en Dataset")
+        btn_save_ds.setStyleSheet(
+            "background-color: #FF9800; color: white; font-weight: bold; padding: 8px;"
+        )
+        btn_save_ds.clicked.connect(self.save_to_dataset)
+        dataset_layout.addWidget(btn_save_ds)
+
+        btn_view_ds = QPushButton("📊 Ver Dataset")
+        btn_view_ds.clicked.connect(self.view_dataset)
+        dataset_layout.addWidget(btn_view_ds)
+
+        dataset_group.setLayout(dataset_layout)
+        layout.addWidget(dataset_group)
 
         # === GESTIÓN DE CONFIGURACIONES ===
         config_group = QGroupBox("Saved Configurations")
@@ -915,6 +940,41 @@ class EdgeDetectionTuner(QDialog):
                 print(f"✓ Configuration '{config_name}' deleted")
                 self.refresh_config_list()
                 QMessageBox.information(self, "Deleted", f"Configuration '{config_name}' deleted")
+
+    # ------------------------------------------------------------------
+    # Dataset IA
+    # ------------------------------------------------------------------
+
+    def save_to_dataset(self):
+        """Guarda el par (imagen original, máscara actual) en el dataset."""
+        if self.original_img is None:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Sin imagen", "Carga una imagen primero.")
+            return
+        if self.mask_result is None:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Sin máscara", "Genera la máscara antes de guardar.")
+            return
+
+        sample_id = self.dataset_manager.save_sample(self.original_img, self.mask_result)
+        count = self.dataset_manager.count()
+        self.dataset_count_label.setText(f"Muestras guardadas: {count}")
+        print(f"✓ Dataset: muestra #{sample_id:04d} guardada ({count} total)")
+
+        from PyQt5.QtWidgets import QMessageBox
+        QMessageBox.information(
+            self, "Guardado",
+            f"Muestra #{sample_id:04d} guardada en el dataset.\nTotal: {count} muestras."
+        )
+
+    def view_dataset(self):
+        """Abre el visor de dataset."""
+        from gui.dataset_viewer import DatasetViewerDialog
+        dlg = DatasetViewerDialog(self.dataset_manager, parent=self)
+        dlg.exec_()
+        # Actualizar contador por si se borraron muestras
+        count = self.dataset_manager.count()
+        self.dataset_count_label.setText(f"Muestras guardadas: {count}")
 
     def apply_and_close(self):
         """Aplicar configuración actual y cerrar (para modo procesamiento)"""
