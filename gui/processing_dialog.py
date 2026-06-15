@@ -1683,18 +1683,19 @@ class ProcessingDialog(QDialog):
                     self.add_log_message(f"  LEFT endpoints: {start_left} -> {end_left}", "INFO")
                     self.add_log_message(f"  RIGHT endpoints: {start_right} -> {end_right}", "INFO")
 
-                    # Abrir dialogo animado que ejecuta el tracker en tiempo real
-                    vis_dialog = WireTrackingVisualizationDialog(
+                    # Abrir diálogo de elección de método (3 opciones)
+                    from gui.wire_method_choice import WireMethodChoiceDialog
+                    method_dialog = WireMethodChoiceDialog(
                         left_img, right_img,
                         self.cable_mask_left, self.cable_mask_right,
                         start_left, end_left,
                         start_right, end_right,
                         self
                     )
-                    vis_dialog.exec_()
+                    method_dialog.exec_()
 
-                    # Obtener resultados del tracking
-                    tracking_results = vis_dialog.get_results()
+                    # Obtener resultados del método elegido
+                    tracking_results = method_dialog.get_results()
 
                     if tracking_results and tracking_results['success']:
                         self.wire_tracking_result = tracking_results

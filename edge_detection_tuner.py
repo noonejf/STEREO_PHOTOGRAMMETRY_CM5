@@ -947,21 +947,32 @@ class EdgeDetectionTuner(QDialog):
 
     def save_to_dataset(self):
         """Guarda el par (imagen original, máscara actual) en el dataset."""
+        from PyQt5.QtWidgets import QMessageBox
         if self.original_img is None:
-            from PyQt5.QtWidgets import QMessageBox
             QMessageBox.warning(self, "Sin imagen", "Carga una imagen primero.")
             return
         if self.mask_result is None:
-            from PyQt5.QtWidgets import QMessageBox
             QMessageBox.warning(self, "Sin máscara", "Genera la máscara antes de guardar.")
             return
+
+        # Verificar duplicado antes de guardar
+        is_dup, existing_id = self.dataset_manager.is_duplicate(self.original_img)
+        if is_dup:
+            reply = QMessageBox.question(
+                self, "Imagen duplicada",
+                f"Esta imagen ya existe en el dataset como muestra #{existing_id:04d}.\n"
+                "¿Guardar de todas formas como nueva muestra?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
 
         sample_id = self.dataset_manager.save_sample(self.original_img, self.mask_result)
         count = self.dataset_manager.count()
         self.dataset_count_label.setText(f"Muestras guardadas: {count}")
         print(f"✓ Dataset: muestra #{sample_id:04d} guardada ({count} total)")
 
-        from PyQt5.QtWidgets import QMessageBox
         QMessageBox.information(
             self, "Guardado",
             f"Muestra #{sample_id:04d} guardada en el dataset.\nTotal: {count} muestras."
