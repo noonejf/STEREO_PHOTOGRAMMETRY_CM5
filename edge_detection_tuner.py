@@ -49,7 +49,7 @@ class EdgeDetectionTuner(QDialog):
         self.processing_mode = False  # True cuando se llama desde el procesamiento
         self._preview_img = None
         self._preview_scale = 1.0
-        self.dataset_manager = DatasetManager()
+        self.dataset_manager = DatasetManager("data/ai_dataset/mask_dataset")
 
         # Debounce timer: evita recalcular mientras el usuario arrastra el slider
         self._update_timer = QTimer()
@@ -305,7 +305,7 @@ class EdgeDetectionTuner(QDialog):
         layout.addWidget(self.stats_label)
 
         # === DATASET IA ===
-        dataset_group = QGroupBox("Dataset IA")
+        dataset_group = QGroupBox("Dataset Máscaras IA")
         dataset_layout = QVBoxLayout()
 
         count = self.dataset_manager.count()

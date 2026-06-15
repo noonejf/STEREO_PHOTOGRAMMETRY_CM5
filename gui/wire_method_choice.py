@@ -66,7 +66,7 @@ class WireMethodChoiceDialog(QDialog):
         self._result = None           # dict compatible con wire_tracking_result
 
         from utils.dataset_manager import DatasetManager
-        self._dm = DatasetManager()
+        self._dm = DatasetManager("data/ai_dataset/path_dataset")
 
         self.setWindowTitle("Método de Wire Tracking")
         self.setMinimumSize(960, 580)
@@ -173,7 +173,7 @@ class WireMethodChoiceDialog(QDialog):
         right.addWidget(sep)
 
         # --- Dataset ---
-        gds = QGroupBox("Dataset IA")
+        gds = QGroupBox("Dataset Caminos IA  (imagen + máscara + path)")
         lds = QVBoxLayout()
         self.ds_count_label = QLabel(f"Muestras guardadas: {count}")
         self.ds_count_label.setStyleSheet("font-size:10px;")
