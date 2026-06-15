@@ -90,8 +90,13 @@ class DatasetManager:
         cv2.imwrite(str(self.masks_dir / f"{stem}.png"), mask)
 
         if wire_paths is not None:
+            # Convertir numpy int64 a int nativo para que json pueda serializarlos
+            serializable = {
+                side: [[int(x), int(y)] for x, y in pts]
+                for side, pts in wire_paths.items()
+            }
             with open(self.paths_dir / f"{stem}.json", 'w') as f:
-                json.dump(wire_paths, f)
+                json.dump(serializable, f)
 
         self._write_meta(sample_id, notes, image_hash=self._image_hash(image))
         return sample_id
