@@ -17,6 +17,96 @@ from PyQt5.QtGui import QImage, QPixmap
 
 from utils.dataset_manager import DatasetManager
 
+_DARK_QSS = """
+QDialog, QWidget {
+    background-color: #0F172A;
+    color: #E2E8F0;
+    font-family: "Segoe UI", "Roboto", sans-serif;
+    font-size: 13px;
+}
+QGroupBox {
+    background-color: #1E293B;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    margin-top: 14px;
+    padding: 14px 10px 10px 10px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 2px 12px;
+    color: #22D3EE;
+    font-weight: bold;
+    font-size: 13px;
+}
+QLabel { color: #E2E8F0; background-color: transparent; }
+QPushButton {
+    background-color: #3B82F6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: 600;
+}
+QPushButton:hover    { background-color: #60A5FA; }
+QPushButton:pressed  { background-color: #2563EB; }
+QPushButton:disabled { background-color: #273548; color: #64748B; }
+QComboBox {
+    background-color: #273548;
+    color: #E2E8F0;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 5px 10px;
+}
+QComboBox QAbstractItemView {
+    background-color: #1E293B;
+    color: #E2E8F0;
+    selection-background-color: #3B82F6;
+    border: 1px solid #334155;
+}
+QSlider::groove:horizontal {
+    background: #334155;
+    height: 6px;
+    border-radius: 3px;
+}
+QSlider::handle:horizontal {
+    background: #22D3EE;
+    width: 14px;
+    height: 14px;
+    margin: -4px 0;
+    border-radius: 7px;
+}
+QSlider::sub-page:horizontal {
+    background: #3B82F6;
+    border-radius: 3px;
+}
+QCheckBox { color: #E2E8F0; spacing: 8px; }
+QCheckBox::indicator {
+    width: 16px; height: 16px;
+    border: 1px solid #334155;
+    border-radius: 3px;
+    background-color: #273548;
+}
+QCheckBox::indicator:checked {
+    background-color: #3B82F6;
+    border-color: #3B82F6;
+}
+QLineEdit {
+    background-color: #273548;
+    color: #E2E8F0;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 5px 10px;
+}
+QScrollBar:vertical {
+    background: #0F172A; width: 8px; border-radius: 4px;
+}
+QScrollBar::handle:vertical {
+    background: #334155; border-radius: 4px; min-height: 30px;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
+"""
+
 
 class EdgeDetectionTuner(QDialog):
     """GUI para ajustar parámetros de detección de bordes"""
@@ -25,6 +115,7 @@ class EdgeDetectionTuner(QDialog):
         super().__init__()
         self.setWindowTitle("Cable Edge Detection Tuner")
         self.setGeometry(100, 100, 1400, 900)
+        self.setStyleSheet(_DARK_QSS)
 
         # Cargar imagen por defecto
         default_path = Path("data/results/debug/01_left_original.jpg")
@@ -304,6 +395,28 @@ class EdgeDetectionTuner(QDialog):
         self.stats_label = QLabel("Pixels detected: 0 (0.00%)")
         layout.addWidget(self.stats_label)
 
+        # === MODELO IA ===
+        ai_group = QGroupBox("Modelo IA Entrenado")
+        ai_layout = QVBoxLayout()
+        ai_layout.setSpacing(6)
+
+        self.ai_model_status = QLabel("Buscando modelo...")
+        self.ai_model_status.setStyleSheet("font-size:11px; color:#64748B;")
+        self.ai_model_status.setWordWrap(True)
+        ai_layout.addWidget(self.ai_model_status)
+
+        self.btn_apply_ai = QPushButton("Aplicar modelo IA")
+        self.btn_apply_ai.setStyleSheet(
+            "background-color: #3B82F6; color: white; font-weight: bold;"
+            " padding: 8px; border-radius: 6px;"
+        )
+        self.btn_apply_ai.clicked.connect(self._apply_ai_mask)
+        ai_layout.addWidget(self.btn_apply_ai)
+
+        ai_group.setLayout(ai_layout)
+        layout.addWidget(ai_group)
+        self._refresh_ai_model_status()
+
         # === DATASET IA ===
         dataset_group = QGroupBox("Dataset Máscaras IA")
         dataset_layout = QVBoxLayout()
@@ -314,7 +427,7 @@ class EdgeDetectionTuner(QDialog):
 
         btn_save_ds = QPushButton("💾 Guardar en Dataset")
         btn_save_ds.setStyleSheet(
-            "background-color: #FF9800; color: white; font-weight: bold; padding: 8px;"
+            "background-color: #F59E0B; color: white; font-weight: bold; padding: 8px; border-radius: 6px;"
         )
         btn_save_ds.clicked.connect(self.save_to_dataset)
         dataset_layout.addWidget(btn_save_ds)
@@ -368,7 +481,9 @@ class EdgeDetectionTuner(QDialog):
         # Botón para aplicar y cerrar (cuando se usa desde procesamiento)
         self.btn_apply_close = QPushButton("✓ Apply and Continue Processing")
         self.btn_apply_close.clicked.connect(self.apply_and_close)
-        self.btn_apply_close.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px;")
+        self.btn_apply_close.setStyleSheet(
+            "background-color: #16A34A; color: white; font-weight: bold; padding: 10px; border-radius: 6px;"
+        )
         self.btn_apply_close.hide()  # Solo visible cuando se llama desde procesamiento
         layout.addWidget(self.btn_apply_close)
 
@@ -946,7 +1061,7 @@ class EdgeDetectionTuner(QDialog):
     # ------------------------------------------------------------------
 
     def save_to_dataset(self):
-        """Guarda el par (imagen original, máscara actual) en el dataset."""
+        """Guarda el par estéreo completo (izq + der) en el dataset."""
         from PyQt5.QtWidgets import QMessageBox
         if self.original_img is None:
             QMessageBox.warning(self, "Sin imagen", "Carga una imagen primero.")
@@ -955,8 +1070,34 @@ class EdgeDetectionTuner(QDialog):
             QMessageBox.warning(self, "Sin máscara", "Genera la máscara antes de guardar.")
             return
 
-        # Verificar duplicado antes de guardar
-        is_dup, existing_id = self.dataset_manager.is_duplicate(self.original_img)
+        # En modo procesamiento estéreo: recalcular máscaras para AMBAS imágenes
+        # con los mismos parámetros de filtro actuales.
+        if self.processing_mode and hasattr(self, 'left_img_data') and self.right_img_data is not None:
+            self.original_img = self.left_img_data
+            self._prepare_preview()
+            self.update_detection()
+            mask_left = self.get_current_mask().copy()
+
+            self.original_img = self.right_img_data
+            self._prepare_preview()
+            self.update_detection()
+            mask_right = self.get_current_mask().copy()
+
+            # Restaurar la vista que estaba activa
+            self.original_img = self.left_img_data if self.current_view == "left" else self.right_img_data
+            self._prepare_preview()
+
+            save_img   = self.left_img_data
+            save_mask  = mask_left
+            right_img  = self.right_img_data
+            right_mask = mask_right
+        else:
+            save_img   = self.original_img
+            save_mask  = self.mask_result
+            right_img  = None
+            right_mask = None
+
+        is_dup, existing_id = self.dataset_manager.is_duplicate(save_img)
         if is_dup:
             reply = QMessageBox.question(
                 self, "Imagen duplicada",
@@ -968,14 +1109,19 @@ class EdgeDetectionTuner(QDialog):
             if reply != QMessageBox.Yes:
                 return
 
-        sample_id = self.dataset_manager.save_sample(self.original_img, self.mask_result)
+        sample_id = self.dataset_manager.save_sample(
+            save_img, save_mask,
+            right_image=right_img, right_mask=right_mask,
+        )
         count = self.dataset_manager.count()
         self.dataset_count_label.setText(f"Muestras guardadas: {count}")
-        print(f"✓ Dataset: muestra #{sample_id:04d} guardada ({count} total)")
+        stereo_txt = " (izq + der, 4 archivos)" if right_img is not None else ""
+        print(f"✓ Dataset: muestra #{sample_id:04d}{stereo_txt} guardada ({count} total)")
 
         QMessageBox.information(
             self, "Guardado",
-            f"Muestra #{sample_id:04d} guardada en el dataset.\nTotal: {count} muestras."
+            f"Muestra #{sample_id:04d}{stereo_txt} guardada en el dataset.\n"
+            f"Total: {count} muestras."
         )
 
     def view_dataset(self):
@@ -1022,6 +1168,124 @@ class EdgeDetectionTuner(QDialog):
         """Obtener máscara actual (para usar desde procesamiento)"""
         return self.mask_result
 
+    # ------------------------------------------------------------------
+    # Modelo IA
+    # ------------------------------------------------------------------
+
+    _MASK_MODEL_PATH = Path("data/models/mask_model.pkl")
+    _AI_TARGET_W, _AI_TARGET_H = 256, 192
+
+    def _refresh_ai_model_status(self):
+        """Actualiza el label de estado del modelo IA."""
+        if self._MASK_MODEL_PATH.exists():
+            try:
+                import pickle
+                with open(self._MASK_MODEL_PATH, "rb") as f:
+                    md = pickle.load(f)
+                date  = md.get("date", "?")
+                f1    = md.get("f1_train", 0)
+                npairs = md.get("n_pairs", 0)
+                self.ai_model_status.setText(
+                    f"✓ Modelo listo — {date}\n"
+                    f"F1={f1:.3f}  |  {npairs} imágenes entrenadas"
+                )
+                self.ai_model_status.setStyleSheet("font-size:11px; color:#22C55E;")
+                self.btn_apply_ai.setEnabled(True)
+            except Exception as e:
+                self.ai_model_status.setText(f"⚠ Error al leer modelo: {e}")
+                self.ai_model_status.setStyleSheet("font-size:11px; color:#EAB308;")
+                self.btn_apply_ai.setEnabled(False)
+        else:
+            self.ai_model_status.setText(
+                "✗ Modelo no entrenado\nVe a la pestaña AI y entrena primero."
+            )
+            self.ai_model_status.setStyleSheet("font-size:11px; color:#EF4444;")
+            self.btn_apply_ai.setEnabled(False)
+
+    def _ai_features(self, img_bgr):
+        """Mismas features que usa el entrenador."""
+        hsv  = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+        gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY).astype(np.float32)
+        b3   = cv2.GaussianBlur(gray, (3, 3), 0)
+        b9   = cv2.GaussianBlur(gray, (9, 9), 0)
+        lc   = (gray - b9).clip(-127, 127) + 127
+        return (np.stack([
+            img_bgr[:, :, 0].ravel(),
+            img_bgr[:, :, 1].ravel(),
+            img_bgr[:, :, 2].ravel(),
+            hsv[:, :, 0].ravel(),
+            hsv[:, :, 1].ravel(),
+            hsv[:, :, 2].ravel(),
+            b3.ravel(),
+            b9.ravel(),
+            lc.ravel(),
+        ], axis=1).astype("float32") / 255.0)
+
+    def _apply_ai_mask(self):
+        """Corre el modelo IA sobre la imagen actual y actualiza la visualización."""
+        if self.original_img is None:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Sin imagen", "Carga una imagen primero.")
+            return
+
+        self._refresh_ai_model_status()
+        if not self._MASK_MODEL_PATH.exists():
+            return
+
+        try:
+            import pickle
+            from PyQt5.QtWidgets import QApplication
+            self.btn_apply_ai.setText("Procesando...")
+            self.btn_apply_ai.setEnabled(False)
+            QApplication.processEvents()
+
+            with open(self._MASK_MODEL_PATH, "rb") as f:
+                md = pickle.load(f)
+            clf = md["model"]
+            tw, th = md.get("target_size", (self._AI_TARGET_W, self._AI_TARGET_H))
+
+            # Redimensionar para inferencia
+            img_small = cv2.resize(self.original_img, (tw, th))
+            feats = self._ai_features(img_small)
+
+            # Predicción
+            pred = clf.predict(feats).reshape(th, tw).astype(np.uint8) * 255
+
+            # Escalar máscara de vuelta a resolución original
+            h_orig, w_orig = self.original_img.shape[:2]
+            mask_full = cv2.resize(pred, (w_orig, h_orig), interpolation=cv2.INTER_NEAREST)
+
+            # Aplicar misma lógica de preview que el filtro clásico
+            if self._preview_scale < 1.0:
+                self.mask_result = mask_full
+                mask_preview = cv2.resize(
+                    pred,
+                    (self._preview_img.shape[1], self._preview_img.shape[0]),
+                    interpolation=cv2.INTER_NEAREST,
+                )
+            else:
+                self.mask_result = mask_full
+                mask_preview = mask_full
+
+            # Actualizar stats
+            pixels_detected = int(np.sum(mask_full > 0))
+            pct = 100 * pixels_detected / mask_full.size
+            self.stats_label.setText(
+                f"IA — Píxeles: {pixels_detected} ({pct:.2f}%)"
+            )
+
+            # Mostrar resultado en panel de visualización
+            self.display_results(mask_preview)
+
+            self.btn_apply_ai.setText("Aplicar modelo IA")
+            self.btn_apply_ai.setEnabled(True)
+
+        except Exception as e:
+            from PyQt5.QtWidgets import QMessageBox
+            self.btn_apply_ai.setText("Aplicar modelo IA")
+            self.btn_apply_ai.setEnabled(True)
+            QMessageBox.critical(self, "Error IA", str(e))
+
     def set_processing_mode(self, left_img, right_img, left_path="", right_path=""):
         """Configurar para modo procesamiento (mostrar ambas imágenes)"""
         self.processing_mode = True
@@ -1039,18 +1303,10 @@ class EdgeDetectionTuner(QDialog):
         # Añadir botón de switch si hay imagen derecha
         if right_img is not None:
             self.btn_switch = QPushButton("↔️ Switch to RIGHT Image")
-            self.btn_switch.setStyleSheet("""
-                QPushButton {
-                    background-color: #2196F3;
-                    color: white;
-                    font-weight: bold;
-                    padding: 8px;
-                    border-radius: 4px;
-                }
-                QPushButton:hover {
-                    background-color: #1976D2;
-                }
-            """)
+            self.btn_switch.setStyleSheet(
+                "background-color: #3B82F6; color: white; font-weight: bold;"
+                " padding: 8px; border-radius: 6px;"
+            )
             self.btn_switch.clicked.connect(self.switch_image_view)
 
             # Insertar botón antes del botón "Aplicar y Continuar"

@@ -1,0 +1,38 @@
+{
+  "3": {
+    "date": "2026-06-17 16:08",
+    "notes": "",
+    "image_hash": "0754bd6a36a53af4d14991f5c715ebe4",
+    "stereo": true
+  },
+  "4": {
+    "date": "2026-06-17 16:10",
+    "notes": "",
+    "image_hash": "8be9a0631f735f6af39a8122877b2185",
+    "stereo": true
+  },
+  "5": {
+    "date": "2026-06-17 16:11",
+    "notes": "",
+    "image_hash": "d7cbd13f01289652337c83d5c2194052",
+    "stereo": true
+  },
+  "6": {
+    "date": "2026-06-17 16:14",
+    "notes": "",
+    "image_hash": "a1b20da28e3aa124f9b25e3dd9f8d265",
+    "stereo": true
+  },
+  "8": {
+    "date": "2026-06-17 16:15",
+    "notes": "",
+    "image_hash": "12ac95790c86d66b3fa9dcff99d5322a",
+    "stereo": true
+  },
+  "10": {
+    "date": "2026-06-17 16:17",
+    "notes": "",
+    "image_hash": "21bc63f5ada907a25724305cd3f8d89d",
+    "stereo": true
+  }
+}

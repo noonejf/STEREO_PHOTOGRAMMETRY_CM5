@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#3b1c61" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#3b1c61" stop-opacity="0" />
+    </radialGradient>
+    <polyline id="arrow" points="-8,-6 0,0 -8,6" />
+  </defs>
+  
+  <circle cx="50" cy="50" r="25" fill="url(#glow)" />
+  
+  <g stroke="#3b1c61" stroke-width="4" stroke-dasharray="6,4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Inner lines -->
+    <line x1="50" y1="50" x2="50" y2="15" />
+    <line x1="50" y1="50" x2="80.31" y2="67.5" />
+    <line x1="50" y1="50" x2="19.69" y2="67.5" />
+    
+    <!-- Outer hexagon lines -->
+    <polygon points="50,15 80.31,32.5 80.31,67.5 50,85 19.69,67.5 19.69,32.5" />
+  </g>
+  
+  <g fill="none" stroke="#3b1c61" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <use href="#arrow" x="50" y="15" transform="rotate(-90 50 15)" />
+    <use href="#arrow" x="50" y="85" transform="rotate(90 50 85)" />
+    <use href="#arrow" x="80.31" y="32.5" transform="rotate(-30 80.31 32.5)" />
+    <use href="#arrow" x="80.31" y="67.5" transform="rotate(30 80.31 67.5)" />
+    <use href="#arrow" x="19.69" y="32.5" transform="rotate(-150 19.69 32.5)" />
+    <use href="#arrow" x="19.69" y="67.5" transform="rotate(150 19.69 67.5)" />
+  </g>
+</svg>

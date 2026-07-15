@@ -12,6 +12,7 @@ scipy
 
 # Manipulación de imágenes avanzada
 scikit-image
+scikit-learn
 Pillow
 
 # Procesamiento de datos científicos

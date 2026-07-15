@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <g stroke="#3b1c8c" stroke-linecap="round" fill="none">
+
+    <!-- 8 symmetric branches from center -->
+    <!-- N -->
+    <line x1="50" y1="50" x2="50" y2="14" stroke-width="3.5" />
+    <!-- NE -->
+    <line x1="50" y1="50" x2="75" y2="25" stroke-width="3.5" />
+    <!-- E -->
+    <line x1="50" y1="50" x2="86" y2="50" stroke-width="3.5" />
+    <!-- SE -->
+    <line x1="50" y1="50" x2="75" y2="75" stroke-width="3.5" />
+    <!-- S -->
+    <line x1="50" y1="50" x2="50" y2="86" stroke-width="3.5" />
+    <!-- SW -->
+    <line x1="50" y1="50" x2="25" y2="75" stroke-width="3.5" />
+    <!-- W -->
+    <line x1="50" y1="50" x2="14" y2="50" stroke-width="3.5" />
+    <!-- NW -->
+    <line x1="50" y1="50" x2="25" y2="25" stroke-width="3.5" />
+
+    <!-- Outer tip nodes -->
+    <circle cx="50" cy="14" r="5.5" fill="#3b1c8c" stroke-width="0" />
+    <circle cx="50" cy="14" r="2.5" fill="white" stroke="none" />
+
+    <circle cx="75" cy="25" r="5.5" fill="#3b1c8c" stroke-width="0" />
+    <circle cx="75" cy="25" r="2.5" fill="white" stroke="none" />
+
+    <circle cx="86" cy="50" r="5.5" fill="#3b1c8c" stroke-width="0" />
+    <circle cx="86" cy="50" r="2.5" fill="white" stroke="none" />
+
+    <circle cx="75" cy="75" r="5.5" fill="#3b1c8c" stroke-width="0" />
+    <circle cx="75" cy="75" r="2.5" fill="white" stroke="none" />
+
+    <circle cx="50" cy="86" r="5.5" fill="#3b1c8c" stroke-width="0" />
+    <circle cx="50" cy="86" r="2.5" fill="white" stroke="none" />
+
+    <circle cx="25" cy="75" r="5.5" fill="#3b1c8c" stroke-width="0" />
+    <circle cx="25" cy="75" r="2.5" fill="white" stroke="none" />
+
+    <circle cx="14" cy="50" r="5.5" fill="#3b1c8c" stroke-width="0" />
+    <circle cx="14" cy="50" r="2.5" fill="white" stroke="none" />
+
+    <circle cx="25" cy="25" r="5.5" fill="#3b1c8c" stroke-width="0" />
+    <circle cx="25" cy="25" r="2.5" fill="white" stroke="none" />
+
+    <!-- Central node (larger) -->
+    <circle cx="50" cy="50" r="9" fill="#3b1c8c" stroke-width="0" />
+    <circle cx="50" cy="50" r="4" fill="white" stroke="none" />
+
+  </g>
+</svg>

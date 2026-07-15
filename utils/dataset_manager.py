@@ -36,6 +36,9 @@ class DatasetManager:
     def _all_ids(self):
         ids = []
         for f in self.images_dir.glob("*.jpg"):
+            # skip _right files — only count the primary (left) image
+            if f.stem.endswith("_right"):
+                continue
             try:
                 ids.append(int(f.stem))
             except ValueError:
@@ -76,18 +79,32 @@ class DatasetManager:
     # ------------------------------------------------------------------
 
     def save_sample(self, image: np.ndarray, mask: np.ndarray,
-                    notes: str = "", wire_paths: dict = None) -> int:
+                    notes: str = "", wire_paths: dict = None,
+                    right_image: np.ndarray = None,
+                    right_mask: np.ndarray = None) -> int:
         """
-        Guarda imagen + máscara y opcionalmente wire_paths.
-        wire_paths debe ser {'left': [[x,y],...], 'right': [[x,y],...]}
+        Guarda el par estéreo completo:
+          NNNN.jpg / NNNN_right.jpg       — imágenes izquierda y derecha
+          NNNN.png / NNNN_right.png       — máscaras
+          NNNN.json                        — wire paths {'left': [...], 'right': [...]}
+        'image' y 'mask' son la imagen/máscara izquierda (clave primaria).
+        'right_image' y 'right_mask' son opcionales (para datasets estéreo).
         Retorna el ID asignado.
         """
         sample_id = self._next_id()
         stem = f"{sample_id:04d}"
 
+        # Imagen izquierda (primaria)
         cv2.imwrite(str(self.images_dir / f"{stem}.jpg"), image,
                     [cv2.IMWRITE_JPEG_QUALITY, 95])
         cv2.imwrite(str(self.masks_dir / f"{stem}.png"), mask)
+
+        # Imagen derecha (opcional, par estéreo)
+        if right_image is not None:
+            cv2.imwrite(str(self.images_dir / f"{stem}_right.jpg"), right_image,
+                        [cv2.IMWRITE_JPEG_QUALITY, 95])
+        if right_mask is not None:
+            cv2.imwrite(str(self.masks_dir / f"{stem}_right.png"), right_mask)
 
         if wire_paths is not None:
             # Convertir numpy int64 a int nativo para que json pueda serializarlos
@@ -98,7 +115,8 @@ class DatasetManager:
             with open(self.paths_dir / f"{stem}.json", 'w') as f:
                 json.dump(serializable, f)
 
-        self._write_meta(sample_id, notes, image_hash=self._image_hash(image))
+        self._write_meta(sample_id, notes, image_hash=self._image_hash(image),
+                         is_stereo=(right_image is not None))
         return sample_id
 
     def delete_sample(self, sample_id: int):
@@ -120,18 +138,23 @@ class DatasetManager:
         result = []
         for sid in self._all_ids():
             stem = f"{sid:04d}"
-            mask_path = self.masks_dir / f"{stem}.png"
-            path_path = self.paths_dir / f"{stem}.json"
+            mask_path  = self.masks_dir  / f"{stem}.png"
+            path_path  = self.paths_dir  / f"{stem}.json"
+            right_img  = self.images_dir / f"{stem}_right.jpg"
+            right_mask = self.masks_dir  / f"{stem}_right.png"
             info = meta.get(str(sid), {})
             result.append({
-                'id': sid,
-                'image_path': self.images_dir / f"{stem}.jpg",
-                'mask_path':  mask_path,
-                'path_file':  path_path,
-                'has_mask':   mask_path.exists(),
-                'has_path':   path_path.exists(),
-                'date':       info.get('date', ''),
-                'notes':      info.get('notes', ''),
+                'id':              sid,
+                'image_path':      self.images_dir / f"{stem}.jpg",
+                'mask_path':       mask_path,
+                'path_file':       path_path,
+                'right_image_path': right_img  if right_img.exists()  else None,
+                'right_mask_path':  right_mask if right_mask.exists() else None,
+                'has_mask':        mask_path.exists(),
+                'has_path':        path_path.exists(),
+                'is_stereo':       info.get('stereo', False),
+                'date':            info.get('date', ''),
+                'notes':           info.get('notes', ''),
             })
         return result
 
@@ -160,12 +183,14 @@ class DatasetManager:
                 pass
         return {}
 
-    def _write_meta(self, sample_id: int, notes: str = "", image_hash: str = ""):
+    def _write_meta(self, sample_id: int, notes: str = "", image_hash: str = "",
+                    is_stereo: bool = False):
         meta = self._read_meta()
         meta[str(sample_id)] = {
             'date':       datetime.now().strftime("%Y-%m-%d %H:%M"),
             'notes':      notes,
             'image_hash': image_hash,
+            'stereo':     is_stereo,
         }
         with open(self.meta_path, 'w') as f:
             json.dump(meta, f, indent=2)

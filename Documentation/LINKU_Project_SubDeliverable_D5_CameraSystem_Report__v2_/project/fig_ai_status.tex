@@ -1,0 +1,26 @@
+\begin{figure}[!ht]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[
+        font=\small,
+        row/.style   = {rectangle, draw, rounded corners, minimum height=1.5cm,
+                        text width=4.6cm, align=left, inner sep=3mm},
+        tag/.style   = {rectangle, draw, rounded corners, minimum height=1.5cm,
+                        text width=8.4cm, align=left, font=\scriptsize, inner sep=3mm},
+        implemented/.style = {row, draw=green!45!black, fill=green!10},
+        tagimpl/.style     = {tag, draw=green!45!black, fill=green!5},
+        partial/.style     = {row, draw=orange!70!black, fill=orange!10, dashed},
+        tagpartial/.style  = {tag, draw=orange!70!black, fill=orange!5, dashed},
+        node distance = 6mm and 6mm,
+    ]
+
+    \node[implemented] (m1) {\textbf{1. Cable segmentation}\\Random Forest, pixel-level};
+    \node[tagimpl, right=of m1] (t1) {\textbf{Implemented \& trained.} 9 features (BGR+HSV+local contrast), 6 stereo pairs $\rightarrow$ 60 augmented images, F1 = 0.97 (train set, no held-out validation yet). Integrated as a selectable inference mode in the segmentation tuner.};
+
+    \node[partial] (m2) [below=of m1] {\textbf{2. AI wire path tracker}\\(covers both ordinary tracking \emph{and} knot / crossing resolution -- one model, one purpose: given a thread image, tangled or not, trace its path without errors)};
+    \node[tagpartial, right=of m2] (t2) {\textbf{Dataset collection only.} Stereo pairs with drawn/tracker-verified paths are stored (1 sample so far, $\geq$30--100 recommended). No model has been trained. Section \ref{sec:Geometry-driven stereo reconstruction} (Figure \ref{fig:ai-proposed-tracker}) proposes a concrete architecture: a learned per-branch scorer inserted into the existing search, so the same model resolves both untangled and knotted configurations.};
+
+    \end{tikzpicture}}
+    \caption[Current maturity of the two AI-related components in the LINKU camera system software]{Current maturity of the two AI-related components considered within the LINKU camera system software, as of the software state accompanying this report. Only the segmentation model (1) is operational today. Wire path tracking and topological knot/crossing resolution (2) are treated as a single AI component -- not two separate systems -- because both solve the same underlying problem: given a segmented thread image, determine the correct continuous path from one end to the other, regardless of how entangled the thread is.}
+    \label{fig:ai-status}
+\end{figure}

@@ -1,571 +1,708 @@
 #!/usr/bin/env python3
 """
-Diálogo de calibración para sistema estéreo
-Implementa un bucle de captura interactivo: [Preview -> Captura] x N
+Página de calibración de cámaras estéreo.
+Reemplaza el CalibrationDialog (QDialog) por CalibrationPage (QWidget)
+integrado en el QStackedWidget de la ventana única.
+
+Diseño: split horizontal
+  Izquierda — vista previa en vivo (sus propios CameraPreviewWidget)
+  Derecha   — controles: config, progreso, log, botones
 """
 
-import os
-import cv2
-import numpy as np
-import time
 from datetime import datetime
 from pathlib import Path
 
-from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
-                           QPushButton, QProgressBar, QTextEdit, QGroupBox,
-                           QGridLayout, QMessageBox, QCheckBox, QSpinBox,
-                           QDoubleSpinBox, QFrame, QApplication)
+from PyQt5.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QPushButton, QProgressBar, QTextEdit, QGroupBox,
+    QGridLayout, QMessageBox, QSpinBox,
+    QDoubleSpinBox, QFrame, QSplitter,
+)
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
-from PyQt5.QtGui import QPixmap, QImage, QFont
+from PyQt5.QtGui import QFont
 
 from camera.camera_calibration import CameraCalibrator
+from gui.camera_preview import CameraPreviewWidget
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Hilo solo para PROCESAR, no para capturar
+# ── Color constants (same palette as main_window) ─────────────────────────────
+BG_DEEP        = "#0F172A"
+BG_PANEL       = "#1E293B"
+BG_CARD        = "#273548"
+BG_SIDEBAR     = "#0B1120"
+ACCENT_CYAN    = "#22D3EE"
+ACCENT_BLUE    = "#3B82F6"
+ACCENT_GREEN   = "#16A34A"
+TEXT_PRIMARY   = "#E2E8F0"
+TEXT_SECONDARY = "#94A3B8"
+TEXT_DIM       = "#64748B"
+BORDER_SUBTLE  = "#334155"
+GREEN_ON       = "#22C55E"
+RED_OFF        = "#EF4444"
+YELLOW_WARN    = "#EAB308"
+
+
+# ── Background processing thread (unchanged) ─────────────────────────────────
+
 class CalibrationProcessingThread(QThread):
-    """Hilo para ejecutar el procesamiento de calibración sin bloquear UI"""
-    progress_update = pyqtSignal(int, str)
+    """Hilo para ejecutar el procesamiento de calibración sin bloquear UI."""
+    progress_update    = pyqtSignal(int, str)
     calibration_complete = pyqtSignal(bool, dict)
-    log_message = pyqtSignal(str, str)  # message, level
-    
+    log_message        = pyqtSignal(str, str)   # message, level
+
     def __init__(self, camera_config, session_dir):
         super().__init__()
         self.camera_config = camera_config
-        self.session_dir = session_dir
-        self.should_stop = False
-        
+        self.session_dir   = session_dir
+        self.should_stop   = False
+
     def run(self):
-        """Ejecutar solo el procesamiento de calibración"""
         try:
             self.log_message.emit("Starting image processing...", "INFO")
             calibrator = CameraCalibrator(self.camera_config)
-            
-            calibration_result = calibrator.calibrate_from_session(
+            result = calibrator.calibrate_from_session(
                 self.session_dir,
-                progress_callback=self.progress_callback
+                progress_callback=self._progress_callback,
             )
-            
-            if calibration_result['success']:
+            if result['success']:
                 self.log_message.emit("Processing completed successfully", "INFO")
             else:
-                self.log_message.emit(f"Processing error: {calibration_result.get('error')}", "ERROR")
-            
-            self.calibration_complete.emit(calibration_result['success'], calibration_result)
-            
+                self.log_message.emit(
+                    f"Processing error: {result.get('error')}", "ERROR"
+                )
+            self.calibration_complete.emit(result['success'], result)
         except Exception as e:
             self.log_message.emit(f"Fatal error during processing: {e}", "ERROR")
             self.calibration_complete.emit(False, {'error': str(e)})
-    
-    def progress_callback(self, progress, message):
-        """Callback para actualizar progreso desde el calibrador"""
+
+    def _progress_callback(self, progress, message):
         if not self.should_stop:
-            # Mapear el progreso del 0-100 (del calibrador) al 50-100 (de la UI)
-            mapped_progress = 50 + int(progress * 0.5)
-            self.progress_update.emit(mapped_progress, message)
-    
+            mapped = 50 + int(progress * 0.5)
+            self.progress_update.emit(mapped, message)
+
     def stop(self):
-        """Detener proceso de procesamiento"""
         self.should_stop = True
 
-class CalibrationDialog(QDialog):
-    """Diálogo principal de calibración (Lógica de bucle interactivo)"""
 
-    def __init__(self, camera_config, stereo_camera, parent=None):
+# ── Calibration page ──────────────────────────────────────────────────────────
+
+class CalibrationPage(QWidget):
+    """
+    Página inline de calibración.
+    Emite ``calibration_updated`` cuando la calibración se completa
+    y ``navigate_back`` cuando el usuario quiere volver al dashboard.
+    """
+    calibration_updated = pyqtSignal()
+    navigate_back       = pyqtSignal()
+
+    def __init__(self, camera_config, stereo_camera=None, parent=None):
         super().__init__(parent)
-        self.camera_config = camera_config
-        self.stereo_camera = stereo_camera
+        self.camera_config   = camera_config
+        self.stereo_camera   = stereo_camera
         self.cameras_available = stereo_camera is not None
         self.processing_thread = None
-        self.countdown_timer = QTimer(self)
+        self.countdown_timer   = QTimer(self)
         self.countdown_seconds = 0
 
-        self.images_to_capture = 0
-        self.images_captured = 0
+        self.images_to_capture  = 0
+        self.images_captured    = 0
         self.capture_session_dir = None
-        self.is_capturing = False
+        self.is_capturing       = False
 
-        self.init_ui()
-        self.load_current_calibration_status()
-        
-    def init_ui(self):
-        """Inicializar interfaz de usuario"""
-        self.setWindowTitle("Stereo Camera Calibration")
-        # ✅ FIX: No modal, para poder ver la ventana principal
-        self.setModal(False) 
-        self.resize(800, 600)
-        
-        layout = QVBoxLayout(self)
-        
-        # ... (El resto de la UI es igual) ...
-        title = QLabel("🎯 Stereo Camera Calibration")
-        title.setFont(QFont("Arial", 18, QFont.Bold))
+        self._init_ui()
+        self._load_current_calibration_status()
+
+    # ── UI construction ───────────────────────────────────────────────────────
+
+    def _init_ui(self):
+        self.setStyleSheet(f"background-color: {BG_DEEP};")
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+
+        # ── Back bar ──────────────────────────────────────────────────────────
+        back_bar = QFrame()
+        back_bar.setFixedHeight(44)
+        back_bar.setStyleSheet(
+            f"QFrame {{ background-color: {BG_SIDEBAR};"
+            f"border-bottom: 1px solid {BORDER_SUBTLE}; }}"
+        )
+        bb = QHBoxLayout(back_bar)
+        bb.setContentsMargins(12, 0, 12, 0)
+
+        btn_back = QPushButton("← Dashboard")
+        btn_back.setStyleSheet(
+            f"QPushButton {{ background-color: transparent; color: {ACCENT_CYAN};"
+            f"border: none; font-weight: bold; font-size: 13px; }}"
+            f"QPushButton:hover {{ color: white; }}"
+        )
+        btn_back.clicked.connect(self._go_back)
+        bb.addWidget(btn_back)
+        bb.addStretch()
+
+        page_title = QLabel("⊕  Stereo Camera Calibration")
+        page_title.setStyleSheet(
+            f"color: {TEXT_PRIMARY}; font-weight: bold; font-size: 15px;"
+            f"background: transparent;"
+        )
+        bb.addWidget(page_title)
+        bb.addStretch()
+        root.addWidget(back_bar)
+
+        # ── Main split: left preview | right controls ─────────────────────────
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.setStyleSheet(f"background-color: {BG_DEEP};")
+
+        splitter.addWidget(self._build_preview_panel())
+        splitter.addWidget(self._build_controls_panel())
+        splitter.setSizes([480, 520])
+
+        root.addWidget(splitter, 1)
+
+    def _build_preview_panel(self):
+        panel = QFrame()
+        panel.setStyleSheet(
+            f"QFrame {{ background-color: {BG_PANEL}; border-right: 1px solid {BORDER_SUBTLE}; }}"
+        )
+        v = QVBoxLayout(panel)
+        v.setContentsMargins(10, 10, 10, 10)
+        v.setSpacing(6)
+
+        title = QLabel("Live Camera Preview")
+        title.setStyleSheet(
+            f"color: {ACCENT_CYAN}; font-weight: bold; font-size: 13px; background: transparent;"
+        )
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("color: #1976D2; margin: 10px;")
-        layout.addWidget(title)
-        
-        board_info = self.create_board_info_group()
-        layout.addWidget(board_info)
-        
-        capture_config = self.create_capture_config_group()
-        layout.addWidget(capture_config)
-        
-        current_status = self.create_current_status_group()
-        layout.addWidget(current_status)
-        
-        progress_group = self.create_progress_group()
-        layout.addWidget(progress_group)
-        
-        log_group = self.create_log_group()
-        layout.addWidget(log_group)
-        
-        buttons = self.create_buttons()
-        layout.addLayout(buttons)
-        
-        self.apply_styles()
-    
-    def create_board_info_group(self):
-        group = QGroupBox("📋 Checkerboard Requirements")
-        layout = QVBoxLayout(group)
-        board_size = self.camera_config.stereo.calibration_board_size
+        v.addWidget(title)
+
+        self.left_preview = CameraPreviewWidget(
+            "Left Camera (CAM0)", 0, self.camera_config
+        )
+        self.right_preview = CameraPreviewWidget(
+            "Right Camera (CAM1)", 1, self.camera_config
+        )
+        v.addWidget(self.left_preview, 1)
+        v.addWidget(self.right_preview, 1)
+
+        # Preview toggle buttons
+        btn_row = QHBoxLayout()
+        self.btn_preview_start = QPushButton("▶  Start Preview")
+        self.btn_preview_start.setStyleSheet(
+            f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY}; }}"
+            f"QPushButton:hover {{ background-color: #3B4B60; }}"
+        )
+        self.btn_preview_start.clicked.connect(self.start_preview_for_positioning)
+
+        self.btn_preview_stop = QPushButton("⏹  Stop Preview")
+        self.btn_preview_stop.setStyleSheet(
+            f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY}; }}"
+            f"QPushButton:hover {{ background-color: #3B4B60; }}"
+        )
+        self.btn_preview_stop.clicked.connect(self.stop_preview_for_capture)
+        self.btn_preview_stop.setEnabled(False)
+
+        btn_row.addWidget(self.btn_preview_start)
+        btn_row.addWidget(self.btn_preview_stop)
+        v.addLayout(btn_row)
+
+        hint = QLabel(
+            "Position the chessboard so it is clearly visible\n"
+            "in BOTH cameras before each capture."
+        )
+        hint.setStyleSheet(
+            f"color: {TEXT_DIM}; font-size: 11px; background: transparent;"
+        )
+        hint.setAlignment(Qt.AlignCenter)
+        hint.setWordWrap(True)
+        v.addWidget(hint)
+
+        return panel
+
+    def _build_controls_panel(self):
+        panel = QWidget()
+        panel.setStyleSheet(f"background-color: {BG_DEEP};")
+        v = QVBoxLayout(panel)
+        v.setContentsMargins(10, 10, 10, 10)
+        v.setSpacing(6)
+
+        v.addWidget(self._create_board_info_group())
+        v.addWidget(self._create_capture_config_group())
+        v.addWidget(self._create_current_status_group())
+        v.addWidget(self._create_progress_group())
+        v.addWidget(self._create_log_group())
+        v.addLayout(self._create_buttons())
+
+        return panel
+
+    def _create_board_info_group(self):
+        group = QGroupBox("Checkerboard Requirements")
+        v = QVBoxLayout(group)
+        board_size  = self.camera_config.stereo.calibration_board_size
         square_size = self.camera_config.stereo.calibration_square_size_mm
-        info_text = f"""
-        <b>Board Configuration:</b><br>
-        • Inner corners: {board_size[0]} x {board_size[1]} ({board_size[0] * board_size[1]} corners)<br>
-        • Square size: {square_size} mm<br><br>
-        <b>Instructions:</b><br>
-        • Move this dialog to see the camera preview.<br>
-        • Position the board so it is clearly visible in BOTH cameras.<br>
-        • The system will give you time to reposition between each shot.
-        """
-        info_label = QLabel(info_text)
+        info_label = QLabel(
+            f"<b>Board:</b> {board_size[0]} × {board_size[1]} inner corners"
+            f"  ({board_size[0] * board_size[1]} total)<br>"
+            f"<b>Square size:</b> {square_size} mm<br>"
+            f"<b>Tip:</b> Use the preview on the left to position the board "
+            f"and move it to different angles between shots."
+        )
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("background-color: #E3F2FD; padding: 10px; border-radius: 5px; border: 1px solid #2196F3;")
-        layout.addWidget(info_label)
+        info_label.setStyleSheet(
+            f"background-color: {BG_CARD}; color: {TEXT_SECONDARY};"
+            f"padding: 10px; border-radius: 6px; font-size: 12px;"
+        )
+        v.addWidget(info_label)
         return group
-    
-    def create_capture_config_group(self):
-        group = QGroupBox("⚙️ Capture Configuration")
-        layout = QGridLayout(group)
-        
-        layout.addWidget(QLabel("Number of images:"), 0, 0)
+
+    def _create_capture_config_group(self):
+        group = QGroupBox("Capture Configuration")
+        grid = QGridLayout(group)
+        grid.setSpacing(6)
+
+        grid.addWidget(QLabel("Number of images:"), 0, 0)
         self.num_images_spin = QSpinBox()
         self.num_images_spin.setRange(15, 50)
         self.num_images_spin.setValue(self.camera_config.stereo.min_calibration_images)
         self.num_images_spin.setSuffix(" images")
-        layout.addWidget(self.num_images_spin, 0, 1)
-        
-        # ✅ LÓGICA CAMBIADA: Este es el tiempo de preview ENTRE FOTOS
-        layout.addWidget(QLabel("Settling time:"), 1, 0)
+        grid.addWidget(self.num_images_spin, 0, 1)
+
+        grid.addWidget(QLabel("Settling time:"), 1, 0)
         self.delay_spin = QDoubleSpinBox()
         self.delay_spin.setRange(5.0, 30.0)
-        self.delay_spin.setValue(8.0) # 8 segundos para acomodar
-        self.delay_spin.setSuffix(" seconds")
+        self.delay_spin.setValue(8.0)
+        self.delay_spin.setSuffix(" s")
         self.delay_spin.setDecimals(1)
-        layout.addWidget(self.delay_spin, 1, 1)
-        
-        layout.addWidget(QLabel("Initial countdown:"), 2, 0)
+        grid.addWidget(self.delay_spin, 1, 1)
+
+        grid.addWidget(QLabel("Initial countdown:"), 2, 0)
         self.countdown_spin = QSpinBox()
         self.countdown_spin.setRange(5, 30)
         self.countdown_spin.setValue(10)
-        self.countdown_spin.setSuffix(" seconds")
-        layout.addWidget(self.countdown_spin, 2, 1)
-        
+        self.countdown_spin.setSuffix(" s")
+        grid.addWidget(self.countdown_spin, 2, 1)
+
         return group
-    
-    def create_current_status_group(self):
-        group = QGroupBox("📊 Current Calibration Status")
-        layout = QVBoxLayout(group)
+
+    def _create_current_status_group(self):
+        group = QGroupBox("Current Calibration Status")
+        v = QVBoxLayout(group)
         self.status_label = QLabel()
         self.status_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.status_label)
+        v.addWidget(self.status_label)
         self.details_label = QLabel()
         self.details_label.setWordWrap(True)
         self.details_label.setVisible(False)
-        layout.addWidget(self.details_label)
+        self.details_label.setStyleSheet(
+            f"color: {TEXT_SECONDARY}; font-size: 12px; background: transparent;"
+        )
+        v.addWidget(self.details_label)
         return group
-    
-    def create_progress_group(self):
-        group = QGroupBox("📈 Calibration Progress")
-        layout = QVBoxLayout(group)
-        self.countdown_label = QLabel("Move this dialog to see the preview")
-        self.countdown_label.setFont(QFont("Arial", 16, QFont.Bold))
+
+    def _create_progress_group(self):
+        group = QGroupBox("Progress")
+        v = QVBoxLayout(group)
+
+        self.countdown_label = QLabel("Ready — start the calibration below")
+        self.countdown_label.setFont(QFont("Segoe UI", 13, QFont.Bold))
         self.countdown_label.setAlignment(Qt.AlignCenter)
-        self.countdown_label.setStyleSheet("background-color: #F5F5F5; padding: 15px; border-radius: 5px; border: 2px solid #CCCCCC;")
-        layout.addWidget(self.countdown_label)
+        self.countdown_label.setStyleSheet(
+            f"background-color: {BG_CARD}; color: {TEXT_SECONDARY};"
+            f"padding: 12px; border-radius: 6px; border: 1px solid {BORDER_SUBTLE};"
+        )
+        v.addWidget(self.countdown_label)
+
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         self.progress_bar.setVisible(False)
-        layout.addWidget(self.progress_bar)
+        v.addWidget(self.progress_bar)
+
         self.progress_message = QLabel("")
         self.progress_message.setAlignment(Qt.AlignCenter)
         self.progress_message.setVisible(False)
-        layout.addWidget(self.progress_message)
+        self.progress_message.setStyleSheet(
+            f"color: {TEXT_SECONDARY}; font-size: 12px; background: transparent;"
+        )
+        v.addWidget(self.progress_message)
         return group
-    
-    def create_log_group(self):
-        group = QGroupBox("📝 Activity Log")
-        layout = QVBoxLayout(group)
+
+    def _create_log_group(self):
+        group = QGroupBox("Activity Log")
+        v = QVBoxLayout(group)
         self.log_text = QTextEdit()
-        self.log_text.setMaximumHeight(120)
+        self.log_text.setMaximumHeight(110)
         self.log_text.setReadOnly(True)
-        self.log_text.setStyleSheet("QTextEdit { background-color: #FAFAFA; font-family: 'Courier New', monospace; font-size: 10px; }")
-        layout.addWidget(self.log_text)
+        v.addWidget(self.log_text)
         return group
-    
-    def create_buttons(self):
-        layout = QHBoxLayout()
 
-        # Botón para captura nueva (solo si hay cámaras)
-        self.btn_start = QPushButton("🚀 Start Calibration")
-        self.btn_start.setFixedHeight(45)
-        self.btn_start.setStyleSheet("QPushButton { font-size: 14px; font-weight: bold; background-color: #4CAF50; color: white; border: none; border-radius: 5px; } QPushButton:hover { background-color: #45a049; } QPushButton:disabled { background-color: #CCCCCC; color: #666666; }")
+    def _create_buttons(self):
+        row = QHBoxLayout()
+        row.setSpacing(8)
+
+        self.btn_start = QPushButton("▶  Start Calibration")
+        self.btn_start.setFixedHeight(40)
+        self.btn_start.setStyleSheet(
+            f"QPushButton {{ background-color: {ACCENT_GREEN}; color: white;"
+            f"font-weight: bold; font-size: 14px; border-radius: 6px; }}"
+            f"QPushButton:hover {{ background-color: #15803D; }}"
+            f"QPushButton:disabled {{ background-color: {BG_CARD}; color: {TEXT_DIM}; }}"
+        )
         self.btn_start.clicked.connect(self.start_calibration)
-        self.btn_start.setEnabled(self.cameras_available)  # Solo habilitar si hay cámaras
-        layout.addWidget(self.btn_start)
+        self.btn_start.setEnabled(self.cameras_available)
+        row.addWidget(self.btn_start)
 
-        # Botón para procesar sesión existente (siempre disponible)
-        self.btn_process_existing = QPushButton("📂 Process Existing Session")
-        self.btn_process_existing.setFixedHeight(45)
-        self.btn_process_existing.setStyleSheet("QPushButton { font-size: 14px; font-weight: bold; background-color: #2196F3; color: white; border: none; border-radius: 5px; } QPushButton:hover { background-color: #1976D2; } QPushButton:disabled { background-color: #CCCCCC; color: #666666; }")
+        self.btn_process_existing = QPushButton("📂  Process Existing Session")
+        self.btn_process_existing.setFixedHeight(40)
+        self.btn_process_existing.setStyleSheet(
+            f"QPushButton {{ background-color: {ACCENT_BLUE}; color: white;"
+            f"font-weight: bold; font-size: 13px; border-radius: 6px; }}"
+            f"QPushButton:hover {{ background-color: #60A5FA; }}"
+        )
         self.btn_process_existing.clicked.connect(self.process_existing_session)
-        layout.addWidget(self.btn_process_existing)
+        row.addWidget(self.btn_process_existing)
 
-        self.btn_cancel = QPushButton("❌ Cancel")
-        self.btn_cancel.setFixedHeight(45)
+        self.btn_cancel = QPushButton("✕  Cancel")
+        self.btn_cancel.setFixedHeight(40)
+        self.btn_cancel.setStyleSheet(
+            f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY};"
+            f"border-radius: 6px; }}"
+            f"QPushButton:hover {{ background-color: {RED_OFF}; color: white; }}"
+        )
         self.btn_cancel.clicked.connect(self.cancel_calibration)
         self.btn_cancel.setEnabled(False)
-        layout.addWidget(self.btn_cancel)
+        row.addWidget(self.btn_cancel)
 
-        layout.addStretch()
+        return row
 
-        self.btn_close = QPushButton("✅ Close")
-        self.btn_close.setFixedHeight(45)
-        self.btn_close.clicked.connect(self.close)
-        layout.addWidget(self.btn_close)
-        return layout
-    
-    def apply_styles(self):
-        self.setStyleSheet("QGroupBox { font-weight: bold; border: 2px solid #CCCCCC; border-radius: 8px; margin: 5px; padding-top: 15px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 8px 0 8px; color: #333333; } QPushButton { padding: 8px 15px; border: none; border-radius: 4px; font-weight: bold; } QSpinBox, QDoubleSpinBox { padding: 5px; border: 1px solid #CCCCCC; border-radius: 3px; }")
-    
-    def load_current_calibration_status(self):
-        if self.camera_config.is_calibrated():
-            self.status_label.setText("✅ SYSTEM CALIBRATED")
-            self.status_label.setStyleSheet("color: green; font-weight: bold; font-size: 14px;")
-            if hasattr(self.camera_config, 'calibration_data'):
-                calib_data = self.camera_config.calibration_data
-                details_text = f"<b>Details:</b> Date: {calib_data.get('calibration_date', 'N/A')}, Error: {calib_data.get('calibration_error', 'N/A'):.3f} pixels"
-                self.details_label.setText(details_text)
-                self.details_label.setVisible(True)
-        else:
-            self.status_label.setText("❌ CALIBRATION REQUIRED")
-            self.status_label.setStyleSheet("color: red; font-weight: bold; font-size: 14px;")
-            self.details_label.setVisible(False)
-    
-    def add_log_message(self, message, level="INFO"):
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        formatted_message = f"[{timestamp}] {level}: {message}"
-        self.log_text.append(formatted_message)
-        self.log_text.verticalScrollBar().setValue(self.log_text.verticalScrollBar().maximum())
-    
-    # --- Lógica de Captura Interactiva ---
-    
-    def start_calibration(self):
-        """Inicia el proceso. Muestra advertencia y luego el countdown inicial."""
-        msg = QMessageBox.question(
-            self, "Confirm Calibration",
-            f"This will capture {self.num_images_spin.value()} image pairs.\n\n"
-            "Ensure you can see the preview in the main window.\n"
-            "Move this dialog if necessary!\n\n"
-            "Start?",
-            QMessageBox.Yes | QMessageBox.No
-        )
-        
-        if msg != QMessageBox.Yes:
-            return
-        
-        # Preparar UI para captura
-        self.btn_start.setEnabled(False)
-        self.btn_cancel.setEnabled(True)
-        self.progress_bar.setVisible(True)
-        self.progress_message.setVisible(True)
-        
-        # Iniciar estado de captura
-        self.is_capturing = True
-        self.images_to_capture = self.num_images_spin.value()
-        self.images_captured = 0
-        
-        # Crear el directorio de sesión AHORA
-        try:
-            self.capture_session_dir = self.stereo_camera.create_calibration_session_dir()
-            self.add_log_message(f"Session created at: {self.capture_session_dir}", "INFO")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Could not create session directory: {e}")
-            self.cancel_calibration()
-            return
-        
-        # Iniciar el primer countdown
-        self.start_countdown(self.countdown_spin.value(), self.update_initial_countdown)
+    # ── Navigation ────────────────────────────────────────────────────────────
 
-    def start_countdown(self, seconds, tick_function_callback):
-        """Función genérica para iniciar un countdown."""
-        self.countdown_seconds = seconds
-        try:
-            self.countdown_timer.timeout.disconnect()
-        except TypeError:
-            pass  # No había nada conectado
-        
-        self.countdown_timer.timeout.connect(tick_function_callback)
-        self.countdown_timer.start(1000)
-        tick_function_callback() # Llamar una vez para setear el '0'
-
-    def update_initial_countdown(self):
-        """Tick del countdown ANTES de la primera foto."""
-        if self.countdown_seconds > 0:
-            self.set_countdown_style("🎯 PREPARE THE BOARD!", f"Initial capture in: {self.countdown_seconds}", self.countdown_seconds)
-            self.countdown_seconds -= 1
-        else:
-            self.countdown_timer.stop()
-            self.capture_one_image_pair() # Capturar la primera imagen
-
-    def update_next_shot_countdown(self):
-        """Tick del countdown ENTRE fotos."""
-        if self.countdown_seconds > 0:
-            self.set_countdown_style("👀 REPOSITION THE BOARD!", f"Next capture in: {self.countdown_seconds}", self.countdown_seconds)
-            self.countdown_seconds -= 1
-        else:
-            self.countdown_timer.stop()
-            self.capture_one_image_pair() # Capturar la siguiente imagen
-
-    def capture_one_image_pair(self):
-        """Pausa el preview, captura una foto, y decide si seguir o procesar."""
-        if not self.is_capturing:
-            return
-
-        self.progress_message.setText(f"Capturing image {self.images_captured + 1} / {self.images_to_capture}...")
-        self.add_log_message(f"Capturing pair {self.images_captured + 1}", "INFO")
-
-        # 1. Pausar preview
+    def _go_back(self):
+        """Navigate back to the dashboard page."""
         self.stop_preview_for_capture()
-        
-        # 2. Capturar (esto es rápido, pero damos 0.5s para que la cámara pare)
-        # Usamos un timer para no bloquear el hilo de la GUI
-        QTimer.singleShot(500, self.execute_capture_and_resume)
-        
-    def execute_capture_and_resume(self):
-        """Función llamada por el timer para hacer la captura y decidir el próximo paso."""
-        try:
-            self.stereo_camera.capture_single_calibration_pair(
-                self.capture_session_dir,
-                self.images_captured
-            )
-            self.images_captured += 1
-            
-            progress = int((self.images_captured / self.images_to_capture) * 50)  # 50% para captura
-            self.progress_bar.setValue(progress)
+        main_window = self.window()
+        if hasattr(main_window, 'navigate_to'):
+            main_window.navigate_to(0)  # PAGE_DASHBOARD
 
-        except Exception as e:
-            self.add_log_message(f"Fatal capture error: {e}", "ERROR")
-            QMessageBox.critical(self, "Capture Error", f"Capture failed: {e}")
-            self.cancel_calibration()  # Abortar
-            return
-
-        # 3. Verificar si terminamos
-        if self.images_captured >= self.images_to_capture:
-            # Terminamos de capturar, ahora procesamos
-            self.add_log_message("Image capture completed.", "INFO")
-            self.process_calibration_images()
-        else:
-            # No hemos terminado, reiniciar preview e iniciar el *siguiente* countdown
-            self.start_preview_for_positioning()
-            self.start_countdown(int(self.delay_spin.value()), self.update_next_shot_countdown)
-
-    def process_calibration_images(self):
-        """Inicia el hilo de procesamiento de imágenes."""
-        self.add_log_message("Starting calibration processing...", "INFO")
-        self.set_countdown_style("⌛ PROCESSING", "Calculating calibration parameters...", -1)
-        self.progress_message.setText("Processing images...")
-        
-        # Iniciar el hilo de procesamiento
-        self.processing_thread = CalibrationProcessingThread(
-            self.camera_config,
-            self.capture_session_dir
-        )
-        
-        self.processing_thread.progress_update.connect(self.update_progress)
-        self.processing_thread.log_message.connect(self.add_log_message)
-        self.processing_thread.calibration_complete.connect(self.on_calibration_complete)
-        
-        self.processing_thread.start()
-
-    def on_calibration_complete(self, success, result):
-        """Maneja el resultado del hilo de procesamiento."""
-        self.is_capturing = False
-        
-        if success:
-            self.add_log_message("✅ Calibration completed successfully", "INFO")
-            self.set_countdown_style("✅ CALIBRATION SUCCESSFUL", "System ready!", -2)
-            self.progress_bar.setValue(100)
-            
-            avg_dist = result.get('average_distance_meters', 0) * 100 # Convertir a cm
-            dist_msg = f"Average distance to board: {avg_dist:.1f} cm"
-            self.add_log_message(dist_msg, "INFO")
-
-            # Actualizar estado de calibración en ventana principal
-            if hasattr(self.parent(), 'is_calibrated'):
-                self.parent().is_calibrated = True
-                self.parent().update_calibration_status()
-            
-            QMessageBox.information(self, "Success", f"Calibration completed and saved.\n\n{dist_msg}")
-            self.accept() # Cerrar el diálogo
-            
-        else:
-            error_details = result.get('error', 'Unknown error')
-            self.add_log_message(f"❌ Calibration failed: {error_details}", "ERROR")
-            self.set_countdown_style("❌ CALIBRATION ERROR", "Check log and try again", -3)
-            QMessageBox.critical(self, "Calibration Error", f"Calibration failed:\n\n{error_details}")
-            self.reset_ui_after_calibration()
-
-    # --- Funciones de Ayuda (Preview y UI) ---
+    # ── Preview helpers ───────────────────────────────────────────────────────
 
     def start_preview_for_positioning(self):
-        """Inicia el preview en la ventana principal (solo si hay cámaras)."""
+        """Start the calibration page's own camera previews."""
         if not self.cameras_available:
-            return  # No intentar preview si no hay cámaras
-
+            return
         try:
-            main_window = self.parent()
-            if hasattr(main_window, 'start_preview'):
-                main_window.start_preview()
+            self.left_preview.start_preview()
+            self.right_preview.start_preview()
+            self.btn_preview_start.setEnabled(False)
+            self.btn_preview_stop.setEnabled(True)
+            self.btn_preview_start.setText("▶  Preview Active")
         except Exception as e:
             self.add_log_message(f"Error starting preview: {e}", "WARNING")
 
     def stop_preview_for_capture(self):
-        """Detiene el preview en la ventana principal."""
+        """Stop the calibration page's camera previews."""
         try:
-            main_window = self.parent()
-            if hasattr(main_window, 'stop_preview'):
-                main_window.stop_preview()
+            self.left_preview.stop_preview()
+            self.right_preview.stop_preview()
+            self.btn_preview_start.setEnabled(self.cameras_available)
+            self.btn_preview_stop.setEnabled(False)
+            self.btn_preview_start.setText("▶  Start Preview")
         except Exception as e:
             self.add_log_message(f"Error stopping preview: {e}", "WARNING")
 
-    def set_countdown_style(self, title, subtitle, seconds):
-        """Helper para cambiar el estilo del label de countdown."""
-        self.countdown_label.setText(f"{title}\n{subtitle}")
-        
-        if seconds > 3: # Normal
-            color, bg_color = ("#2196F3", "#E3F2FD")
-        elif seconds > 0: # Apunto de capturar
-            color, bg_color = ("#F44336", "#FFCDD2")
-        elif seconds == -1: # Procesando
-            color, bg_color = ("#FF9800", "#FFF9C4")
-        elif seconds == -2: # Éxito
-            color, bg_color = ("#2E7D32", "#C8E6C9")
-        elif seconds == -3: # Error
-            color, bg_color = ("#D32F2F", "#FFCDD2")
-        else: # Standby
-            color, bg_color = ("#333333", "#F5F5F5")
-            
-        self.countdown_label.setStyleSheet(f"background-color: {bg_color}; color: {color}; padding: 15px; border-radius: 5px; border: 2px solid {color}; font-size: 16px; font-weight: bold;")
+    # ── Calibration status ────────────────────────────────────────────────────
 
-    def update_progress(self, progress, message):
-        """Actualizar progreso (conectado al hilo)"""
+    def _load_current_calibration_status(self):
+        if self.camera_config.is_calibrated():
+            self.status_label.setText("✓ System Calibrated")
+            self.status_label.setStyleSheet(
+                f"color: {GREEN_ON}; font-weight: bold; font-size: 14px;"
+                f"background: transparent;"
+            )
+            if hasattr(self.camera_config, 'calibration_data'):
+                calib_data = self.camera_config.calibration_data
+                err = calib_data.get('calibration_error', 0)
+                date = calib_data.get('calibration_date', 'N/A')
+                self.details_label.setText(
+                    f"Date: {date}  ·  Reprojection error: {err:.3f} px"
+                )
+                self.details_label.setVisible(True)
+        else:
+            self.status_label.setText("✗ Calibration Required")
+            self.status_label.setStyleSheet(
+                f"color: {RED_OFF}; font-weight: bold; font-size: 14px;"
+                f"background: transparent;"
+            )
+            self.details_label.setVisible(False)
+
+    # ── Countdown helpers ─────────────────────────────────────────────────────
+
+    def _set_countdown_style(self, title, subtitle, seconds):
+        self.countdown_label.setText(f"{title}\n{subtitle}")
+        if seconds > 3:
+            color, bg = ACCENT_BLUE, "#1E3A5F"
+        elif seconds > 0:
+            color, bg = RED_OFF, "#450A0A"
+        elif seconds == -1:    # processing
+            color, bg = YELLOW_WARN, "#451A03"
+        elif seconds == -2:    # success
+            color, bg = GREEN_ON, "#052E16"
+        elif seconds == -3:    # error
+            color, bg = RED_OFF, "#450A0A"
+        else:                  # standby
+            color, bg = TEXT_SECONDARY, BG_CARD
+
+        self.countdown_label.setStyleSheet(
+            f"background-color: {bg}; color: {color};"
+            f"padding: 12px; border-radius: 6px; border: 1px solid {color};"
+            f"font-size: 14px; font-weight: bold;"
+        )
+
+    # ── Capture loop ──────────────────────────────────────────────────────────
+
+    def start_calibration(self):
+        reply = QMessageBox.question(
+            self, "Confirm Calibration",
+            f"This will capture {self.num_images_spin.value()} image pairs.\n\n"
+            "Start?",
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        self.btn_start.setEnabled(False)
+        self.btn_cancel.setEnabled(True)
+        self.progress_bar.setVisible(True)
+        self.progress_message.setVisible(True)
+
+        self.is_capturing    = True
+        self.images_to_capture = self.num_images_spin.value()
+        self.images_captured = 0
+
+        try:
+            self.capture_session_dir = self.stereo_camera.create_calibration_session_dir()
+            self.add_log_message(
+                f"Session created at: {self.capture_session_dir}", "INFO"
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Error", f"Could not create session directory: {e}"
+            )
+            self.cancel_calibration()
+            return
+
+        self._start_countdown(self.countdown_spin.value(), self._tick_initial)
+
+    def _start_countdown(self, seconds, tick_fn):
+        self.countdown_seconds = seconds
+        try:
+            self.countdown_timer.timeout.disconnect()
+        except TypeError:
+            pass
+        self.countdown_timer.timeout.connect(tick_fn)
+        self.countdown_timer.start(1000)
+        tick_fn()
+
+    def _tick_initial(self):
+        if self.countdown_seconds > 0:
+            self._set_countdown_style(
+                "PREPARE THE BOARD!",
+                f"Initial capture in: {self.countdown_seconds}s",
+                self.countdown_seconds,
+            )
+            self.countdown_seconds -= 1
+        else:
+            self.countdown_timer.stop()
+            self._capture_one_pair()
+
+    def _tick_between_shots(self):
+        if self.countdown_seconds > 0:
+            self._set_countdown_style(
+                "REPOSITION THE BOARD!",
+                f"Next capture in: {self.countdown_seconds}s",
+                self.countdown_seconds,
+            )
+            self.countdown_seconds -= 1
+        else:
+            self.countdown_timer.stop()
+            self._capture_one_pair()
+
+    def _capture_one_pair(self):
+        if not self.is_capturing:
+            return
+        self.progress_message.setText(
+            f"Capturing image {self.images_captured + 1} / {self.images_to_capture}..."
+        )
+        self.add_log_message(
+            f"Capturing pair {self.images_captured + 1}", "INFO"
+        )
+        self.stop_preview_for_capture()
+        QTimer.singleShot(500, self._execute_capture)
+
+    def _execute_capture(self):
+        try:
+            self.stereo_camera.capture_single_calibration_pair(
+                self.capture_session_dir, self.images_captured
+            )
+            self.images_captured += 1
+            progress = int((self.images_captured / self.images_to_capture) * 50)
+            self.progress_bar.setValue(progress)
+        except Exception as e:
+            self.add_log_message(f"Fatal capture error: {e}", "ERROR")
+            QMessageBox.critical(self, "Capture Error", f"Capture failed: {e}")
+            self.cancel_calibration()
+            return
+
+        if self.images_captured >= self.images_to_capture:
+            self.add_log_message("Image capture completed.", "INFO")
+            self._process_calibration_images()
+        else:
+            self.start_preview_for_positioning()
+            self._start_countdown(int(self.delay_spin.value()), self._tick_between_shots)
+
+    def _process_calibration_images(self):
+        self.add_log_message("Starting calibration processing...", "INFO")
+        self._set_countdown_style("PROCESSING", "Calculating parameters...", -1)
+        self.progress_message.setText("Processing images...")
+
+        self.processing_thread = CalibrationProcessingThread(
+            self.camera_config, self.capture_session_dir
+        )
+        self.processing_thread.progress_update.connect(self._update_progress)
+        self.processing_thread.log_message.connect(self.add_log_message)
+        self.processing_thread.calibration_complete.connect(self._on_calibration_complete)
+        self.processing_thread.start()
+
+    def _on_calibration_complete(self, success, result):
+        self.is_capturing = False
+
+        if success:
+            self.add_log_message("✓ Calibration completed successfully", "INFO")
+            self._set_countdown_style("CALIBRATION SUCCESSFUL", "System ready!", -2)
+            self.progress_bar.setValue(100)
+
+            avg_dist = result.get('average_distance_meters', 0) * 100
+            dist_msg = f"Average distance to board: {avg_dist:.1f} cm"
+            self.add_log_message(dist_msg, "INFO")
+
+            # Notify main window
+            self.calibration_updated.emit()
+
+            QMessageBox.information(
+                self, "Success",
+                f"Calibration completed and saved.\n\n{dist_msg}"
+            )
+
+            # Navigate back to dashboard after a short delay
+            QTimer.singleShot(500, lambda: self.window().navigate_to(0)
+                              if hasattr(self.window(), 'navigate_to') else None)
+        else:
+            error_details = result.get('error', 'Unknown error')
+            self.add_log_message(f"✗ Calibration failed: {error_details}", "ERROR")
+            self._set_countdown_style("CALIBRATION ERROR", "Check log and try again", -3)
+            QMessageBox.critical(
+                self, "Calibration Error", f"Calibration failed:\n\n{error_details}"
+            )
+            self._reset_ui_after_calibration()
+
+    # ── Progress / log ────────────────────────────────────────────────────────
+
+    def _update_progress(self, progress, message):
         self.progress_bar.setValue(progress)
         self.progress_message.setText(message)
-    
-    def reset_ui_after_calibration(self):
-        """Restaurar UI después de un fallo o cancelación."""
-        self.btn_start.setEnabled(self.cameras_available)  # Solo habilitar si hay cámaras
-        self.btn_process_existing.setEnabled(True)  # Siempre disponible
-        self.btn_cancel.setEnabled(False)
-        self.is_capturing = False
 
-        self.progress_bar.setVisible(False)
-        self.progress_message.setVisible(False)
-        self.set_countdown_style("Ready to (re)start", "Move this dialog to see the preview", 0)
+    def add_log_message(self, message, level="INFO"):
+        ts = datetime.now().strftime("%H:%M:%S")
+        color = {
+            "ERROR":   RED_OFF,
+            "WARNING": YELLOW_WARN,
+        }.get(level, TEXT_SECONDARY)
+        self.log_text.append(
+            f'<span style="color:{TEXT_DIM}">[{ts}]</span> '
+            f'<span style="color:{color}">{level}: {message}</span>'
+        )
+        self.log_text.verticalScrollBar().setValue(
+            self.log_text.verticalScrollBar().maximum()
+        )
 
-        # --- CORRECCIÓN ---
-        # Vuelve a iniciar el preview para que la app no se quede congelada (solo si hay cámaras)
-        self.start_preview_for_positioning()
-        # --- FIN CORRECCIÓN ---
-    
+    # ── Cancel / reset ────────────────────────────────────────────────────────
+
     def cancel_calibration(self):
-        """Cancelar todo el proceso."""
         self.add_log_message("Calibration canceled by user", "WARNING")
         self.is_capturing = False
-        
-        # Detener timers
+
         if self.countdown_timer.isActive():
             self.countdown_timer.stop()
-        
-        # Detener hilo de procesamiento si está activo
+
         if self.processing_thread and self.processing_thread.isRunning():
             self.processing_thread.stop()
-            self.processing_thread.wait(2000) # Esperar 2s
-        
-        self.reset_ui_after_calibration()
-        
-        # Asegurarse de que el preview se restaure
+            self.processing_thread.wait(2000)
+
+        self._reset_ui_after_calibration()
+
+    def _reset_ui_after_calibration(self):
+        self.btn_start.setEnabled(self.cameras_available)
+        self.btn_process_existing.setEnabled(True)
+        self.btn_cancel.setEnabled(False)
+        self.is_capturing = False
+        self.progress_bar.setVisible(False)
+        self.progress_message.setVisible(False)
+        self._set_countdown_style(
+            "Ready to start", "Use the buttons below", 0
+        )
         self.start_preview_for_positioning()
 
-    def process_existing_session(self):
-        """Procesar una sesión de calibración existente"""
-        from PyQt5.QtWidgets import QFileDialog
+    # ── Process existing session ──────────────────────────────────────────────
 
-        # Buscar sesiones de calibración disponibles
+    def process_existing_session(self):
+        from PyQt5.QtWidgets import QFileDialog, QInputDialog
+
         calibration_dir = Path("data/calibration")
         if not calibration_dir.exists():
-            QMessageBox.warning(self, "Error",
-                              "Calibration directory not found")
+            QMessageBox.warning(
+                self, "Error", "Calibration directory not found"
+            )
             return
 
-        # Encontrar sesiones (directorios que empiecen con "calibration_")
-        sessions = []
-        for item in calibration_dir.iterdir():
-            if item.is_dir() and item.name.startswith("calibration_") and not item.name.endswith("_BACKUP"):
-                # Verificar que tenga contenido de calibración
-                has_pairs = any(item.glob("calib_pair_*"))
-                if has_pairs:
-                    sessions.append(item)
+        sessions = [
+            item for item in calibration_dir.iterdir()
+            if item.is_dir()
+            and item.name.startswith("calibration_")
+            and not item.name.endswith("_BACKUP")
+            and any(item.glob("calib_pair_*"))
+        ]
 
         if not sessions:
-            QMessageBox.warning(self, "No Sessions",
-                              "No calibration sessions found.\n\n"
-                              "First you must capture calibration photos on the Raspberry Pi.")
+            QMessageBox.warning(
+                self, "No Sessions",
+                "No calibration sessions found.\n\n"
+                "First capture calibration photos on the Raspberry Pi."
+            )
             return
 
-        # Mostrar diálogo de selección
-        from PyQt5.QtWidgets import QInputDialog
-
-        session_names = [s.name for s in sorted(sessions, reverse=True)]  # Más reciente primero
+        session_names = [s.name for s in sorted(sessions, reverse=True)]
         session_name, ok = QInputDialog.getItem(
             self, "Select Session",
             "Select calibration session to process:",
-            session_names, 0, False
+            session_names, 0, False,
         )
-
         if not ok or not session_name:
             return
 
-        # Encontrar el directorio de la sesión seleccionada
         selected_session = calibration_dir / session_name
-
-        # Confirmar
         num_pairs = len(list(selected_session.glob("calib_pair_*")))
-        msg = QMessageBox.question(
+
+        reply = QMessageBox.question(
             self, "Confirm Processing",
             f"Session: {session_name}\n"
             f"Image pairs: {num_pairs}\n\n"
-            f"Process this session to recalibrate the system?",
-            QMessageBox.Yes | QMessageBox.No
+            "Process this session to recalibrate?",
+            QMessageBox.Yes | QMessageBox.No,
         )
-
-        if msg != QMessageBox.Yes:
+        if reply != QMessageBox.Yes:
             return
 
-        # Preparar UI
         self.add_log_message(f"Processing session: {session_name}", "INFO")
         self.btn_process_existing.setEnabled(False)
         self.btn_start.setEnabled(False)
@@ -574,34 +711,14 @@ class CalibrationDialog(QDialog):
         self.progress_message.setVisible(True)
         self.progress_bar.setValue(0)
 
-        # Iniciar procesamiento en hilo separado
         self.processing_thread = CalibrationProcessingThread(
             self.camera_config, selected_session
         )
-        self.processing_thread.progress_update.connect(self.update_progress)
+        self.processing_thread.progress_update.connect(self._update_progress)
         self.processing_thread.log_message.connect(self.add_log_message)
-        self.processing_thread.calibration_complete.connect(self.on_calibration_complete)
+        self.processing_thread.calibration_complete.connect(self._on_calibration_complete)
         self.processing_thread.start()
 
-    def closeEvent(self, event):
-        """Manejar cierre del diálogo."""
-        if self.is_capturing:
-            msg = QMessageBox.question(
-                self, "Calibration in Progress",
-                "Calibration is in progress. Do you want to cancel and close?",
-                QMessageBox.Yes | QMessageBox.No
-            )
-            if msg == QMessageBox.Yes:
-                self.cancel_calibration()
-                event.accept()
-            else:
-                event.ignore()
-        else:
-            # Solo iniciar preview si hay cámaras disponibles
-            if self.cameras_available:
-                self.start_preview_for_positioning()
-            event.accept()
 
-if __name__ == "__main__":
-    # Test del diálogo (requiere una app y mocks)
-    print("This dialog must be launched from main.py")
+# Alias for any code that still references the old QDialog name
+CalibrationDialog = CalibrationPage

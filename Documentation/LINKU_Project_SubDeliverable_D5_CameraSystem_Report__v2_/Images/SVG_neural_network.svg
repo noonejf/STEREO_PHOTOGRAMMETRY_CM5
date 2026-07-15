@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <g stroke="#3b1c61" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="50,15 80,32.5 80,67.5 50,85 20,67.5 20,32.5" />
+    
+    <!-- Lines to center -->
+    <line x1="50" y1="15" x2="50" y2="50" />
+    <line x1="80" y1="32.5" x2="50" y2="50" />
+    <line x1="80" y1="67.5" x2="50" y2="50" />
+    <line x1="50" y1="85" x2="50" y2="50" />
+    <line x1="20" y1="67.5" x2="50" y2="50" />
+    <line x1="20" y1="32.5" x2="50" y2="50" />
+    
+    <!-- Nodes -->
+    <circle cx="50" cy="50" r="7" fill="#3b1c61" stroke="none" />
+    <circle cx="50" cy="15" r="7" fill="#3b1c61" stroke="none" />
+    <circle cx="80" cy="32.5" r="7" fill="#3b1c61" stroke="none" />
+    <circle cx="80" cy="67.5" r="7" fill="#3b1c61" stroke="none" />
+    <circle cx="50" cy="85" r="7" fill="#3b1c61" stroke="none" />
+    <circle cx="20" cy="67.5" r="7" fill="#3b1c61" stroke="none" />
+    <circle cx="20" cy="32.5" r="7" fill="#3b1c61" stroke="none" />
+    
+    <!-- Inner dots -->
+    <circle cx="50" cy="50" r="2.5" fill="#ffffff" stroke="none" />
+    <circle cx="50" cy="15" r="2.5" fill="#ffffff" stroke="none" />
+    <circle cx="80" cy="32.5" r="2.5" fill="#ffffff" stroke="none" />
+    <circle cx="80" cy="67.5" r="2.5" fill="#ffffff" stroke="none" />
+    <circle cx="50" cy="85" r="2.5" fill="#ffffff" stroke="none" />
+    <circle cx="20" cy="67.5" r="2.5" fill="#ffffff" stroke="none" />
+    <circle cx="20" cy="32.5" r="2.5" fill="#ffffff" stroke="none" />
+  </g>
+</svg>

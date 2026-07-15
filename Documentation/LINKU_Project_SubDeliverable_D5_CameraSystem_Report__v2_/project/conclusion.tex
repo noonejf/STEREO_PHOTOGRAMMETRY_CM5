@@ -1,0 +1,64 @@
+\chapter{Conclusions}
+
+This work presented the conceptual design, optical characterization, experimental validation, and maturation roadmap of the LINKU stereo vision system for orbital tether observation. The study addressed the challenge of reconstructing the three-dimensional geometry of a thin, low-texture tether under visual conditions representative of Low Earth Orbit, including high radiometric contrast, directional illumination, limited background texture, and sub-pixel target visibility.
+\\\\
+The results demonstrate that orbital tether observation cannot be treated as a conventional texture-based photogrammetry problem. Instead, the tether must be reconstructed through a methodology that combines geometric continuity, radiometric localization, centerline extraction, and constrained stereo correspondence. This conclusion is central to the proposed LINKU camera system architecture.
+
+\section{Research objectives and contributions}
+
+The principal objective of this work was to evaluate whether a stereo vision system could provide useful geometric information for monitoring and characterizing a tethered satellite configuration. In particular, the system was intended to support deployment verification, three-dimensional tether reconstruction, oscillation analysis, and complementary interpretation of GNSS, inertial, and tether-tension measurements.
+\\\\
+This objective was addressed through four main contributions.
+
+\begin{enumerate}
+    \item The work established an optical observability framework for tether detection under orbital-like conditions. The analysis quantified the trade-off between field of view, pixel density, depth of field, geometric resolution, and radiometric detectability. It also showed that, at long observation distances, a millimeter-scale tether enters the sub-pixel regime, requiring radiometric detection rather than purely geometric edge measurement.
+    \item The study demonstrated the limitations of conventional photogrammetry for thin tether reconstruction. Standard feature-based methods have been shown to depend heavily on background texture and visual keypoints, making them unsuitable for isolated, low-texture tethered observation.
+    \item The work developed and validated a geometry-driven stereo reconstruction methodology. Unlike conventional approaches, the proposed framework treats the tether as a continuous geometric structure and reconstructs its spatial trajectory by extracting the centerline, establishing stereo correspondence, and performing triangulation.
+    \item The study clarified the role of AI within the LINKU architecture. Rather than adopting AI as the primary reconstruction engine, the results support its use as a targeted assistance layer for two components: cable segmentation, already implemented and trained on laboratory data, and AI-assisted wire path tracking, which unifies ordinary path tracing and topological knot/crossing resolution into a single proposed component and is currently at the dataset-collection stage.
+\end{enumerate}
+
+\section{Principal findings}
+
+The principal findings of this work are summarized as follows:
+\\\\
+
+\begin{itemize}
+    \item Conventional photogrammetry is not suitable as the primary reconstruction strategy for orbital tether observation. Its dependence on texture, stable visual features, and dense correspondence makes it unreliable for thin, low-texture targets observed against dark backgrounds.
+    \item The tether observation problem contains two distinct detection regimes. In the near field, where the tether occupies at least one pixel, geometric edge and centerline extraction remain viable. In the far field, where the tether becomes sub-pixel, radiometric localization becomes the dominant detection mechanism.
+    \item Increasing sensor resolution improves long-range pixel occupancy but does not eliminate the sub-pixel regime at mission-relevant distances. Therefore, optical design must be combined with radiometric and geometry-driven processing.
+    \item The proposed geometry-driven reconstruction framework successfully recovered physically plausible tether geometries under both planar and volumetric configurations. This validates the use of constrained stereo geometry for thin tether reconstruction under low-texture conditions.
+    \item Topological crossings and self-intersections remain challenging localized cases. These ambiguities do not invalidate the reconstruction framework, but they require additional temporal tracking or topology-aware support for fully autonomous operation.
+    \item End-to-end generative AI reconstruction is not currently appropriate as the primary source of scientific tether geometry because of computational cost, limited physical traceability, and the risk of hallucinated geometry.
+    \item Targeted AI assistance remains promising for two well-bounded tasks: robust mask generation (already implemented) and wire path tracking under both simple and topologically ambiguous configurations (proposed, not yet implemented), provided that the final geometric reconstruction remains constrained by physically interpretable stereo methods.
+\end{itemize}
+
+\section{Validation of the proposed framework}
+
+The proposed framework was validated through a progressive experimental strategy. The first stage established the failure modes of conventional photogrammetry. The second stage demonstrated the feasibility of geometry-driven reconstruction using controlled stereo datasets. The third stage assessed AI-based methods as exploratory support tools rather than operational reconstruction methods.
+\\\\
+The experimental results confirm that the LINKU stereo vision system can extract and reconstruct tether-like geometries under controlled space-emulated visual conditions. The use of a dark enclosure, directional illumination, stereo acquisition, and a 1 mm tether proxy provided a representative laboratory environment for evaluating the principal optical constraints expected in orbit.
+\\\\
+The validation does not imply that the current prototype is flight-ready. However, it demonstrates that the core observation principle is technically feasible. The system can detect and reconstruct thin tether geometries when the target is visible, sufficiently contrasted, and not severely affected by saturation, glare, or unresolved topological ambiguity.
+\\\\
+The resulting architecture is therefore suitable as a proof-of-concept baseline for future maturation. Lightweight onboard processing can be used for image selection, tether presence verification, and data prioritization, while full three-dimensional reconstruction and advanced topology analysis can be performed on the ground segment.
+
+\section{Scientific and engineering contributions}
+
+This work contributes to the development of optical monitoring systems for tethered satellite missions in three main ways.
+\\\\
+From a scientific perspective, it demonstrates that tether observation in orbit should be modeled as a geometric and radiometric detection problem rather than as a conventional photogrammetric reconstruction problem. This distinction is essential for thin, low-texture structures whose apparent image footprint may fall below one pixel at long range.
+\\\\
+From a methodological perspective, the work proposes a reconstruction strategy that replaces texture matching with centerline extraction, geometric continuity, epipolar constraints, and stereo triangulation. This provides a physically interpretable alternative for reconstructing slender structures under sparse visual conditions.
+\\\\
+From an engineering perspective, the work defines a practical development path to transform a laboratory prototype into a flight-compatible observation instrument. The proposed roadmap includes robustness improvements, topology-aware processing, targeted AI support, onboard processing benchmarks, and environmental qualification of candidate hardware.
+\\\\
+Together, these contributions provide a foundation for future tether monitoring systems capable of supporting deployment verification, anomaly identification, shape reconstruction, and post-deployment dynamic analysis.
+
+\section{Final remarks}
+
+The LINKU stereo vision system has progressed from an optical observation concept to an experimentally validated reconstruction approach for thin tether-like structures. The work showed that conventional photogrammetry is insufficient for this application, while geometry-driven stereo reconstruction provides a more appropriate and scientifically interpretable solution.
+\\\\
+The proposed framework does not eliminate all challenges associated with orbital tether observation. Specular saturation, intermittent visibility, self-intersections, and flight hardware constraints remain important areas for future development. Nevertheless, the results establish a clear technical basis for continued maturation.
+\\\\
+The most important conclusion is that reliable tether reconstruction is achievable when the problem is approached by leveraging the target's physical characteristics: thin geometry, radiometric contrast, geometric continuity, and stereo constraints. This principle defines the core contribution of the LINKU camera system and provides a practical path toward autonomous visual monitoring of tethered satellite systems in future orbital missions.
+

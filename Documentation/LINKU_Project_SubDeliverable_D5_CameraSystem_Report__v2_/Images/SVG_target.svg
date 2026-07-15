@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <g stroke="#2a4494" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Center 45, 55 -->
+    <!-- Inner circle -->
+    <circle cx="45" cy="55" r="16" />
+    <!-- Center dot -->
+    <circle cx="45" cy="55" r="4" fill="#2a4494" stroke="none" />
+    <!-- Outer circle with gap top-right -->
+    <path d="M 65 35 A 28 28 0 1 0 73 55" />
+    
+    <!-- Arrow -->
+    <line x1="85" y1="15" x2="45" y2="55" />
+    <!-- Arrow head -->
+    <polygon points="45,55 58,48 48,58" fill="#2a4494" stroke="none" stroke-linejoin="miter" />
+    <!-- Feathers -->
+    <line x1="75" y1="15" x2="85" y2="25" />
+  </g>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <g stroke="#3b1c61" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Dashed arc -->
+    <path d="M 15 75 A 35 35 0 1 1 80 40" stroke-dasharray="8,8" stroke-width="4" />
+    <!-- Jagged surface -->
+    <polyline points="10,85 25,70 40,85 55,65 70,75 85,60 95,70" />
+    
+    <!-- Circle and X -->
+    <circle cx="70" cy="65" r="14" fill="#ffffff" />
+    <circle cx="70" cy="65" r="14" />
+    <line x1="56" y1="51" x2="84" y2="79" stroke-width="5" />
+    <line x1="84" y1="51" x2="56" y2="79" stroke-width="5" />
+  </g>
+</svg>

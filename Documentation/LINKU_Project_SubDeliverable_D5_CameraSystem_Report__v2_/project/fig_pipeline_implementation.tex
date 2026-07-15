@@ -1,0 +1,32 @@
+\begin{figure}[!ht]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[
+        font=\scriptsize,
+        node distance = 9mm,
+        stage/.style   = {rectangle, draw, rounded corners, fill=blue!8,
+                          text width=2.7cm, align=center, minimum height=1.5cm},
+        note/.style    = {text width=2.7cm, align=center, font=\tiny, text=black!65},
+        arr/.style     = {-{Stealth[length=2mm]}, thick},
+    ]
+
+    \node[stage] (capture)  {\textbf{1. Capture}\\Synchronized stereo pair};
+    \node[stage, right=of capture]  (seg)      {\textbf{2. Segmentation}\\Image $\rightarrow$ binary cable mask};
+    \node[stage, right=of seg]      (endpoints){\textbf{3. Endpoints}\\Mask $\rightarrow$ the two loose ends};
+    \node[stage, right=of endpoints](track)    {\textbf{4. Path tracing}\\Ends $\rightarrow$ ordered points along the thread};
+    \node[stage, right=of track]    (match)    {\textbf{5. Stereo matching}\\Left/right path correspondence};
+    \node[stage, right=of match]    (metrics)  {\textbf{6. Triangulation}\\3D coordinates \& metrics};
+
+    \draw[arr] (capture) -- (seg);
+    \draw[arr] (seg) -- (endpoints);
+    \draw[arr] (endpoints) -- (track);
+    \draw[arr] (track) -- (match);
+    \draw[arr] (match) -- (metrics);
+
+    \node[note, below=4mm of seg]   {HSV threshold (classical) \emph{or} Random Forest classifier (AI, implemented)};
+    \node[note, below=4mm of track] {SmartWireTracker search (classical, implemented) \emph{or} learned scorer (AI, proposed)};
+
+    \end{tikzpicture}}
+    \caption[Implementation-level view of the Phase II reconstruction pipeline]{Implementation-level view of the Phase II (geometry-driven) reconstruction pipeline. The six boxes are the processing stages, each labeled with the transformation it performs. Where a stage currently offers more than one implementation -- segmentation and path tracing -- the classical method already implemented and the AI-assisted alternative are noted underneath; all other stages have a single, classical implementation today. Algorithm-level detail for each stage is given in the surrounding text rather than in the diagram.}
+    \label{fig:pipeline-implementation}
+\end{figure}

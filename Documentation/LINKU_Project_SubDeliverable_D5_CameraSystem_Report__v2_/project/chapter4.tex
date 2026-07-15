@@ -1,0 +1,275 @@
+\chapter{Experimental and processing approaches}
+\label{chap:experimental-processing-approaches}
+
+This chapter defines the experimental and methodological framework used to evaluate the feasibility of optical tether observation and geometric reconstruction under representative orbital-like conditions. Based on the optical and radiometric constraints established previously, the methodology was designed to progressively evaluate the limitations of conventional reconstruction methods and validate alternative approaches specifically adapted to thin, textureless tether structures.
+\\\\
+The proposed validation strategy follows a progressive transition from conventional feature-based photogrammetry toward geometry-driven reconstruction and exploratory AI-assisted processing. Rather than treating all reconstruction approaches equivalently, the methodology intentionally prioritizes physically interpretable geometric extraction methods capable of operating under sparse visual conditions and extreme radiometric contrast.
+\\\\
+The complete framework is organized into three global development phases:
+
+\begin{itemize}
+    \item Phase I: Evaluation of conventional photogrammetry methods under terrestrial and space-emulated visual conditions to establish the operational limitations of standard feature-matching approaches.
+    \item Phase II: Development and validation of a custom geometry-driven reconstruction pipeline based on edge extraction, radiometric centroiding, and stereo geometric constraints.
+    \item Phase III: Exploratory evaluation of AI-assisted reconstruction techniques intended to support future improvements in segmentation robustness and complex topology reconstruction.
+\end{itemize}
+
+Together, these phases establish a progressive methodological roadmap for the LINKU stereo vision system.
+\newpage
+\clearpage
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{Images/Figure 4.1.png}
+    \caption[Methodological roadmap of the LINKU stereo vision system validation strategy]{Methodological roadmap of the LINKU stereo vision system validation strategy. The framework progressively transitions from conventional texture-based photogrammetry toward a geometry-driven stereo reconstruction methodology and exploratory AI-assisted enhancements under increasingly constrained orbital-like optical conditions. The roadmap highlights the progressive evolution from feature-based reconstruction failure analysis to physically interpretable tether reconstruction adapted to thin sub-pixel structures.}
+    \label{fig:figure4.1}
+\end{figure}
+
+Rather than directly attempting end-to-end reconstruction under fully space-emulated conditions, the proposed methodology progressively isolates the principal failure modes associated with thin tether observation, including low texture, sub-pixel geometry, directional illumination, and radiometric instability.
+\\\\
+This progressive validation strategy enables analysis of the reconstruction problem with increasing optical and computational complexity while maintaining traceability between the optical constraints identified in Chapter 3 and the observed reconstruction behavior under representative orbital-like conditions.
+\\\\
+As a result, the framework establishes a transition from conventional texture-based photogrammetry to a dedicated geometry-driven stereo reconstruction methodology adapted to thin, sub-pixel tether structures under high-contrast, orbital-like illumination.
+
+\section{Phase I: Standard photogrammetry baseline}
+
+Phase I establishes the experimental baseline used to evaluate conventional photogrammetry methods under progressively constrained visual conditions representative of orbital tether observation. Its purpose is to empirically establish the operational limitations of conventional texture-based photogrammetry for thin tether observation under representative orbital-like optical conditions.
+\\\\
+This phase assesses the applicability of feature-based stereo reconstruction approaches to geometries and illumination conditions relevant to the LINKU mission. In particular, the methodology evaluates the influence of:
+
+\begin{itemize}
+    \item Environmental texture
+    \item Geometric scale
+    \item Directional illumination
+    \item High-contrast backgrounds
+\end{itemize}
+
+On the operation of conventional Structure-from-Motion (SfM) and stereo matching algorithms.
+\\\\
+The experiments were conducted using Agisoft Metashape as the reference photogrammetry platform. The evaluation considered:
+
+\begin{itemize}
+    \item Camera alignment behavior
+    \item Disparity-map generation
+    \item Stereo correspondence consistency
+    \item Point-cloud reconstruction capability
+\end{itemize}
+
+As illustrated in the methodological roadmap presented in Figure 4.1, the Phase I methodology is organized into two principal processing stages:
+
+\vspace{0.5cm}
+\noindent \textbf{Progressive baseline validation}
+\vspace{0.2cm}
+
+Phase I was structured as a progressive validation sequence intended to incrementally approximate the optical conditions expected during orbital tether observation.
+\\\\
+The methodology begins with the reconstruction of a volumetric object containing easily distinguishable geometric features under controlled environmental conditions. This initial stage establishes a reference baseline for evaluating conventional feature-based reconstruction behavior under textured terrestrial environments.
+\\\\
+Subsequently, the validation sequence transitions toward thin tether observation using a tether proxy operating under progressively constrained visual conditions. This progression allows evaluation of conventional stereo reconstruction methods as the observed geometry evolves from feature-rich volumetric structures toward thin sub-pixel line-like objects representative of the LINKU operational scenario.
+
+\vspace{0.5cm}
+\noindent \textbf{Reconstruction stability assessment}
+\vspace{0.2cm}
+
+This second stage evaluates reconstruction stability under progressively constrained visual environments representative of orbital-like observation conditions.
+\\\\
+The analysis considers the influence of:
+
+\begin{itemize}
+    \item Reduced environmental texture
+    \item Dark backgrounds
+    \item Directional high-contrast illumination
+    \item Geometric scale reduction
+\end{itemize}
+
+On the stability of conventional photogrammetry algorithms.
+\\\\
+Particular attention is placed on evaluating:
+
+\begin{itemize}
+    \item Camera alignment stability
+    \item Disparity-map consistency
+    \item Stereo correspondence reliability
+    \item Point-cloud reconstruction capability
+\end{itemize}
+
+Under conditions where conventional texture-based feature matching becomes increasingly limited.
+\\\\
+This validation framework establishes a controlled methodological progression for evaluating the operational applicability of conventional photogrammetry, as shown in Figure \ref{fig:figure4.2}, prior to implementing the geometry-driven reconstruction methodology introduced in Phase II.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{Images/Figure 4.2.png}
+    \caption[Methodological flow and evaluation focus adopted during Phase I]{Methodological flow and evaluation focus adopted during Phase I. The validation sequence progressively transitions from controlled volumetric-object reconstruction toward thin tether observation under increasingly constrained orbital-like optical conditions.}
+    \label{fig:figure4.2}
+\end{figure}
+
+\vspace{0.5cm}
+\noindent \textbf{Traditional dense stereo pathway retained in the current software}
+\vspace{0.2cm}
+
+Alongside the external Agisoft Metashape experiments described above, the LINKU software itself still retains a conventional, cable-agnostic dense stereo processing path. It is not a separate tool: it is the same \texttt{process\_stereo\_pair} routine used throughout this work, running with no cable mask supplied, which is exactly what happens if the operator skips the segmentation-tuning step described in Phase II. Figure \ref{fig:pipeline-phase1-dense-stereo} shows this pathway for completeness, since it remains available in the current implementation as the software's own conventional/baseline processing mode, distinct from the dedicated geometry-driven pipeline introduced in Phase II.
+
+\input{project/fig_pipeline_phase1_dense_stereo.tex}
+
+\section{Phase II: Geometry-driven stereo reconstruction}
+\label{sec:Geometry-driven stereo reconstruction}
+
+Phase II is the primary reconstruction approach of the LINKU camera system. After explaining the methodological limitations identified during Phase I, Phase II introduces a dedicated reconstruction framework tailored to thin tether structures operating under low-texture, high-contrast, orbital-like optical conditions.
+\\\\
+Unlike conventional photogrammetry approaches, the proposed methodology does not rely primarily on texture-based feature correspondence. Instead, the reconstruction strategy treats the tether as a continuous geometric structure whose detectability is governed mainly by radiometric contrast, geometric continuity, and constrained stereo geometry, as shown in Figure \ref{fig:figure4.3}.
+\\\\
+This phase establishes a physically interpretable reconstruction methodology that operates under the sub-pixel observation conditions derived in Chapter 3.
+\newpage
+\clearpage
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{Images/Figure 4.3.png}
+    \caption[Conceptual overview of the geometry-driven reconstruction pipeline proposed for thin tether observation in the sub-pixel regime]{Conceptual overview of the geometry-driven reconstruction pipeline proposed for thin tether observation in the sub-pixel regime. The workflow illustrates the progressive transition from raw stereo image acquisition under high-contrast orbital-like illumination toward constrained three-dimensional tether reconstruction. The methodology includes: (1) acquisition of synchronized stereo images, (2) intensity-based tether extraction and background suppression, (3) sub-pixel centerline estimation through radiometric centroiding, (4) geometric curve tracking for continuous tether representation, (5) stereo correspondence establishment using epipolar geometric constraints, and (6) three-dimensional reconstruction through triangulation of the stereo-associated tether geometry. The figure highlights the transition from conventional texture-dependent processing toward radiometric and geometry-driven reconstruction methods adapted to thin low-texture structures under orbital-like optical conditions.}
+    \label{fig:figure4.3}
+\end{figure}
+
+Figure \ref{fig:figure4.3} presents the conceptual view of this pipeline. Figure \ref{fig:pipeline-implementation} complements it by naming the specific algorithms used in the current software implementation, including the classical and AI-assisted variants evaluated for each stage.
+
+\input{project/fig_pipeline_implementation.tex}
+
+As illustrated in the methodological roadmap presented in Figure 4.1, the Phase II methodology is organized into four principal processing stages:
+
+\vspace{0.5cm}
+\noindent \textbf{Intensity-based extraction and background suppression}
+\vspace{0.2cm}
+
+Once stereo images have been acquired from both cameras, the reconstruction process begins with intensity-based extraction and background suppression under controlled illumination conditions designed to maximize radiometric contrast between the tether and the surrounding background. Since the orbital environment is expected to exhibit minimal texture, the methodology prioritizes isolating radiometric response and localized contrast enhancement over conventional feature extraction.
+\\\\
+This initial stage focuses on isolating the tether's radiometric signature while minimizing the effects of background noise, localized reflections, and non-uniform illumination.
+\\\\
+Under sub-pixel observation regimes, the tether may no longer remain conventionally observable as a fully resolvable geometric structure. Instead, its detectability becomes increasingly dependent on the isolation of localized intensity variations generated within the image plane.
+\\\\
+The resulting segmented representation establishes the initial geometric reference used for the subsequent centerline estimation and stereo reconstruction stages.
+
+\noindent \textbf{Centerline estimation and radiometric centroiding}
+\vspace{0.2cm}
+
+Following intensity-based extraction and background suppression, the tether is represented in both stereo images as a thin line-like radiometric structure whose apparent position must be estimated with sub-pixel precision.
+\\\\
+At this stage, the methodology estimates the geometric centerline of the tether and its radiometric centroid from localized intensity distributions. Instead of relying on conventional textured keypoints, the reconstruction framework uses edge-based localization and radiometric analysis to estimate the apparent tether trajectory in the image plane.
+\\\\
+This approach is conceptually aligned with line-profile analysis methods such as Steger's framework \cite{steger2000subpixel}, in which line-like structures are characterized by local intensity gradients and scale-space behavior. In this context, centerline estimation allows the tether to be represented as a continuous geometric trajectory inferred from its radiometric response rather than from explicitly resolvable geometric boundaries.
+\\\\
+Under sub-pixel observation conditions, radiometric centroiding becomes particularly important because the tether may no longer remain fully observable as a conventionally resolvable structure. Consequently, the apparent tether position is estimated from the radiometric distribution associated with the observed line response, enabling sub-pixel localization of the tether trajectory prior to stereo correspondence and three-dimensional reconstruction.
+
+\vspace{0.5cm}
+\noindent \textbf{Geometric curve tracking and stereo correspondence}
+\vspace{0.2cm}
+
+Once the tether centerline has been estimated in both stereo views, the methodology performs geometric curve tracking and stereo correspondence in order to establish consistent associations between the tether trajectories observed in each image plane.
+\\\\
+Rather than treating the tether as a collection of independent feature points, the reconstruction framework models it as a continuous geometric structure whose trajectory can be constrained spatially and radiometrically across both stereo observations. This approach prioritizes geometric continuity and trajectory coherence instead of conventional dense texture matching.
+\\\\
+At this stage, epipolar geometry is used to constrain the stereo correspondence search along the extracted tether trajectories, reducing ambiguity in low-texture regions and improving geometric consistency between both image planes.
+\\\\
+Because the tether behaves as a continuous line-like structure under sub-pixel observation conditions, geometric curve tracking becomes particularly important for preserving trajectory continuity during stereo association. Consequently, the methodology prioritizes constrained stereo correspondence and continuous geometric tracking rather than independent point-feature matching.
+
+\vspace{0.5cm}
+\noindent \textbf{Constrained three-dimensional reconstruction}
+\vspace{0.2cm}
+
+The final stage of the methodology consists of constrained three-dimensional reconstruction based on the stereo correspondence relationships established between both image planes.
+\\\\
+At this stage, the stereo-associated tether trajectories are processed using constrained stereo geometry to infer the three-dimensional spatial configuration of the tether under sub-pixel observation conditions. Unlike conventional dense photogrammetry approaches, the methodology does not seek to reconstruct volumetric point clouds or texture-rich surfaces. Instead, the reconstruction framework focuses on recovering the continuous geometric behavior of the tether throughout the observed operational range.
+\\\\
+The primary objective of this stage is to reconstruct the spatial trajectory of the tether, curvature evolution, oscillatory behavior, and temporal geometric dynamics.
+
+Because the tether behaves as a continuous, line-like structure with limited geometric observability, the reconstruction process prioritizes trajectory continuity and constrained geometric consistency across stereo observations over dense feature correspondence.
+\\\\
+The resulting framework establishes the primary operational reconstruction methodology of the LINKU stereo vision system and serves as the basis for the experimental hardware implementation and validation environments described in Chapter 5.
+
+\section{Phase III: AI-Assisted reconstruction (Exploratory)}
+ 
+Phase III investigates the future integration of Artificial Intelligence (AI) techniques intended to complement the geometry-driven reconstruction framework established in Phase II.
+\\\\
+This phase will not replace the deterministic reconstruction methodology based on constrained stereo geometry, geometric curve tracking, and radiometric localization, but rather evaluate the potential of AI-assisted approaches to improve the robustness of intensity-based extraction, geometric trajectory continuity, and operation under visually ambiguous conditions.
+\\\\
+As illustrated in the methodological roadmap in Figure \ref{fig:figure4.1}, the exploratory AI-assisted framework primarily supports the reconstruction stages already established during Phase II.
+\newpage
+\clearpage
+
+\noindent \textbf{Current implementation status}
+\vspace{0.2cm}
+
+Phase III groups together three AI-related directions with markedly different levels of maturity. Rather than presenting all three as equally exploratory, this report distinguishes explicitly between the direction that has already produced a working implementation, the direction for which only data-collection infrastructure exists, and the direction that remains a documented idea without any corresponding code. Figure \ref{fig:ai-status} summarizes this distinction, which is elaborated in the three subsections below.
+
+\input{project/fig_ai_status.tex}
+
+\noindent \textbf{1. Learning-assisted intensity-based extraction}
+\vspace{0.2cm}
+
+The first exploratory direction considers using learning-based methods to improve intensity-based extraction and background suppression under challenging radiometric conditions.
+\\\\
+Although the deterministic extraction approach developed in Phase II prioritizes physically interpretable processing, AI-assisted methods may provide additional robustness under conditions involving non-uniform illumination, intermittent tether visibility, partial saturation, and localized blooming artifacts, as shown in Figure \ref{fig:figure4.4}.
+\\\\
+Unlike the other two exploratory directions discussed in this section, this direction has already produced a first working implementation, integrated into the same laboratory software used for the Phase II experiments. A pixel-level Random Forest classifier was trained to segment the tether from the background, using nine features per pixel (RGB, HSV, and a local-contrast measure derived from a difference of Gaussian blurs). The training set consisted of 6 manually annotated stereo pairs, expanded to 60 images through horizontal/vertical flipping and brightness augmentation ($\pm$35 levels), and evaluated with an F1-score of 0.97 (precision 0.94, recall 0.99). This evaluation was performed on the training set itself; a held-out validation split has not yet been implemented, so the reported score should be read as an upper bound on current performance rather than a generalization estimate. The trained model is selectable as an alternative to manual HSV thresholding directly within the segmentation tuning interface, and every new mask produced through either method can be added to the training set, allowing the model to be iteratively re-trained as more laboratory sessions are collected.
+\\\\
+Potential further approaches include:
+
+\begin{itemize}
+    \item Convolutional neural networks (CNNs), which would replace the current hand-crafted per-pixel features with learned spatial features
+    \item Full semantic segmentation architectures (e.g. U-Net-style encoder-decoders)
+    \item Hybrid image-enhancement pipelines
+\end{itemize}
+
+This stage assists the intensity-based extraction and background suppression processes while preserving compatibility with the geometry-driven reconstruction framework established in Phase II.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.5\textwidth]{Images/Figure 4.4.png}
+    \caption[Conceptual overview of learning-assisted intensity-based extraction under challenging radiometric conditions]{Conceptual overview of learning-assisted intensity-based extraction under challenging radiometric conditions. AI-based segmentation approaches are investigated to improve tether extraction and background suppression in scenarios involving non-uniform illumination, intermittent visibility, partial saturation, and localized blooming artifacts. This stage enhances the robustness of the initial radiometric extraction process while preserving compatibility with the deterministic geometry-driven framework.}
+    \label{fig:figure4.4}
+\end{figure}
+\newpage
+\clearpage
+
+\noindent \textbf{2. AI-assisted wire path tracking (including knot / crossing resolution)}
+\vspace{0.2cm}
+
+The second exploratory direction investigates the use of AI-assisted methods to support geometric curve tracking and stereo correspondence under geometrically ambiguous tether configurations.
+\\\\
+This includes scenarios involving tether crossings, partial self-occlusion, rapid oscillatory motion, and discontinuous radiometric visibility, as seen in Figure \ref{fig:figure4.5}. Earlier drafts of this report discussed ``learning-assisted path tracking'' and ``topological knot solving'' as two separate future capabilities. They are treated here as a single AI component instead, because they solve the same underlying problem: given a segmented thread image, determine the correct continuous path from one end to the other. An untangled thread simply presents fewer ambiguous decision points along that path than a self-crossing or knotted one.
+\\\\
+This direction is presently at an earlier stage than the segmentation model described above. The current software already collects the training data it would require: every path traced through the deterministic tracker, or drawn manually by an operator, is stored together with its stereo image pair and segmentation mask in a dedicated dataset (1 stereo sample so far; 30--100 are recommended before training is attempted). However, no learning-based tracker has been trained or implemented to date.
+\\\\
+Rather than leaving the target architecture undefined, Figure \ref{fig:ai-proposed-tracker} proposes a concrete design that builds directly on the classical tracker already implemented (Section \ref{sec:Geometry-driven stereo reconstruction}, Figure \ref{fig:pipeline-implementation}): the same step-by-step search over the segmented mask is kept unchanged, and only the local decision made at each branch point is replaced -- from a fixed, hand-tuned scoring formula to a lightweight classifier trained on the paths already being collected. Because that classifier is invoked identically at every branch point, whether there are none (a straight, untangled thread) or many (a knotted one), a single trained model would cover both cases without requiring a separate topology-reasoning module.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.5\textwidth]{Images/Figure 4.5.png}
+    \caption[Conceptual overview that illustrates reconstruction support under geometrically ambiguous conditions]{Conceptual overview that illustrates reconstruction support under geometrically ambiguous conditions. AI-assisted methods are explored to improve geometric curve tracking and stereo correspondence in scenarios involving tether crossings, partial self-occlusion, rapid oscillatory motion, and discontinuous radiometric visibility. The figure highlights the incorporation of temporal consistency, geometric priors, and learned radiometric behavior to support continuity in reconstruction when deterministic correspondence becomes unreliable.}
+    \label{fig:figure4.5}
+\end{figure}
+
+\input{project/fig_ai_proposed_tracker.tex}
+\newpage
+\clearpage
+
+\noindent \textbf{3. Neural rendering and future reconstruction approaches}
+\vspace{0.2cm}
+
+The final exploratory direction considers the potential future integration of neural rendering approaches, including Neural Radiance Fields (NeRFs) and related implicit scene representation techniques.
+\\\\
+These methods may offer future capabilities for multi-view geometric interpretation, radiometric interpolation, and reconstruction of sparse visual structures under limited observation conditions, as illustrated in Figure \ref{fig:figure4.6}.
+\\\\
+Potential future implementations may additionally incorporate techniques such as \textit{Textual Inversion for tether-specific radiometric adaptation} and \textit{Score Distillation Sampling (SDS) for geometry-consistent neural rendering optimization}
+\\\\
+However, the direct application of these approaches to orbital tether reconstruction remains constrained by several practical limitations, including a lack of representative datasets, computational complexity, sparse visual texture, and highly dynamic illumination conditions. For this reason, AI integration is currently treated as a future-oriented augmentation layer rather than as the primary operational reconstruction methodology of the LINKU stereo vision system.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.5\textwidth]{Images/Figure 4.6.png}
+    \caption[Conceptual overview that presents exploratory neural rendering and future reconstruction approaches]{Conceptual overview that presents exploratory neural rendering and future reconstruction approaches based on implicit scene-representation techniques such as Neural Radiance Fields (NeRFs), Textual Inversion, and Score Distillation Sampling (SDS). These methods are investigated for future applications involving multi-view geometric interpretation, radiometric interpolation, sparse-structure reconstruction, and novel-view synthesis under limited observation conditions.}
+    \label{fig:figure4.6}
+\end{figure}
+
+\newpage
+\clearpage
+
+The resulting Phase III framework establishes a preliminary research direction for future system maturation while preserving the geometry-driven reconstruction methodology of Phase II as the principal operational strategy for reconstruction.

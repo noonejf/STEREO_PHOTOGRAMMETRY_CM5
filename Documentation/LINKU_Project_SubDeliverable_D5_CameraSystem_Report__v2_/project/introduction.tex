@@ -1,0 +1,40 @@
+\chapter*{Introduction}
+\addcontentsline{toc}{chapter}{Introduction}
+
+The LINKU mission involves the operation of a tethered multi-satellite configuration in Low Earth Orbit, where visual information can provide valuable support for deployment verification, anomaly detection, and post-deployment dynamic characterization. A central element of this capability is a dedicated stereo vision system designed to observe the tether during deployment and to support geometric reconstruction after the tethered configuration stabilizes.
+\\\\
+Unlike conventional spacecraft telemetry, which provides indirect or localized measurements, a stereo camera system can provide direct visual information about the physical shape and spatial evolution of the tether. This capability is relevant because the tether may experience curvature, oscillations, partial out-of-plane motion, rebounds, slack conditions, or entanglement during different mission stages. Visual reconstruction can therefore complement GNSS, inertial, and tether-tension measurements by adding spatial context to the interpretation of tether dynamics.
+\\\\
+However, observing a tether in orbit presents significant optical and computational challenges. Conventional terrestrial photogrammetry assumes textured surfaces, diffuse illumination, and visually rich environments that support feature extraction and image matching. These assumptions are not valid for the LINKU observation scenario, where the tether is thin, nearly textureless, and expected to be observed against a low-radiance background under highly directional illumination. As a result, the problem must be treated as a geometric and radiometric detection problem rather than as a standard texture-based reconstruction task.
+\\\\
+This report addresses that problem through a progressive validation strategy. First, the operational role of the stereo vision system is defined in relation to the LINKU mission. Then, the optical and radiometric limits of tether observation are analyzed to determine the conditions under which the tether can be geometrically resolved or detected as a sub-pixel radiometric feature. Based on these constraints, the report presents an experimental and processing framework that compares conventional photogrammetry, a geometry-driven stereo reconstruction approach, and exploratory AI-assisted methods.
+\\\\
+The document is organized as follows:
+
+\begin{itemize}
+    \item Chapter 1: Defines the operational concept of the stereo vision system and its role within the LINKU mission.
+    \item Chapter 2: Reviews previous tethered missions and the state of the art in reconstruction methods for slender structures.
+    \item Chapter 3: Develops the theoretical and optical analysis required to evaluate tether observability.
+    \item Chapter 4: Presents the experimental and processing methodology.
+    \item Chapter 5: Describes the hardware configuration and laboratory validation environment.
+    \item Chapter 6: Presents the experimental results and comparative discussion of the proposed reconstruction strategies.
+    \item Chapter 7: Outlines the future work and system maturation roadmap.
+    \item Chapter 8: Summarizes the principal conclusions and contributions of the study.
+\end{itemize}
+
+\vspace{0.5cm}
+\noindent \textbf{Objectives of the Stereo Vision System and validation scope}
+\vspace{0.2cm}
+
+The stereo vision system is intended to support the LINKU mission by providing direct visual and geometric information about the tethered satellite configuration. Its primary mission-level objectives are:
+
+\begin{itemize}
+    \item To verify the nominal deployment of the tether and identify possible anomalies during the separation process between satellites.
+    \item To characterize the three-dimensional spatial geometry of the tether during post-deployment operations.
+    \item To support the analysis of tether oscillations, curvature, and deformation through stereo geometric reconstruction.
+    \item To provide visual geometric information complementary to GNSS, inertial, and tether-tension measurements.
+\end{itemize}
+
+In addition to these mission-level objectives, this report focuses on the experimental validation of the optical observation and reconstruction strategy. Specifically, it evaluates whether a thin tether-like structure can be detected and reconstructed under representative orbital-like visual conditions, including low background texture, directional illumination, high radiometric contrast, and sub-pixel target visibility.
+\\\\
+Therefore, \textbf{the scope of this document is not to qualify a final flight camera system, but to establish the feasibility, limitations, and maturation path of the proposed stereo vision architecture}. The validation emphasizes three aspects: optical observability, comparison of reconstruction approaches, and experimental demonstration of a geometry-driven stereo reconstruction framework.

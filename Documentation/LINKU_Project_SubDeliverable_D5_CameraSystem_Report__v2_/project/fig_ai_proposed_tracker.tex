@@ -1,0 +1,63 @@
+\begin{figure}[!ht]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[
+        font=\scriptsize,
+        node distance = 8mm and 10mm,
+        stage/.style    = {rectangle, draw, rounded corners, fill=blue!8,
+                           text width=2.8cm, align=center, minimum height=1.3cm},
+        decision/.style = {diamond, draw, fill=blue!12, aspect=2.2,
+                           text width=2.4cm, align=center, inner sep=1pt},
+        today/.style    = {rectangle, draw=gray, dashed, fill=gray!6,
+                           text width=4.6cm, align=left, font=\tiny, minimum height=1.3cm},
+        proposed/.style = {rectangle, draw=green!45!black, dashed, fill=green!8,
+                           text width=4.6cm, align=left, font=\tiny, minimum height=1.5cm},
+        dataflow/.style = {rectangle, draw=orange!70!black, fill=orange!8,
+                           text width=3.4cm, align=center, font=\tiny, minimum height=1.1cm},
+        arr/.style      = {-{Stealth[length=2mm]}, thick},
+    ]
+
+    % ---- main search loop (this part already exists, classical) ----
+    \node[stage] (mask) {Segmentation mask (Model 1) + skeleton};
+    \node[stage, right=of mask] (branch) {Find next branch point along current strand};
+    \node[decision, right=of branch] (score) {Score each candidate continuation};
+    \node[stage, right=of score] (pick) {Advance to highest-scored candidate};
+    \node[stage, right=of pick] (end) {Reached the other end?};
+    \node[stage, right=of end, text width=2.4cm] (out) {Output: ordered path (same format as today)};
+
+    \draw[arr] (mask) -- (branch);
+    \draw[arr] (branch) -- (score);
+    \draw[arr] (score) -- (pick);
+    \draw[arr] (pick) -- (end);
+    \draw[arr] (end) -- node[above, font=\tiny]{yes} (out);
+    \draw[arr] (end.south) to[out=-90,in=-90,looseness=1.4]
+        node[below, font=\tiny]{no -- loop} (branch.south);
+
+    \node[above=2mm of mask, font=\bfseries\scriptsize, text width=15cm, align=left]
+      {Proposed AI wire path tracker -- one search loop for both untangled and knotted/self-crossing thread configurations};
+
+    % ---- the swappable component ----
+    \node[today, below=14mm of score, xshift=-1.4cm] (today-box)
+      {\textbf{TODAY (implemented, classical):} fixed hand-tuned weights -- direction continuity $\times$1200 + thickness continuity $\times$600 + centeredness $\times$300 -- parallel-line penalty. Same formula regardless of how tangled the thread is.};
+    \node[proposed, below=6mm of today-box] (proposed-box)
+      {\textbf{PROPOSED (not implemented):} a lightweight classifier (Random-Forest-style, CPU-only, same philosophy as Model 1) predicts which candidate a human would choose, using the same geometric features plus local image patch. \emph{One trained model is reused at every branch point} -- a clean thread has 0--1 branch points, a knotted thread has many, but each is resolved the same way. This is why wire tracking and knot/crossing resolution are one AI component, not two.};
+
+    \draw[arr, gray] (score.south) -- (today-box.north);
+    \draw[arr, green!45!black] (today-box.south) -- (proposed-box.north);
+
+    % ---- training data loop for the proposed scorer ----
+    \node[dataflow, below=6mm of proposed-box, xshift=1cm] (dataset)
+      {path\_dataset: image + mask + verified path (stereo pairs)};
+    \node[dataflow, right=6mm of dataset] (extract)
+      {Offline: replay path over skeleton branch points $\rightarrow$ label (features, chosen candidate)};
+    \node[dataflow, right=6mm of extract] (train)
+      {Train classifier};
+
+    \draw[arr, orange!70!black] (dataset) -- (extract);
+    \draw[arr, orange!70!black] (extract) -- (train);
+    \draw[arr, orange!70!black] (train.north) |- ($(train.north)+(0,0.6)$) -| (proposed-box.east);
+
+    \end{tikzpicture}}
+    \caption[Proposed architecture for the AI-assisted wire path tracker]{Proposed architecture for the AI-assisted wire path tracker. The overall search loop (top row) is unchanged from the classical SmartWireTracker already implemented today: it walks the segmented thread step by step and, at each branch point, scores the candidate continuations to pick the most likely one. The only proposed change is replacing the fixed, hand-tuned scoring formula with a learned scorer trained on the same \texttt{path\_dataset} already being collected (bottom row). Because the same scorer is invoked at every branch point regardless of how many exist, this single component naturally handles both simple, untangled threads (few or no branch points) and heavily tangled or self-crossing configurations (many branch points) -- it is one AI model solving one problem, not two separate systems for ``tracking'' and ``knot solving''.}
+    \label{fig:ai-proposed-tracker}
+\end{figure}

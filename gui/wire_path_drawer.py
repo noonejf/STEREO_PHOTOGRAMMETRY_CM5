@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Wire Path Drawer — dibuja manualmente el camino del cable sobre la máscara.
-Click izquierdo agrega puntos, click derecho deshace el último.
+Ctrl+Rueda: zoom  |  Click izq: añadir punto  |  Click der / BS: deshacer
 """
 import cv2
 import numpy as np
@@ -12,21 +12,35 @@ from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QColor, QCursor
 
 
 class WirePathCanvas(QLabel):
-    """Canvas interactivo para dibujar waypoints sobre la imagen."""
-    path_changed = pyqtSignal(list)   # emite puntos en coords de imagen original
+    """Canvas interactivo con soporte de zoom (Ctrl+Rueda)."""
+
+    path_changed = pyqtSignal(list)   # [x, y] en coords imagen original
+    zoom_changed  = pyqtSignal(float)
+
+    MIN_ZOOM = 0.25
+    MAX_ZOOM = 8.0
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         self.setCursor(QCursor(Qt.CrossCursor))
-        self._base_pixmap = None
-        self._scale = 1.0
-        self._pts_display = []   # (x, y) en pantalla
-        self._pts_image = []     # [x, y] en imagen original
+        self._fit_pixmap = None   # QPixmap a escala fit (sin zoom extra)
+        self._fit_scale  = 1.0   # factor imagen→fit
+        self._zoom       = 1.0   # factor zoom del usuario
+        self._pts_image  = []    # [[x, y], ...] en coords imagen original
+
+    @property
+    def _eff(self) -> float:
+        """Escala efectiva total: imagen → pantalla."""
+        return self._fit_scale * self._zoom
+
+    # ------------------------------------------------------------------
+    # Setup
+    # ------------------------------------------------------------------
 
     def set_background(self, img_bgr: np.ndarray, mask: np.ndarray = None,
-                       max_dim: int = 900):
-        """Fondo = imagen original con overlay verde de la máscara (opcional)."""
+                       max_dim: int = 850):
+        """Prepara el fondo con overlay de máscara y escala al tamaño máximo."""
         if mask is not None:
             overlay = img_bgr.copy()
             overlay[mask > 0] = [0, 170, 0]
@@ -36,94 +50,124 @@ class WirePathCanvas(QLabel):
 
         h, w = bg.shape[:2]
         if max(h, w) > max_dim:
-            self._scale = max_dim / max(h, w)
-            bg = cv2.resize(bg, (int(w * self._scale), int(h * self._scale)),
+            self._fit_scale = max_dim / max(h, w)
+            bg = cv2.resize(bg,
+                            (int(w * self._fit_scale), int(h * self._fit_scale)),
                             interpolation=cv2.INTER_AREA)
         else:
-            self._scale = 1.0
+            self._fit_scale = 1.0
 
-        rgb = cv2.cvtColor(bg, cv2.COLOR_BGR2RGB)
+        rgb  = cv2.cvtColor(bg, cv2.COLOR_BGR2RGB)
         qimg = QImage(bytes(rgb.data), rgb.shape[1], rgb.shape[0],
                       3 * rgb.shape[1], QImage.Format_RGB888)
-        self._base_pixmap = QPixmap.fromImage(qimg)
-        self.setFixedSize(self._base_pixmap.size())
+        self._fit_pixmap = QPixmap.fromImage(qimg)
+        self._zoom = 1.0
         self.clear_path()
 
+    # ------------------------------------------------------------------
+    # Path operations
+    # ------------------------------------------------------------------
+
     def clear_path(self):
-        self._pts_display.clear()
         self._pts_image.clear()
         self._redraw()
         self.path_changed.emit([])
 
     def undo_last(self):
-        if self._pts_display:
-            self._pts_display.pop()
+        if self._pts_image:
             self._pts_image.pop()
             self._redraw()
             self.path_changed.emit(list(self._pts_image))
 
-    def get_path(self):
+    def get_path(self) -> list:
         return list(self._pts_image)
 
-    def set_path(self, image_pts: list):
-        """Carga un path existente para editar."""
-        self._pts_image = [[p[0], p[1]] for p in image_pts]
-        self._pts_display = [
-            (int(x * self._scale), int(y * self._scale))
-            for x, y in self._pts_image
-        ]
+    def set_path(self, pts: list):
+        self._pts_image = [[int(p[0]), int(p[1])] for p in pts]
         self._redraw()
 
     # ------------------------------------------------------------------
-    # Mouse
+    # Zoom
+    # ------------------------------------------------------------------
+
+    def zoom_by(self, factor: float):
+        new_zoom = max(self.MIN_ZOOM, min(self.MAX_ZOOM, self._zoom * factor))
+        if abs(new_zoom - self._zoom) > 1e-6:
+            self._zoom = new_zoom
+            self._redraw()
+            self.zoom_changed.emit(self._zoom)
+
+    def reset_zoom(self):
+        self._zoom = 1.0
+        self._redraw()
+        self.zoom_changed.emit(self._zoom)
+
+    # ------------------------------------------------------------------
+    # Events
     # ------------------------------------------------------------------
 
     def mousePressEvent(self, event):
-        if self._base_pixmap is None:
+        if self._fit_pixmap is None:
             return
+        eff = self._eff
         if event.button() == Qt.LeftButton:
-            dx, dy = event.x(), event.y()
-            self._pts_display.append((dx, dy))
-            self._pts_image.append([int(dx / self._scale), int(dy / self._scale)])
+            self._pts_image.append([int(event.x() / eff), int(event.y() / eff)])
             self._redraw()
             self.path_changed.emit(list(self._pts_image))
         elif event.button() == Qt.RightButton:
             self.undo_last()
+
+    def wheelEvent(self, event):
+        if event.modifiers() & Qt.ControlModifier:
+            factor = 1.15 if event.angleDelta().y() > 0 else 1.0 / 1.15
+            self.zoom_by(factor)
+            event.accept()
+        else:
+            super().wheelEvent(event)
 
     # ------------------------------------------------------------------
     # Render
     # ------------------------------------------------------------------
 
     def _redraw(self):
-        if self._base_pixmap is None:
+        if self._fit_pixmap is None:
             return
-        pix = self._base_pixmap.copy()
-        if not self._pts_display:
+
+        fw, fh = self._fit_pixmap.width(), self._fit_pixmap.height()
+        dw = max(1, int(fw * self._zoom))
+        dh = max(1, int(fh * self._zoom))
+
+        pix = self._fit_pixmap.scaled(dw, dh, Qt.IgnoreAspectRatio,
+                                      Qt.SmoothTransformation)
+        self.setFixedSize(dw, dh)
+
+        if not self._pts_image:
             self.setPixmap(pix)
             return
+
+        eff  = self._eff
+        dpts = [(int(x * eff), int(y * eff)) for x, y in self._pts_image]
 
         painter = QPainter(pix)
         painter.setRenderHint(QPainter.Antialiasing)
 
-        # Línea naranja
-        painter.setPen(QPen(QColor(255, 90, 0), 2))
-        for i in range(1, len(self._pts_display)):
-            x1, y1 = self._pts_display[i - 1]
-            x2, y2 = self._pts_display[i]
-            painter.drawLine(x1, y1, x2, y2)
+        lw = max(1, int(2 * self._zoom))
+        painter.setPen(QPen(QColor(255, 90, 0), lw))
+        for i in range(1, len(dpts)):
+            painter.drawLine(dpts[i-1][0], dpts[i-1][1],
+                             dpts[i][0],   dpts[i][1])
 
-        # Puntos: verde=inicio, rojo=fin, naranja=intermedios
-        for i, (px, py) in enumerate(self._pts_display):
-            is_first = i == 0
-            is_last = i == len(self._pts_display) - 1
-            color = QColor(0, 220, 0) if is_first else (QColor(220, 0, 0) if is_last else QColor(255, 140, 0))
-            r = 6 if (is_first or is_last) else 4
+        rb = max(3, int(4 * self._zoom))
+        for i, (px, py) in enumerate(dpts):
+            first, last = (i == 0), (i == len(dpts) - 1)
+            color = QColor(0, 220, 0) if first else (QColor(220, 0, 0) if last else QColor(255, 140, 0))
+            r = int(rb * 1.5) if (first or last) else rb
             painter.setBrush(color)
             painter.setPen(QPen(color.darker(130), 1))
             painter.drawEllipse(px - r, py - r, 2 * r, 2 * r)
             if i % 5 == 0 and i > 0:
                 painter.setPen(QPen(QColor(255, 255, 255), 1))
-                painter.drawText(px + 7, py - 3, str(i))
+                painter.drawText(px + r + 2, py - 2, str(i))
 
         painter.end()
         self.setPixmap(pix)
@@ -140,10 +184,10 @@ class WirePathDrawerDialog(QDialog):
                  initial_path: list = None, parent=None):
         super().__init__(parent)
         self.image = image
-        self.mask = mask
+        self.mask  = mask
         self.result_path = []
         self.setWindowTitle(title)
-        self.setMinimumSize(820, 660)
+        self.setMinimumSize(860, 680)
         self._setup_ui()
         if initial_path:
             self.canvas.set_path(initial_path)
@@ -153,8 +197,9 @@ class WirePathDrawerDialog(QDialog):
 
         info = QLabel(
             "Click izquierdo: añadir punto  |  "
-            "Click derecho / Backspace: deshacer último  |  "
-            "C: limpiar todo  |  Enter: confirmar path"
+            "Click derecho / Backspace: deshacer  |  "
+            "Ctrl+Rueda / botones 🔍: zoom  |  "
+            "C: limpiar  |  0: reset zoom  |  Enter: confirmar"
         )
         info.setStyleSheet(
             "background:#2a2a2a; color:#ccc; padding:5px; border-radius:3px; font-size:10px;"
@@ -162,19 +207,40 @@ class WirePathDrawerDialog(QDialog):
         info.setWordWrap(True)
         layout.addWidget(info)
 
-        self.stats_label = QLabel("Puntos: 0  —  añade al menos 2 para confirmar")
-        self.stats_label.setStyleSheet("color:#555; padding:3px;")
+        self.stats_label = QLabel("Puntos: 0  |  Zoom: 100%")
+        self.stats_label.setStyleSheet("color:#444; padding:3px; font-size:10px;")
         layout.addWidget(self.stats_label)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(False)
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(False)
         self.canvas = WirePathCanvas()
         self.canvas.set_background(self.image, self.mask)
-        self.canvas.path_changed.connect(self._on_path_changed)
-        scroll.setWidget(self.canvas)
-        layout.addWidget(scroll, stretch=1)
+        self.canvas.path_changed.connect(self._update_stats)
+        self.canvas.zoom_changed.connect(lambda _: self._update_stats(self.canvas.get_path()))
+        self.scroll.setWidget(self.canvas)
+        layout.addWidget(self.scroll, stretch=1)
 
         btns = QHBoxLayout()
+
+        btn_zin = QPushButton("🔍+")
+        btn_zin.setFixedWidth(48)
+        btn_zin.setToolTip("Zoom in (Ctrl+Rueda ↑ o tecla +)")
+        btn_zin.clicked.connect(lambda: self.canvas.zoom_by(1.3))
+        btns.addWidget(btn_zin)
+
+        btn_zout = QPushButton("🔍-")
+        btn_zout.setFixedWidth(48)
+        btn_zout.setToolTip("Zoom out (Ctrl+Rueda ↓ o tecla -)")
+        btn_zout.clicked.connect(lambda: self.canvas.zoom_by(1 / 1.3))
+        btns.addWidget(btn_zout)
+
+        btn_zreset = QPushButton("1:1")
+        btn_zreset.setFixedWidth(38)
+        btn_zreset.setToolTip("Reset zoom (tecla 0)")
+        btn_zreset.clicked.connect(self.canvas.reset_zoom)
+        btns.addWidget(btn_zreset)
+
+        btns.addSpacing(12)
 
         btn_undo = QPushButton("↩ Deshacer (BS)")
         btn_undo.clicked.connect(self.canvas.undo_last)
@@ -201,26 +267,36 @@ class WirePathDrawerDialog(QDialog):
         layout.addLayout(btns)
 
     def keyPressEvent(self, event):
-        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+        k = event.key()
+        if k in (Qt.Key_Return, Qt.Key_Enter):
             if self.btn_ok.isEnabled():
                 self._confirm()
-        elif event.key() == Qt.Key_Backspace:
+        elif k == Qt.Key_Backspace:
             self.canvas.undo_last()
-        elif event.key() == Qt.Key_C:
+        elif k == Qt.Key_C:
             self.canvas.clear_path()
+        elif k == Qt.Key_0:
+            self.canvas.reset_zoom()
+        elif k in (Qt.Key_Plus, Qt.Key_Equal):
+            self.canvas.zoom_by(1.3)
+        elif k == Qt.Key_Minus:
+            self.canvas.zoom_by(1 / 1.3)
         else:
             super().keyPressEvent(event)
 
-    def _on_path_changed(self, pts):
+    def _update_stats(self, pts):
         n = len(pts)
+        zoom_pct = int(self.canvas._zoom * 100)
+        ready = n >= 2
         self.stats_label.setText(
-            f"Puntos: {n}  —  {'listo para confirmar' if n >= 2 else 'añade al menos 2 puntos'}"
+            f"Puntos: {n}  —  {'listo ✓' if ready else 'añade al menos 2 puntos'}"
+            f"  |  Zoom: {zoom_pct}%"
         )
-        self.btn_ok.setEnabled(n >= 2)
+        self.btn_ok.setEnabled(ready)
 
     def _confirm(self):
         self.result_path = self.canvas.get_path()
         self.accept()
 
-    def get_path(self):
+    def get_path(self) -> list:
         return self.result_path

@@ -1,0 +1,71 @@
+   \documentclass[a4paper, twoside]{report}
+
+%% Language and font encodings
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+\usepackage{placeins}
+\usepackage{tabularx}
+\setcounter{secnumdepth}{3}
+\usepackage{array}
+\usepackage{subcaption}
+\usepackage[table]{xcolor}
+
+\newcolumntype{M}[1]{>{\centering\arraybackslash}m{#1}}
+
+%% Sets page size and margins
+\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+%% Useful packages
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{fancyhdr} % Paquete para personalizar encabezados y pies de    
+
+%% --- ADD THIS ---
+\usepackage{parskip}
+%% ----------------
+
+%% Pipeline / architecture diagrams
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc}
+
+%\title{LINKU Stereo Vision System}
+% Update autor and other title stuff in title/title.tex
+
+\begin{document}
+\input{title/title.tex}
+
+\begin{abstract}
+This report presents the conceptual design, optical characterization, experimental validation, and maturation roadmap of the LINKU stereo vision system, developed to support visual monitoring and three-dimensional reconstruction of a tethered satellite configuration in Low Earth Orbit. The system is intended to complement conventional telemetry by providing direct geometric information about tether deployment, spatial configuration, curvature, and post-deployment dynamic behavior.
+\\\\
+Orbital tether observation presents a non-conventional computer vision problem. The tether is expected to appear as a thin, low-texture structure observed against a predominantly dark background under highly directional solar illumination. At mission-relevant distances of up to approximately 100 m, a millimeter-scale tether progressively transitions from a geometrically resolvable object to a sub-pixel radiometric feature. Consequently, the reconstruction problem cannot be addressed reliably using standard texture-based photogrammetry alone.
+\\\\
+To evaluate this problem, the study combines optical observability analysis, controlled laboratory experimentation, and comparative assessment of three reconstruction approaches: conventional photogrammetry, geometry-driven stereo reconstruction, and exploratory AI-assisted processing. The analysis quantified the geometric and radiometric limits of representative COTS camera configurations, while the experimental campaign reproduced key orbital-like visual constraints, including low environmental texture, dark backgrounds, directional illumination, and thin tether-like targets.
+\\\\
+The results show that conventional photogrammetry is unsuitable for isolated tether reconstruction under low-texture conditions due to its dependence on stable visual features and background texture. In contrast, the proposed geometry-driven framework successfully reconstructed planar and volumetric tether configurations using centerline extraction, geometric continuity, stereo correspondence, and constrained triangulation. AI-based methods were found to be more appropriate as supporting tools for segmentation, topology interpretation, and ambiguity resolution rather than as primary scientific reconstruction engines.
+\\\\
+Overall, this work demonstrates the feasibility of optical tether reconstruction under representative orbital-like conditions and establishes a physically interpretable reconstruction strategy for future tether monitoring missions. The report also defines the main maturation steps required to evolve the current laboratory prototype toward a flight-capable visual observation system.
+
+\end{abstract}
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+\input{project/introduction.tex}
+\input{project/chapter1.tex}
+\input{project/chapter2.tex}
+\input{project/chapter3.tex}
+\input{project/chapter4.tex}
+\input{project/chapter5.tex}
+\input{project/chapter6.tex}
+\input{project/chapter7.tex}
+\input{project/conclusion.tex}
+
+\bibliographystyle{ieeetr}
+\bibliography{bibs/sample}
+
+\end{document}

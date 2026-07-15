@@ -1,0 +1,31 @@
+\begin{figure}[!ht]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[
+        font=\scriptsize,
+        node distance = 9mm,
+        stage/.style   = {rectangle, draw, rounded corners, fill=gray!8,
+                          text width=2.7cm, align=center, minimum height=1.5cm},
+        note/.style    = {text width=2.7cm, align=center, font=\tiny, text=black!65},
+        arr/.style     = {-{Stealth[length=2mm]}, thick},
+    ]
+
+    \node[stage] (capture)   {\textbf{1. Capture}\\Synchronized stereo pair};
+    \node[stage, right=of capture] (rect)  {\textbf{2. Rectification}\\Calibration $\rightarrow$ aligned epipolar rows};
+    \node[stage, right=of rect]    (disp)  {\textbf{3. Dense disparity}\\SGBM or BM block matching, whole image};
+    \node[stage, right=of disp]    (filt)  {\textbf{4. Filtering}\\WLS + bilateral smoothing};
+    \node[stage, right=of filt]    (conf)  {\textbf{5. Confidence mask}\\Automatic, rejects isolated/noisy pixels};
+    \node[stage, right=of conf]    (cloud) {\textbf{6. Depth \& point cloud}\\Triangulation via calibration matrix};
+
+    \draw[arr] (capture) -- (rect);
+    \draw[arr] (rect) -- (disp);
+    \draw[arr] (disp) -- (filt);
+    \draw[arr] (filt) -- (conf);
+    \draw[arr] (conf) -- (cloud);
+
+    \node[note, below=4mm of conf] {No cable-specific segmentation involved -- the whole image is matched};
+
+    \end{tikzpicture}}
+    \caption[Traditional dense stereo pipeline still present in the current software]{Traditional dense stereo pipeline still present in the current software (\texttt{processing/stereo\_processor.py}, \texttt{process\_stereo\_pair}). This is the pathway the software falls back to automatically whenever no cable-specific mask has been configured through the segmentation tuner: it treats the whole image as a conventional dense stereo scene, with no thread-specific extraction step. The confidence mask (stage 5) is generated automatically from local disparity consistency and pixel density, not from a manually or AI-selected filter, and is used to discard unreliable points before triangulation. This pathway corresponds to the dense-stereo experiment discussed in Section \ref{sub:volumetric-object-reconstruction}, where the absence of a cable-specific mask allowed background disparity artifacts to propagate into the reconstruction.}
+    \label{fig:pipeline-phase1-dense-stereo}
+\end{figure}

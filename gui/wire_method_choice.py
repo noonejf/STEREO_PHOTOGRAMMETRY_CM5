@@ -16,8 +16,44 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                               QPushButton, QGroupBox, QMessageBox, QFrame,
                               QSizePolicy)
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QImage, QPixmap, QFont
+from PyQt5.QtGui import QImage, QPixmap
 
+_DARK_QSS = """
+QDialog, QWidget {
+    background-color: #0F172A;
+    color: #E2E8F0;
+    font-family: "Segoe UI", "Roboto", sans-serif;
+    font-size: 13px;
+}
+QGroupBox {
+    background-color: #1E293B;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    margin-top: 14px;
+    padding: 14px 10px 10px 10px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 2px 12px;
+    color: #22D3EE;
+    font-weight: bold;
+    font-size: 13px;
+}
+QLabel { color: #E2E8F0; background-color: transparent; }
+QPushButton {
+    background-color: #3B82F6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: 600;
+}
+QPushButton:hover    { background-color: #60A5FA; }
+QPushButton:pressed  { background-color: #2563EB; }
+QPushButton:disabled { background-color: #273548; color: #64748B; }
+QFrame { color: #334155; }
+"""
 
 # ── helpers ────────────────────────────────────────────────────────────────
 
@@ -55,21 +91,22 @@ class WireMethodChoiceDialog(QDialog):
     def __init__(self, left_img, right_img, mask_left, mask_right,
                  start_left, end_left, start_right, end_right, parent=None):
         super().__init__(parent)
-        self.left_img = left_img
-        self.right_img = right_img
-        self.mask_left = mask_left
+        self.left_img   = left_img
+        self.right_img  = right_img
+        self.mask_left  = mask_left
         self.mask_right = mask_right
-        self.start_left = start_left
-        self.end_left = end_left
+        self.start_left  = start_left
+        self.end_left    = end_left
         self.start_right = start_right
-        self.end_right = end_right
-        self._result = None           # dict compatible con wire_tracking_result
+        self.end_right   = end_right
+        self._result = None
 
         from utils.dataset_manager import DatasetManager
         self._dm = DatasetManager("data/ai_dataset/path_dataset")
 
         self.setWindowTitle("Método de Wire Tracking")
         self.setMinimumSize(960, 580)
+        self.setStyleSheet(_DARK_QSS)
         self._setup_ui()
 
     # ── UI ────────────────────────────────────────────────────────────
@@ -82,13 +119,13 @@ class WireMethodChoiceDialog(QDialog):
         left = QVBoxLayout()
 
         lbl_title = QLabel("Vista previa — imagen izquierda + máscara")
-        lbl_title.setFont(QFont("Arial", 10, QFont.Bold))
+        lbl_title.setStyleSheet("color:#22D3EE; font-weight:bold; font-size:13px;")
         left.addWidget(lbl_title)
 
         self.preview_label = QLabel()
         self.preview_label.setAlignment(Qt.AlignCenter)
         self.preview_label.setStyleSheet(
-            "background:#1a1a1a; border:1px solid #444; border-radius:4px;"
+            "background:#0B1120; border:1px solid #334155; border-radius:6px;"
         )
         self.preview_label.setMinimumSize(460, 340)
         self.preview_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -100,7 +137,7 @@ class WireMethodChoiceDialog(QDialog):
         self.status_label = QLabel("Sin método elegido")
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setStyleSheet(
-            "color:#888; font-style:italic; padding:4px; font-size:10px;"
+            "color:#64748B; font-style:italic; padding:4px; font-size:11px;"
         )
         left.addWidget(self.status_label)
 
@@ -118,11 +155,12 @@ class WireMethodChoiceDialog(QDialog):
             "Funciona bien en casos sin enredos complejos."
         )
         d1.setWordWrap(True)
-        d1.setStyleSheet("color:#555; font-size:10px;")
+        d1.setStyleSheet("color:#94A3B8; font-size:11px;")
         l1.addWidget(d1)
         btn1 = QPushButton("▶ Ejecutar SmartWireTracker")
         btn1.setStyleSheet(
-            "background:#2196F3; color:white; font-weight:bold; padding:8px; border-radius:4px;"
+            "background:#3B82F6; color:white; font-weight:bold;"
+            " padding:8px; border-radius:6px;"
         )
         btn1.clicked.connect(self._run_tracker)
         l1.addWidget(btn1)
@@ -137,11 +175,12 @@ class WireMethodChoiceDialog(QDialog):
             "Ideal para casos complejos o para etiquetar el dataset IA."
         )
         d2.setWordWrap(True)
-        d2.setStyleSheet("color:#555; font-size:10px;")
+        d2.setStyleSheet("color:#94A3B8; font-size:11px;")
         l2.addWidget(d2)
         btn2 = QPushButton("✏️ Dibujar manualmente")
         btn2.setStyleSheet(
-            "background:#FF9800; color:white; font-weight:bold; padding:8px; border-radius:4px;"
+            "background:#F59E0B; color:white; font-weight:bold;"
+            " padding:8px; border-radius:6px;"
         )
         btn2.clicked.connect(self._run_manual)
         l2.addWidget(btn2)
@@ -157,11 +196,10 @@ class WireMethodChoiceDialog(QDialog):
             f"Dataset actual: {count} muestras — necesita ~100 para entrenar."
         )
         d3.setWordWrap(True)
-        d3.setStyleSheet("color:#aaa; font-size:10px;")
+        d3.setStyleSheet("color:#64748B; font-size:11px;")
         l3.addWidget(d3)
-        self.btn_ai = QPushButton("🤖 IA Wire Tracker (próximamente)")
+        self.btn_ai = QPushButton("IA Wire Tracker (próximamente)")
         self.btn_ai.setEnabled(False)
-        self.btn_ai.setStyleSheet("padding:8px; border-radius:4px;")
         l3.addWidget(self.btn_ai)
         g3.setLayout(l3)
         right.addWidget(g3)
@@ -169,22 +207,35 @@ class WireMethodChoiceDialog(QDialog):
         # --- Separador ---
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
-        sep.setStyleSheet("color:#ccc; margin:4px 0;")
+        sep.setStyleSheet("background-color:#334155; max-height:1px; margin:4px 0;")
         right.addWidget(sep)
 
         # --- Dataset ---
         gds = QGroupBox("Dataset Caminos IA  (imagen + máscara + path)")
         lds = QVBoxLayout()
-        self.ds_count_label = QLabel(f"Muestras guardadas: {count}")
-        self.ds_count_label.setStyleSheet("font-size:10px;")
+        lds.setSpacing(6)
+
+        self.ds_count_label = QLabel(f"Muestras guardadas: {count}  (izq + der + paths)")
+        self.ds_count_label.setStyleSheet("color:#94A3B8; font-size:11px;")
         lds.addWidget(self.ds_count_label)
+
         self.btn_ds = QPushButton("💾 Guardar en Dataset")
         self.btn_ds.setEnabled(False)
         self.btn_ds.setStyleSheet(
-            "background:#607D8B; color:white; font-weight:bold; padding:8px; border-radius:4px;"
+            "background:#334155; color:#64748B; font-weight:bold;"
+            " padding:8px; border-radius:6px;"
         )
         self.btn_ds.clicked.connect(self._save_to_dataset)
         lds.addWidget(self.btn_ds)
+
+        btn_view_ds = QPushButton("📊 Ver Dataset")
+        btn_view_ds.setStyleSheet(
+            "background:#273548; color:#E2E8F0; font-weight:bold;"
+            " padding:8px; border-radius:6px;"
+        )
+        btn_view_ds.clicked.connect(self._view_dataset)
+        lds.addWidget(btn_view_ds)
+
         gds.setLayout(lds)
         right.addWidget(gds)
 
@@ -192,14 +243,19 @@ class WireMethodChoiceDialog(QDialog):
 
         # --- Botones finales ---
         final = QHBoxLayout()
+
         btn_cancel = QPushButton("Cancelar")
+        btn_cancel.setStyleSheet(
+            "background:#273548; color:#E2E8F0; border-radius:6px; padding:8px;"
+        )
         btn_cancel.clicked.connect(self.reject)
         final.addWidget(btn_cancel)
 
         self.btn_use = QPushButton("✓ Usar este path →")
         self.btn_use.setEnabled(False)
         self.btn_use.setStyleSheet(
-            "background:#4CAF50; color:white; font-weight:bold; padding:8px; border-radius:4px;"
+            "background:#16A34A; color:white; font-weight:bold;"
+            " padding:8px; border-radius:6px;"
         )
         self.btn_use.clicked.connect(self.accept)
         final.addWidget(self.btn_use)
@@ -274,16 +330,17 @@ class WireMethodChoiceDialog(QDialog):
             f"✓ {method} — izq: {n_l} pts  |  der: {n_r} pts"
         )
         self.status_label.setStyleSheet(
-            "color:#2E7D32; font-weight:bold; padding:4px; font-size:10px;"
+            "color:#22C55E; font-weight:bold; padding:4px; font-size:11px;"
         )
         self.btn_ds.setEnabled(True)
         self.btn_ds.setStyleSheet(
-            "background:#FF9800; color:white; font-weight:bold; padding:8px; border-radius:4px;"
+            "background:#F59E0B; color:white; font-weight:bold;"
+            " padding:8px; border-radius:6px;"
         )
         self.btn_use.setEnabled(True)
 
     def _save_to_dataset(self):
-        """Guarda imagen izq + máscara izq + paths en el dataset."""
+        """Guarda par estéreo completo (izq + der + máscaras + paths) en el dataset."""
         is_dup, existing_id = self._dm.is_duplicate(self.left_img)
         if is_dup:
             reply = QMessageBox.question(
@@ -299,30 +356,43 @@ class WireMethodChoiceDialog(QDialog):
         wire_paths_json = None
         if self._result:
             wire_paths_json = {
-                'left': self._result['left']['path'],
+                'left':  self._result['left']['path'],
                 'right': self._result['right']['path'],
             }
 
         sample_id = self._dm.save_sample(
-            self.left_img, self.mask_left,
-            wire_paths=wire_paths_json
+            self.left_img,  self.mask_left,
+            wire_paths=wire_paths_json,
+            right_image=self.right_img,
+            right_mask=self.mask_right,
         )
         count = self._dm.count()
-        self.ds_count_label.setText(f"Muestras guardadas: {count}")
-        # Actualizar tooltip del botón IA con nuevo conteo
+        self.ds_count_label.setText(f"Muestras guardadas: {count}  (izq + der + paths)")
         self.btn_ai.setToolTip(
             f"Dataset actual: {count} muestras — necesita ~100 para entrenar."
         )
-        self.btn_ds.setEnabled(False)   # evitar guardado doble
+        self.btn_ds.setEnabled(False)
 
-        print(f"✓ Dataset: muestra #{sample_id:04d} guardada "
-              f"(imagen + máscara + {'path' if wire_paths_json else 'sin path'})")
+        files = "img izq+der  +  mask izq+der" + ("  +  paths" if wire_paths_json else "")
+        print(f"✓ Dataset path: muestra #{sample_id:04d} ({files})")
 
         QMessageBox.information(
             self, "Guardado en dataset",
             f"Muestra #{sample_id:04d} guardada correctamente.\n"
-            f"Total en dataset: {count} muestras."
+            f"Par estéreo: imagen izquierda + derecha + máscaras"
+            + (f"\n+ paths izq ({len(wire_paths_json['left'])} pts)"
+               f" y der ({len(wire_paths_json['right'])} pts)"
+               if wire_paths_json else "") +
+            f"\n\nTotal en dataset: {count} muestras."
         )
+
+    def _view_dataset(self):
+        """Abre el visor del dataset de paths."""
+        from gui.dataset_viewer import DatasetViewerDialog
+        dlg = DatasetViewerDialog(self._dm, parent=self)
+        dlg.exec_()
+        count = self._dm.count()
+        self.ds_count_label.setText(f"Muestras guardadas: {count}  (izq + der + paths)")
 
     def get_results(self):
         return self._result

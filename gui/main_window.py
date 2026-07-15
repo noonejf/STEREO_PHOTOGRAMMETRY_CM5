@@ -1,858 +1,907 @@
 #!/usr/bin/env python3
 """
-Ventana principal del sistema de fotogrametría estéreo CM5
-Interfaz PyQt5 con vista previa de cámaras y controles principales
+Ventana única del sistema de fotogrametría estéreo CM5.
+Sidebar de navegación + QStackedWidget con 3 páginas:
+  0 – Dashboard  (preview + controles + log)
+  1 – Calibration (workflow inline con preview propia)
+  2 – 3D Processing (configuración + resultados)
 """
 
-import os
 import sys
-import logging
 from datetime import datetime
-from pathlib import Path
 
-from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-                           QGridLayout, QPushButton, QLabel, QTextEdit,
-                           QProgressBar, QGroupBox, QMessageBox, QStatusBar,
-                           QSplitter, QFrame, QApplication)
-from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt, QSize
-from PyQt5.QtGui import QPixmap, QFont, QIcon, QPalette, QColor
+from PyQt5.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QPushButton, QLabel, QTextEdit, QProgressBar,
+    QGroupBox, QMessageBox, QSplitter, QFrame,
+    QApplication, QStackedWidget,
+)
+from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
+from PyQt5.QtGui import QFont
 
 from camera.stereo_camera import StereoCamera
 from gui.camera_preview import CameraPreviewWidget
-from gui.calibration_dialog import CalibrationDialog
-from gui.processing_dialog import ProcessingDialog
+from gui.calibration_dialog import CalibrationPage
+from gui.processing_dialog import ProcessingPage
+from gui.ai_page import AIPage
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+# ── Color palette (dark mode, same family as INTISAT) ─────────────────────────
+BG_DEEP        = "#0F172A"
+BG_PANEL       = "#1E293B"
+BG_CARD        = "#273548"
+BG_SIDEBAR     = "#0B1120"
+ACCENT_CYAN    = "#22D3EE"
+ACCENT_BLUE    = "#3B82F6"
+ACCENT_GREEN   = "#16A34A"
+ACCENT_ORANGE  = "#F59E0B"
+TEXT_PRIMARY   = "#E2E8F0"
+TEXT_SECONDARY = "#94A3B8"
+TEXT_DIM       = "#64748B"
+BORDER_SUBTLE  = "#334155"
+GREEN_ON       = "#22C55E"
+RED_OFF        = "#EF4444"
+YELLOW_WARN    = "#EAB308"
+
+GLOBAL_QSS = f"""
+QMainWindow  {{ background-color: {BG_DEEP}; }}
+QWidget      {{ color: {TEXT_PRIMARY}; font-family: "Segoe UI", "Roboto", sans-serif;
+                font-size: 13px; background-color: transparent; }}
+QGroupBox {{
+    background-color: {BG_PANEL};
+    border: 1px solid {BORDER_SUBTLE};
+    border-radius: 8px;
+    margin-top: 14px;
+    padding: 14px 10px 10px 10px;
+}}
+QGroupBox::title {{
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 2px 12px;
+    color: {ACCENT_CYAN};
+    font-weight: bold;
+    font-size: 13px;
+}}
+QLabel       {{ color: {TEXT_PRIMARY}; background-color: transparent; }}
+QPushButton {{
+    background-color: {ACCENT_BLUE};
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: 600;
+    font-size: 13px;
+}}
+QPushButton:hover    {{ background-color: #60A5FA; }}
+QPushButton:pressed  {{ background-color: #2563EB; }}
+QPushButton:disabled {{ background-color: {BG_CARD}; color: {TEXT_DIM}; }}
+QProgressBar {{
+    background-color: {BG_DEEP};
+    border: 1px solid {BORDER_SUBTLE};
+    border-radius: 4px;
+    text-align: center;
+    color: {TEXT_PRIMARY};
+    height: 18px;
+    font-size: 12px;
+}}
+QProgressBar::chunk {{ background-color: {ACCENT_BLUE}; border-radius: 3px; }}
+QTextEdit, QPlainTextEdit {{
+    background-color: {BG_DEEP};
+    color: #A5F3FC;
+    border: 1px solid {BORDER_SUBTLE};
+    border-radius: 6px;
+    padding: 8px;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 12px;
+}}
+QScrollBar:vertical {{
+    background: {BG_DEEP}; width: 8px; border-radius: 4px;
+}}
+QScrollBar::handle:vertical {{
+    background: {BORDER_SUBTLE}; border-radius: 4px; min-height: 30px;
+}}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
+QComboBox {{
+    background-color: {BG_CARD};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER_SUBTLE};
+    border-radius: 6px;
+    padding: 5px 10px;
+}}
+QComboBox QAbstractItemView {{
+    background-color: {BG_PANEL};
+    color: {TEXT_PRIMARY};
+    selection-background-color: {ACCENT_BLUE};
+    border: 1px solid {BORDER_SUBTLE};
+}}
+QSpinBox, QDoubleSpinBox {{
+    background-color: {BG_CARD};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER_SUBTLE};
+    border-radius: 4px;
+    padding: 4px 8px;
+}}
+QCheckBox         {{ color: {TEXT_PRIMARY}; spacing: 8px; }}
+QCheckBox::indicator {{
+    width: 16px; height: 16px;
+    border: 1px solid {BORDER_SUBTLE};
+    border-radius: 3px;
+    background-color: {BG_CARD};
+}}
+QCheckBox::indicator:checked {{
+    background-color: {ACCENT_BLUE}; border-color: {ACCENT_BLUE};
+}}
+QSplitter::handle {{ background-color: {BORDER_SUBTLE}; }}
+QListWidget {{
+    background-color: {BG_DEEP};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER_SUBTLE};
+    border-radius: 4px;
+}}
+QListWidget::item:selected {{ background-color: {ACCENT_BLUE}; }}
+QTabWidget::pane  {{ background-color: {BG_PANEL}; border: 1px solid {BORDER_SUBTLE}; }}
+QTabBar::tab {{
+    background-color: {BG_CARD};
+    color: {TEXT_SECONDARY};
+    padding: 6px 16px;
+    border: 1px solid {BORDER_SUBTLE};
+}}
+QTabBar::tab:selected {{
+    background-color: {BG_PANEL};
+    color: {ACCENT_CYAN};
+    border-bottom: 2px solid {ACCENT_CYAN};
+}}
+QFrame {{ color: {TEXT_PRIMARY}; }}
+QScrollArea {{ border: none; background: transparent; }}
+"""
+
+
+# ── Countdown thread ──────────────────────────────────────────────────────────
+
 class CountdownThread(QThread):
-    """Hilo para cuenta regresiva sin bloquear la GUI"""
-    countdown_update = pyqtSignal(int)
+    countdown_update   = pyqtSignal(int)
     countdown_finished = pyqtSignal()
-    
+
     def __init__(self, seconds=10):
         super().__init__()
         self.seconds = seconds
         self.running = True
-    
+
     def run(self):
         for i in range(self.seconds, 0, -1):
             if not self.running:
                 return
             self.countdown_update.emit(i)
             self.msleep(1000)
-        
         if self.running:
             self.countdown_finished.emit()
-    
+
     def stop(self):
         self.running = False
 
-class MainWindow(QMainWindow):
-    """Ventana principal del sistema de fotogrametría estéreo"""
+
+# ── Sidebar button ────────────────────────────────────────────────────────────
+
+class _SidebarButton(QPushButton):
+    def __init__(self, icon_text: str, label: str, parent=None):
+        super().__init__(parent)
+        self.setText(f"{icon_text}\n{label}")
+        self.setFixedSize(88, 76)
+        self.setCursor(Qt.PointingHandCursor)
+        self._set_active(False)
+
+    def _set_active(self, active: bool):
+        if active:
+            self.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {BG_PANEL};
+                    color: {ACCENT_CYAN};
+                    border: none;
+                    border-left: 3px solid {ACCENT_CYAN};
+                    border-radius: 0;
+                    font-weight: bold;
+                    font-size: 11px;
+                    padding: 4px 2px;
+                }}
+            """)
+        else:
+            self.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    color: {TEXT_DIM};
+                    border: none;
+                    border-left: 3px solid transparent;
+                    border-radius: 0;
+                    font-weight: 600;
+                    font-size: 11px;
+                    padding: 4px 2px;
+                }}
+                QPushButton:hover {{
+                    background-color: rgba(128,128,128,0.08);
+                    color: {TEXT_PRIMARY};
+                }}
+            """)
+
+
+# ── Main window ───────────────────────────────────────────────────────────────
+
+class PhotogrammetryDashboard(QMainWindow):
+    """Ventana única con navegación lateral y páginas apiladas."""
+
+    PAGE_DASHBOARD   = 0
+    PAGE_CALIBRATION = 1
+    PAGE_PROCESSING  = 2
+    PAGE_AI          = 3
 
     def __init__(self, camera_config, cameras_available=True):
         super().__init__()
-        self.camera_config = camera_config
-        self.stereo_camera = None
+        self.camera_config    = camera_config
+        self.stereo_camera    = None
+        self.cameras_available = cameras_available
+        self.is_calibrated    = camera_config.is_calibrated()
+        self.preview_active   = False
         self.countdown_thread = None
-        self.cameras_available = cameras_available  # Nueva bandera
 
-        # Estado de la aplicación
-        self.is_calibrated = camera_config.is_calibrated()
-        self.preview_active = False
-
-        self.init_ui()
-        self.setup_camera_system()
-        self.setup_connections()
-        self.update_ui_for_camera_availability()  # Actualizar UI según disponibilidad de cámaras
-
-        logger.info(f"Main window initialized (Cameras: {'Available' if cameras_available else 'Unavailable'})")
-    
-    def init_ui(self):
-        """Inicializar interfaz de usuario"""
-        self.setWindowTitle("CM5 Stereo Photogrammetry System - Arducam HQ 477")
-
-        # Ajustar tamaño a la pantalla disponible
-        screen = QApplication.primaryScreen()
-        if screen:
-            available = screen.availableGeometry()
-            w = min(1200, available.width() - 40)
-            h = min(800, available.height() - 40)
-            self.setGeometry(available.x() + 20, available.y() + 20, w, h)
-        else:
-            self.setGeometry(100, 100, 1200, 800)
-        
-        # Widget central con splitter
-        central_widget = QWidget()  # ← CREAR AQUÍ
-        self.setCentralWidget(central_widget)
-        
-        # Layout principal VERTICAL
-        main_layout = QVBoxLayout(central_widget)
-        
-        # Splitter principal VERTICAL (arriba/abajo)
-        main_splitter = QSplitter(Qt.Vertical)
-        main_layout.addWidget(main_splitter)
-        
-        # Panel SUPERIOR - Vista previa de cámaras
-        self.setup_preview_panel(main_splitter)
-        
-        # Panel INFERIOR - Controles + Registro
-        bottom_widget = QWidget()
-        main_splitter.addWidget(bottom_widget)
-        bottom_layout = QHBoxLayout(bottom_widget)
-        
-        # Splitter horizontal para controles y registro
-        bottom_splitter = QSplitter(Qt.Horizontal)
-        bottom_layout.addWidget(bottom_splitter)
-        
-        # Panel izquierdo inferior - Controles
-        self.setup_control_panel(bottom_splitter)
-        
-        # Panel derecho inferior - Registro (más grande)
-        self.setup_log_panel(bottom_splitter)
-        
-        # Barra de estado
-        self.setup_status_bar()
-        
-        # Configurar proporciones del splitter principal (arriba/abajo)
-        main_splitter.setSizes([400, 250])  # Proporcional
-        
-        # Configurar proporciones del splitter inferior (controles/registro)
-        bottom_splitter.setSizes([400, 600])  # Más espacio para registro
-        
-        # Aplicar estilos
-        self.apply_styles()
-    
-    def setup_preview_panel(self, parent_splitter):
-        """Configurar panel de vista previa de cámaras"""
-        preview_frame = QFrame()
-        preview_frame.setFrameStyle(QFrame.StyledPanel)
-        parent_splitter.addWidget(preview_frame)
-        
-        preview_layout = QVBoxLayout(preview_frame)
-        
-        # Título del panel
-        preview_title = QLabel("Stereo Camera Preview")
-        preview_title.setFont(QFont("Arial", 11, QFont.Bold))
-        preview_title.setAlignment(Qt.AlignCenter)
-        preview_layout.addWidget(preview_title)
-        
-        # Contenedor de vistas de cámaras
-        cameras_widget = QWidget()
-        cameras_layout = QHBoxLayout(cameras_widget)
-        
-        # Vista previa cámara izquierda
-        self.left_camera_preview = CameraPreviewWidget("Left Camera (CAM0)", 0, self.camera_config)
-        cameras_layout.addWidget(self.left_camera_preview)
-        
-        # Vista previa cámara derecha  
-        self.right_camera_preview = CameraPreviewWidget("Right Camera (CAM1)", 1, self.camera_config)
-        cameras_layout.addWidget(self.right_camera_preview)
-        
-        preview_layout.addWidget(cameras_widget)
-        
-        # Controles de vista previa
-        preview_controls_layout = QHBoxLayout()
-        
-        self.btn_start_preview = QPushButton("▶ Start Preview")
-        self.btn_start_preview.setFixedHeight(30)
-        self.btn_start_preview.clicked.connect(self.toggle_preview)
-        preview_controls_layout.addWidget(self.btn_start_preview)
-        
-        self.btn_stop_preview = QPushButton("⏹ Stop Preview")
-        self.btn_stop_preview.setFixedHeight(30)
-        self.btn_stop_preview.clicked.connect(self.stop_preview)
-        self.btn_stop_preview.setEnabled(False)
-        preview_controls_layout.addWidget(self.btn_stop_preview)
-        
-        preview_layout.addLayout(preview_controls_layout)
-        
-        # Información de cámaras
-        camera_info_layout = QHBoxLayout()
-        
-        left_info = QLabel(f"Left: {self.camera_config.left_camera.name}")
-        left_info.setStyleSheet("color: #2196F3; font-weight: bold;")
-        camera_info_layout.addWidget(left_info)
-        
-        camera_info_layout.addStretch()
-        
-        right_info = QLabel(f"Right: {self.camera_config.right_camera.name}")
-        right_info.setStyleSheet("color: #FF9800; font-weight: bold;")
-        camera_info_layout.addWidget(right_info)
-        
-        preview_layout.addLayout(camera_info_layout)
-    
-    def setup_control_panel(self, parent_splitter):
-        """Configurar panel de controles principal"""
-        control_frame = QFrame()
-        control_frame.setFrameStyle(QFrame.StyledPanel)
-        parent_splitter.addWidget(control_frame)
-        
-        control_layout = QVBoxLayout(control_frame)
-        
-        # Título del sistema
-        system_title = QLabel("Stereo Photogrammetry System")
-        system_title.setFont(QFont("Arial", 13, QFont.Bold))
-        system_title.setAlignment(Qt.AlignCenter)
-        system_title.setStyleSheet("color: #1976D2; margin: 4px;")
-        control_layout.addWidget(system_title)
-        
-        # Controles principales (PRIMERO)
-        main_controls_group = self.create_main_controls_group()
-        control_layout.addWidget(main_controls_group)
-
-        # Estado de calibración (DESPUÉS)
-        self.calibration_status_group = self.create_calibration_status_group()
-        control_layout.addWidget(self.calibration_status_group)
-
-        control_layout.addStretch()
-    
-    def create_calibration_status_group(self):
-        """Crear grupo de estado de calibración"""
-        group = QGroupBox("Calibration Status")
-        layout = QVBoxLayout(group)
-
-        # Indicador de estado principal
-        self.calibration_status_label = QLabel()
-        self.calibration_status_label.setFont(QFont("Arial", 11, QFont.Bold))
-        self.calibration_status_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.calibration_status_label)
-
-        # Panel de detalles de calibración (nuevo)
-        self.calibration_details_frame = QFrame()
-        self.calibration_details_frame.setFrameStyle(QFrame.StyledPanel)
-        self.calibration_details_frame.setStyleSheet("""
-            QFrame {
-                background-color: #F5F5F5;
-                border: 1px solid #CCCCCC;
-                border-radius: 5px;
-                padding: 5px;
-            }
-        """)
-        details_layout = QVBoxLayout(self.calibration_details_frame)
-        details_layout.setSpacing(3)
-        details_layout.setContentsMargins(8, 8, 8, 8)
-
-        # Labels de información
-        self.calib_error_label = QLabel("Error: --")
-        self.calib_error_label.setFont(QFont("Arial", 9))
-        details_layout.addWidget(self.calib_error_label)
-
-        self.calib_images_label = QLabel("Images: --")
-        self.calib_images_label.setFont(QFont("Arial", 9))
-        details_layout.addWidget(self.calib_images_label)
-
-        self.calib_date_label = QLabel("Date: --")
-        self.calib_date_label.setFont(QFont("Arial", 9))
-        details_layout.addWidget(self.calib_date_label)
-
-        self.calib_baseline_label = QLabel("Baseline: --")
-        self.calib_baseline_label.setFont(QFont("Arial", 9))
-        details_layout.addWidget(self.calib_baseline_label)
-
-        layout.addWidget(self.calibration_details_frame)
-
-        # Actualizar estado inicial
+        self._init_ui()
+        self._setup_camera_system()
+        self._setup_connections()
+        self._update_ui_for_camera_availability()
         self.update_calibration_status()
 
-        # Botón de calibración
-        self.btn_calibrate = QPushButton("🎯 Calibrate Cameras")
-        self.btn_calibrate.setFixedHeight(36)
-        self.btn_calibrate.setStyleSheet("""
-            QPushButton {
-                font-size: 14px;
-                font-weight: bold;
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-            QPushButton:pressed {
-                background-color: #3d8b40;
-            }
-        """)
-        self.btn_calibrate.clicked.connect(self.start_calibration)
-        layout.addWidget(self.btn_calibrate)
+        logger.info(
+            f"Dashboard initialized (cameras={'available' if cameras_available else 'unavailable'})"
+        )
+        self.showMaximized()
 
-        return group
-    
-    def create_main_controls_group(self):
-        """Crear grupo de controles principales"""
-        group = QGroupBox("Main Operations")
-        layout = QVBoxLayout(group)
-        
-        # Botón de reconstrucción 3D
-        self.btn_capture_3d = QPushButton("📸 Capture for 3D Model")
-        self.btn_capture_3d.setFixedHeight(36)
-        self.btn_capture_3d.setStyleSheet("""
-            QPushButton {
-                font-size: 14px;
-                font-weight: bold;
-                background-color: #2196F3;
-                color: white;
-                border: none;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #1976D2;
-            }
-            QPushButton:pressed {
-                background-color: #1565C0;
-            }
-            QPushButton:disabled {
-                background-color: #CCCCCC;
-                color: #666666;
-            }
-        """)
+    # ── Build UI ──────────────────────────────────────────────────────────────
+
+    def _init_ui(self):
+        self.setWindowTitle("CM5 Stereo Photogrammetry  —  Arducam HQ 477")
+        self.setMinimumSize(900, 600)
+        self.setStyleSheet(GLOBAL_QSS)
+
+        central = QWidget()
+        central.setStyleSheet(f"background-color: {BG_DEEP};")
+        self.setCentralWidget(central)
+        root = QVBoxLayout(central)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+
+        self._build_title_bar(root)
+
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(0)
+        self._build_sidebar(body)
+
+        # Stack
+        self.stack = QStackedWidget()
+        self.stack.setStyleSheet(f"background-color: {BG_DEEP};")
+
+        self._build_dashboard_page()                          # index 0
+        self.calib_page = CalibrationPage(                    # index 1
+            self.camera_config, stereo_camera=None, parent=self
+        )
+        self.proc_page = ProcessingPage(self.camera_config, self)  # index 2
+        self.ai_page   = AIPage(self)                              # index 3
+
+        self.stack.addWidget(self.dash_page)
+        self.stack.addWidget(self.calib_page)
+        self.stack.addWidget(self.proc_page)
+        self.stack.addWidget(self.ai_page)
+
+        body.addWidget(self.stack, 1)
+        root.addLayout(body, 1)
+        self._build_status_bar(root)
+
+        # Activate dashboard button
+        self._sidebar_buttons[0]._set_active(True)
+
+    def _build_title_bar(self, root):
+        bar = QFrame()
+        bar.setFixedHeight(48)
+        bar.setStyleSheet(
+            f"QFrame {{ background-color: {BG_SIDEBAR};"
+            f"border-bottom: 1px solid {BORDER_SUBTLE}; }}"
+        )
+        h = QHBoxLayout(bar)
+        h.setContentsMargins(16, 0, 16, 0)
+
+        title = QLabel("CM5 Stereo Photogrammetry System")
+        title.setStyleSheet(
+            f"color: {ACCENT_CYAN}; font-weight: bold; font-size: 16px; background: transparent;"
+        )
+        h.addWidget(title)
+        h.addStretch()
+
+        subtitle = QLabel("Arducam HQ 477  ·  IMX477 12 MP  ·  Dual Camera")
+        subtitle.setStyleSheet(
+            f"color: {TEXT_DIM}; font-size: 12px; background: transparent;"
+        )
+        h.addWidget(subtitle)
+        root.addWidget(bar)
+
+    def _build_sidebar(self, body):
+        sidebar = QFrame()
+        sidebar.setFixedWidth(88)
+        sidebar.setStyleSheet(
+            f"QFrame {{ background-color: {BG_SIDEBAR};"
+            f"border-right: 1px solid {BORDER_SUBTLE}; }}"
+        )
+        v = QVBoxLayout(sidebar)
+        v.setContentsMargins(0, 8, 0, 8)
+        v.setSpacing(0)
+
+        nav_items = [
+            ("⌂",  "Dashboard"),
+            ("⊕",  "Calibration"),
+            ("◈",  "Processing"),
+            ("◉",  "AI"),
+        ]
+        self._sidebar_buttons = []
+        for i, (icon, label) in enumerate(nav_items):
+            btn = _SidebarButton(icon, label)
+            btn.clicked.connect(lambda _checked, idx=i: self.navigate_to(idx))
+            self._sidebar_buttons.append(btn)
+            v.addWidget(btn)
+
+        v.addStretch()
+        ver = QLabel("v2.0")
+        ver.setAlignment(Qt.AlignCenter)
+        ver.setStyleSheet(f"color: {TEXT_DIM}; font-size: 10px; padding: 4px; background: transparent;")
+        v.addWidget(ver)
+        body.addWidget(sidebar)
+
+    def _build_dashboard_page(self):
+        """Construye la página de dashboard (preview + controles + log)."""
+        self.dash_page = QWidget()
+        self.dash_page.setStyleSheet(f"background-color: {BG_DEEP};")
+        layout = QVBoxLayout(self.dash_page)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(6)
+
+        # ── Camera preview ────────────────────────────────────────────────────
+        preview_group = QGroupBox("Stereo Camera Preview")
+        pv_layout = QVBoxLayout(preview_group)
+        pv_layout.setSpacing(4)
+
+        cam_row = QHBoxLayout()
+        self.left_camera_preview = CameraPreviewWidget(
+            "Left Camera (CAM0)", 0, self.camera_config
+        )
+        self.right_camera_preview = CameraPreviewWidget(
+            "Right Camera (CAM1)", 1, self.camera_config
+        )
+        cam_row.addWidget(self.left_camera_preview)
+        cam_row.addWidget(self.right_camera_preview)
+        pv_layout.addLayout(cam_row)
+
+        ctrl_row = QHBoxLayout()
+        left_lbl = QLabel(f"Left: {self.camera_config.left_camera.name}")
+        left_lbl.setStyleSheet(f"color: {ACCENT_BLUE}; font-weight: bold; background: transparent;")
+        right_lbl = QLabel(f"Right: {self.camera_config.right_camera.name}")
+        right_lbl.setStyleSheet(f"color: {ACCENT_ORANGE}; font-weight: bold; background: transparent;")
+
+        self.btn_start_preview = QPushButton("▶  Start Preview")
+        self.btn_start_preview.setStyleSheet(
+            f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY}; }}"
+            f"QPushButton:hover {{ background-color: #3B4B60; }}"
+        )
+        self.btn_start_preview.clicked.connect(self.toggle_preview)
+
+        self.btn_stop_preview = QPushButton("⏹  Stop Preview")
+        self.btn_stop_preview.setStyleSheet(
+            f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY}; }}"
+            f"QPushButton:hover {{ background-color: #3B4B60; }}"
+        )
+        self.btn_stop_preview.clicked.connect(self.stop_preview)
+        self.btn_stop_preview.setEnabled(False)
+
+        ctrl_row.addWidget(left_lbl)
+        ctrl_row.addStretch()
+        ctrl_row.addWidget(self.btn_start_preview)
+        ctrl_row.addWidget(self.btn_stop_preview)
+        ctrl_row.addStretch()
+        ctrl_row.addWidget(right_lbl)
+        pv_layout.addLayout(ctrl_row)
+        layout.addWidget(preview_group, 3)
+
+        # ── Bottom: controls + log ────────────────────────────────────────────
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.setStyleSheet(f"background-color: {BG_DEEP};")
+        splitter.addWidget(self._build_control_panel())
+        splitter.addWidget(self._build_log_panel())
+        splitter.setSizes([380, 620])
+        layout.addWidget(splitter, 2)
+
+    def _build_control_panel(self):
+        panel = QFrame()
+        panel.setStyleSheet(
+            f"QFrame {{ background-color: {BG_PANEL}; border-radius: 8px; }}"
+        )
+        v = QVBoxLayout(panel)
+        v.setContentsMargins(12, 12, 12, 12)
+        v.setSpacing(8)
+
+        title = QLabel("System Controls")
+        title.setStyleSheet(
+            f"color: {ACCENT_CYAN}; font-weight: bold; font-size: 14px; background: transparent;"
+        )
+        title.setAlignment(Qt.AlignCenter)
+        v.addWidget(title)
+
+        # Calibration status
+        calib_group = QGroupBox("Calibration Status")
+        cg = QVBoxLayout(calib_group)
+        cg.setSpacing(4)
+
+        self.calibration_status_label = QLabel("Checking...")
+        self.calibration_status_label.setFont(QFont("Segoe UI", 11, QFont.Bold))
+        self.calibration_status_label.setAlignment(Qt.AlignCenter)
+        cg.addWidget(self.calibration_status_label)
+
+        self.calibration_details_frame = QFrame()
+        self.calibration_details_frame.setStyleSheet(
+            f"QFrame {{ background-color: {BG_CARD}; border: 1px solid {BORDER_SUBTLE};"
+            f"border-radius: 6px; }}"
+        )
+        df = QVBoxLayout(self.calibration_details_frame)
+        df.setContentsMargins(10, 8, 10, 8)
+        df.setSpacing(2)
+        self.calib_error_label    = QLabel("Error: --")
+        self.calib_images_label   = QLabel("Images: --")
+        self.calib_date_label     = QLabel("Date: --")
+        self.calib_baseline_label = QLabel("Baseline: --")
+        for lbl in [self.calib_error_label, self.calib_images_label,
+                    self.calib_date_label,  self.calib_baseline_label]:
+            lbl.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px; background: transparent;")
+            df.addWidget(lbl)
+        cg.addWidget(self.calibration_details_frame)
+
+        self.btn_calibrate = QPushButton("⊕  Calibrate Cameras")
+        self.btn_calibrate.setFixedHeight(36)
+        self.btn_calibrate.setStyleSheet(
+            f"QPushButton {{ background-color: {ACCENT_GREEN}; color: white;"
+            f"font-weight: bold; border-radius: 6px; }}"
+            f"QPushButton:hover {{ background-color: #15803D; }}"
+            f"QPushButton:disabled {{ background-color: {BG_CARD}; color: {TEXT_DIM}; }}"
+        )
+        self.btn_calibrate.clicked.connect(
+            lambda: self.navigate_to(self.PAGE_CALIBRATION)
+        )
+        cg.addWidget(self.btn_calibrate)
+        v.addWidget(calib_group)
+
+        # Operations
+        ops_group = QGroupBox("Operations")
+        og = QVBoxLayout(ops_group)
+        og.setSpacing(6)
+
+        self.btn_capture_3d = QPushButton("◈  Capture for 3D Model")
+        self.btn_capture_3d.setFixedHeight(38)
+        self.btn_capture_3d.setStyleSheet(
+            f"QPushButton {{ background-color: {ACCENT_BLUE}; color: white;"
+            f"font-weight: bold; border-radius: 6px; font-size: 14px; }}"
+            f"QPushButton:hover {{ background-color: #60A5FA; }}"
+            f"QPushButton:disabled {{ background-color: {BG_CARD}; color: {TEXT_DIM}; }}"
+        )
         self.btn_capture_3d.clicked.connect(self.start_3d_capture)
         self.btn_capture_3d.setEnabled(self.is_calibrated)
-        layout.addWidget(self.btn_capture_3d)
-        
-        # Botón de procesamiento
-        self.btn_process_3d = QPushButton("⚙️ Process Last Captures")
-        self.btn_process_3d.setFixedHeight(32)
-        self.btn_process_3d.clicked.connect(self.process_last_captures)
-        # IMPORTANTE: Habilitar solo si el sistema está calibrado
-        # (El procesamiento 3D REQUIERE calibración válida)
+        og.addWidget(self.btn_capture_3d)
+
+        self.btn_process_3d = QPushButton("▶  Process Captures")
+        self.btn_process_3d.setFixedHeight(34)
+        self.btn_process_3d.setStyleSheet(
+            f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY}; border-radius: 6px; }}"
+            f"QPushButton:hover {{ background-color: #3B4B60; }}"
+            f"QPushButton:disabled {{ background-color: {BG_CARD}; color: {TEXT_DIM}; }}"
+        )
+        self.btn_process_3d.clicked.connect(
+            lambda: self.navigate_to(self.PAGE_PROCESSING)
+        )
         self.btn_process_3d.setEnabled(self.is_calibrated)
-        layout.addWidget(self.btn_process_3d)
-        
-        return group
-    
-    def create_capture_controls_group(self):
-        """Crear grupo de controles de captura"""
-        group = QGroupBox("Capture Control")
-        layout = QVBoxLayout(group)
-        
-        # Cuenta regresiva
+        og.addWidget(self.btn_process_3d)
+        v.addWidget(ops_group)
+
+        v.addStretch()
+        return panel
+
+    def _build_log_panel(self):
+        panel = QFrame()
+        panel.setStyleSheet(
+            f"QFrame {{ background-color: {BG_PANEL}; border-radius: 8px; }}"
+        )
+        v = QVBoxLayout(panel)
+        v.setContentsMargins(12, 12, 12, 12)
+        v.setSpacing(6)
+
+        # Countdown / capture control
+        count_group = QGroupBox("Capture Control")
+        cv = QVBoxLayout(count_group)
+
         self.countdown_label = QLabel("Ready for capture")
-        self.countdown_label.setFont(QFont("Arial", 14, QFont.Bold))
+        self.countdown_label.setFont(QFont("Segoe UI", 14, QFont.Bold))
         self.countdown_label.setAlignment(Qt.AlignCenter)
-        self.countdown_label.setStyleSheet("""
-            background-color: #E3F2FD;
-            padding: 8px;
-            border-radius: 5px;
-            border: 2px solid #2196F3;
-        """)
-        layout.addWidget(self.countdown_label)
-        
-        # Progreso
+        self.countdown_label.setStyleSheet(
+            f"background-color: {BG_CARD}; color: {TEXT_SECONDARY};"
+            f"padding: 10px; border-radius: 6px; border: 1px solid {BORDER_SUBTLE};"
+        )
+        cv.addWidget(self.countdown_label)
+
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        layout.addWidget(self.progress_bar)
-        
-        # Botón de cancelar
-        self.btn_cancel = QPushButton("❌ Cancel")
-        self.btn_cancel.clicked.connect(self.cancel_operation)
-        self.btn_cancel.setVisible(False)
-        layout.addWidget(self.btn_cancel)
-        
-        return group
-    
-    
-    def setup_status_bar(self):
-        """Configurar barra de estado"""
-        self.status_bar = QStatusBar()
-        self.setStatusBar(self.status_bar)
-        
-        # Etiquetas de estado
-        self.status_camera_label = QLabel("Cameras: Disconnected")
-        self.status_calibration_label = QLabel(
-            "Calibration: OK" if self.is_calibrated else "Calibration: Required"
-        )
-        
-        self.status_bar.addWidget(self.status_camera_label)
-        self.status_bar.addPermanentWidget(self.status_calibration_label)
-    
-    def apply_styles(self):
-        """Aplicar estilos globales"""
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #FAFAFA;
-            }
-            QGroupBox {
-                font-weight: bold;
-                border: 2px solid #CCCCCC;
-                border-radius: 5px;
-                margin: 5px;
-                padding-top: 10px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
-                color: #333333;
-            }
-            QPushButton {
-                padding: 8px;
-                border: none;
-                border-radius: 4px;
-                font-weight: bold;
-            }
-        """)
-    
-    def setup_camera_system(self):
-        """Inicializar sistema de cámaras"""
-        if not self.cameras_available:
-            self.log_message("Sistema en modo de solo procesamiento (sin cámaras)", "WARNING")
-            self.status_camera_label.setText("Cámaras: No disponibles")
-            return
+        cv.addWidget(self.progress_bar)
 
+        self.btn_cancel = QPushButton("✕  Cancel")
+        self.btn_cancel.setVisible(False)
+        self.btn_cancel.setStyleSheet(
+            f"QPushButton {{ background-color: {RED_OFF}; color: white; border-radius: 6px; }}"
+        )
+        self.btn_cancel.clicked.connect(self.cancel_operation)
+        cv.addWidget(self.btn_cancel)
+        v.addWidget(count_group)
+
+        # Activity log
+        log_group = QGroupBox("Activity Log")
+        lv = QVBoxLayout(log_group)
+        self.log_text = QTextEdit()
+        self.log_text.setReadOnly(True)
+        lv.addWidget(self.log_text)
+        v.addWidget(log_group, 1)
+
+        return panel
+
+    def _build_status_bar(self, root):
+        bar = QFrame()
+        bar.setFixedHeight(28)
+        bar.setStyleSheet(
+            f"QFrame {{ background-color: {BG_SIDEBAR}; border-top: 1px solid {BORDER_SUBTLE}; }}"
+        )
+        h = QHBoxLayout(bar)
+        h.setContentsMargins(12, 0, 12, 0)
+
+        self.status_camera_label = QLabel("Cameras: --")
+        self.status_camera_label.setStyleSheet(
+            f"color: {TEXT_SECONDARY}; font-size: 12px; background: transparent;"
+        )
+        h.addWidget(self.status_camera_label)
+        h.addStretch()
+        self.status_calibration_label = QLabel("Calibration: --")
+        self.status_calibration_label.setStyleSheet(
+            f"color: {TEXT_SECONDARY}; font-size: 12px; background: transparent;"
+        )
+        h.addWidget(self.status_calibration_label)
+        root.addWidget(bar)
+
+    # ── Navigation ────────────────────────────────────────────────────────────
+
+    def navigate_to(self, page_index: int):
+        current = self.stack.currentIndex()
+
+        # Stop dashboard preview when leaving dashboard
+        if current == self.PAGE_DASHBOARD and page_index != self.PAGE_DASHBOARD:
+            if self.preview_active:
+                self.stop_preview()
+
+        # Inject stereo_camera into calibration page on first visit
+        if page_index == self.PAGE_CALIBRATION:
+            if self.calib_page.stereo_camera is None and self.stereo_camera is not None:
+                self.calib_page.stereo_camera    = self.stereo_camera
+                self.calib_page.cameras_available = self.cameras_available
+                self.calib_page.btn_start.setEnabled(self.cameras_available)
+
+        self.stack.setCurrentIndex(page_index)
+        for i, btn in enumerate(self._sidebar_buttons):
+            btn._set_active(i == page_index)
+
+    # ── Camera system ─────────────────────────────────────────────────────────
+
+    def _setup_camera_system(self):
+        if not self.cameras_available:
+            self.log_message("Running in processing-only mode (no cameras)", "WARNING")
+            self.status_camera_label.setText("Cameras: Not available")
+            return
         try:
             self.stereo_camera = StereoCamera(self.camera_config)
-            self.log_message("Sistema de cámaras inicializado")
-            self.status_camera_label.setText("Cámaras: Conectadas")
+            self.log_message("Camera system initialized")
+            self.status_camera_label.setText("Cameras: Connected")
         except Exception as e:
-            self.log_message(f"Error inicializando cámaras: {e}", "ERROR")
-            self.status_camera_label.setText("Cámaras: Error")
+            self.log_message(f"Camera initialization error: {e}", "ERROR")
+            self.status_camera_label.setText("Cameras: Error")
             self.cameras_available = False
-    
-    def update_ui_for_camera_availability(self):
-        """Actualizar UI según disponibilidad de cámaras"""
+
+    def _update_ui_for_camera_availability(self):
         if not self.cameras_available:
-            # Deshabilitar funciones que REQUIEREN cámaras
             self.btn_start_preview.setEnabled(False)
             self.btn_stop_preview.setEnabled(False)
             self.btn_capture_3d.setEnabled(False)
-
-            # Agregar texto informativo
-            self.btn_start_preview.setText("▶ Vista Previa (No disponible)")
-            self.btn_capture_3d.setText("📸 Captura (No disponible)")
-
-            # MANTENER calibración habilitada - puede procesar sesiones existentes
-            self.btn_calibrate.setEnabled(True)
-            self.btn_calibrate.setText("🎯 Calibrar (Procesar Sesión)")
-
-            # IMPORTANTE: Habilitar procesamiento 3D si hay calibración
+            self.btn_start_preview.setText("▶  Preview (Unavailable)")
+            self.btn_capture_3d.setText("◈  Capture (Unavailable)")
             if self.is_calibrated:
                 self.btn_process_3d.setEnabled(True)
-                self.log_message("Modo de solo procesamiento activado - puedes procesar capturas y calibración existentes")
+                self.log_message("Processing-only mode — can process existing captures")
             else:
-                # Mostrar mensaje informativo
                 self.log_message(
-                    "No cameras: You can recalibrate using existing sessions or transfer calibration from Raspberry Pi",
-                    "WARNING"
+                    "No cameras: calibrate using existing sessions or transfer from Raspberry Pi",
+                    "WARNING",
                 )
 
-    def setup_connections(self):
-        """Configurar conexiones de señales"""
-        # Conexiones de vista previa
+    def _setup_connections(self):
         if hasattr(self.left_camera_preview, 'frame_ready'):
-            self.left_camera_preview.frame_ready.connect(self.on_left_frame_ready)
+            self.left_camera_preview.frame_ready.connect(self._on_left_frame)
         if hasattr(self.right_camera_preview, 'frame_ready'):
-            self.right_camera_preview.frame_ready.connect(self.on_right_frame_ready)
-    
-    def update_calibration_status(self):
-        """Actualizar indicador de estado de calibración"""
-        # Obtener información detallada de calibración
-        calib_info = self.camera_config.get_calibration_info()
+            self.right_camera_preview.frame_ready.connect(self._on_right_frame)
+        self.calib_page.calibration_updated.connect(self._on_calibration_updated)
 
-        if calib_info['is_calibrated']:
-            # Sistema calibrado - Mostrar estado con calidad
-            quality_color = {
-                "Excelente": "#2E7D32",  # Verde oscuro
-                "Buena": "#43A047",      # Verde
-                "Aceptable": "#F57C00",  # Naranja
-                "Pobre": "#D32F2F"       # Rojo
-            }.get(calib_info['quality'], "#666666")
+    # ── Preview ───────────────────────────────────────────────────────────────
 
-            self.calibration_status_label.setText(
-                f"✅ System Calibrated - Quality: {calib_info['quality']}"
-            )
-            self.calibration_status_label.setStyleSheet(
-                f"color: {quality_color}; font-weight: bold;"
-            )
-
-            # Mostrar detalles
-            self.calib_error_label.setText(
-                f"Reprojection error: {calib_info['error']:.3f} px"
-            )
-            self.calib_images_label.setText(
-                f"Images used: {calib_info['num_images']}"
-            )
-            self.calib_date_label.setText(
-                f"Fecha: {calib_info['date']}"
-            )
-            if calib_info['baseline_mm']:
-                self.calib_baseline_label.setText(
-                    f"Baseline: {calib_info['baseline_mm']:.1f} mm"
-                )
-
-            # Colorear los labels según la calidad
-            if calib_info['quality'] in ["Excelente", "Buena"]:
-                detail_color = "#2E7D32"
-            elif calib_info['quality'] == "Aceptable":
-                detail_color = "#F57C00"
-            else:
-                detail_color = "#D32F2F"
-
-            for label in [self.calib_error_label, self.calib_images_label,
-                         self.calib_date_label, self.calib_baseline_label]:
-                label.setStyleSheet(f"color: {detail_color};")
-
-            # Mostrar panel de detalles
-            self.calibration_details_frame.setVisible(True)
-
-            # Habilitar captura 3D
-            if hasattr(self, 'btn_capture_3d'):
-                self.btn_capture_3d.setEnabled(True)
-
-            # Habilitar procesamiento 3D (requiere calibración)
-            if hasattr(self, 'btn_process_3d'):
-                self.btn_process_3d.setEnabled(True)
-
-            # Actualizar estado
-            self.is_calibrated = True
-
-        else:
-            # Sistema NO calibrado
-            self.calibration_status_label.setText("❌ Calibration Required")
-            self.calibration_status_label.setStyleSheet("color: red; font-weight: bold;")
-
-            # Ocultar panel de detalles
-            if hasattr(self, 'calibration_details_frame'):
-                self.calibration_details_frame.setVisible(False)
-
-            # Deshabilitar captura 3D
-            if hasattr(self, 'btn_capture_3d'):
-                self.btn_capture_3d.setEnabled(False)
-
-            # Deshabilitar procesamiento 3D (requiere calibración)
-            if hasattr(self, 'btn_process_3d'):
-                self.btn_process_3d.setEnabled(False)
-
-            # Actualizar estado
-            self.is_calibrated = False
-
-        # Solo actualizar si la barra de estado ya existe
-        if hasattr(self, 'status_calibration_label'):
-            self.status_calibration_label.setText(
-                "Calibration: OK" if self.is_calibrated else "Calibration: Required"
-            )
-    
-    def log_message(self, message, level="INFO"):
-        """Agregar mensaje al log"""
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        formatted_message = f"[{timestamp}] {level}: {message}"
-        
-        self.log_text.append(formatted_message)
-        self.log_text.verticalScrollBar().setValue(
-            self.log_text.verticalScrollBar().maximum()
-        )
-        
-        # También loggear al sistema
-        if level == "ERROR":
-            logger.error(message)
-        elif level == "WARNING":  
-            logger.warning(message)
-        else:
-            logger.info(message)
-    
     def toggle_preview(self):
-        """Alternar vista previa de cámaras"""
         if not self.preview_active:
             self.start_preview()
         else:
             self.stop_preview()
-    
+
     def start_preview(self):
-        """Iniciar vista previa de cámaras"""
         try:
             self.log_message("Starting camera preview...")
-            
-            # Iniciar vista previa en ambas cámaras
             self.left_camera_preview.start_preview()
             self.right_camera_preview.start_preview()
-            
             self.preview_active = True
             self.btn_start_preview.setEnabled(False)
             self.btn_stop_preview.setEnabled(True)
-            self.btn_start_preview.setText("▶ Preview Active")
-            
+            self.btn_start_preview.setText("▶  Preview Active")
             self.log_message("Preview started")
-            
         except Exception as e:
             self.log_message(f"Error starting preview: {e}", "ERROR")
-            QMessageBox.critical(self, "Error", f"Could not start preview:\n{e}")
-    
+
     def stop_preview(self):
-        """Detener vista previa de cámaras"""
         try:
             self.log_message("Stopping preview...")
-            
             self.left_camera_preview.stop_preview()
             self.right_camera_preview.stop_preview()
-            
             self.preview_active = False
             self.btn_start_preview.setEnabled(True)
             self.btn_stop_preview.setEnabled(False)
-            self.btn_start_preview.setText("▶ Start Preview")
-            
+            self.btn_start_preview.setText("▶  Start Preview")
             self.log_message("Preview stopped")
-            
         except Exception as e:
             self.log_message(f"Error stopping preview: {e}", "ERROR")
-    
-    def start_calibration(self):
-        """Iniciar proceso de calibración"""
-        try:
-            # Mostrar diálogo de calibración
-            # (El diálogo decidirá si puede tomar fotos o solo procesar sesiones existentes)
-            dialog = CalibrationDialog(self.camera_config, self.stereo_camera, self)
-            result = dialog.exec_()
 
-            if result == dialog.Accepted:
-                # Recargar estado de calibración desde el archivo
-                self.camera_config.load_calibration()
-                self.is_calibrated = self.camera_config.is_calibrated()
-                self.update_calibration_status()
+    # ── Calibration status ────────────────────────────────────────────────────
 
-                # Mostrar mensaje con info de la nueva calibración
-                calib_info = self.camera_config.get_calibration_info()
-                self.log_message(
-                    f"Calibration completed: {calib_info['quality']} - "
-                    f"Error: {calib_info['error']:.3f} px - "
-                    f"Images: {calib_info['num_images']}"
+    def _on_calibration_updated(self):
+        self.camera_config.load_calibration()
+        self.is_calibrated = self.camera_config.is_calibrated()
+        self.update_calibration_status()
+        calib_info = self.camera_config.get_calibration_info()
+        self.log_message(
+            f"Calibration updated: {calib_info['quality']} — "
+            f"Error: {calib_info['error']:.3f} px — "
+            f"Images: {calib_info['num_images']}"
+        )
+
+    def update_calibration_status(self):
+        calib_info = self.camera_config.get_calibration_info()
+
+        if calib_info['is_calibrated']:
+            quality_color = {
+                "Excelente": GREEN_ON,
+                "Buena":     GREEN_ON,
+                "Aceptable": YELLOW_WARN,
+                "Pobre":     RED_OFF,
+            }.get(calib_info['quality'], TEXT_SECONDARY)
+
+            self.calibration_status_label.setText(
+                f"✓ Calibrated — {calib_info['quality']}"
+            )
+            self.calibration_status_label.setStyleSheet(
+                f"color: {quality_color}; font-weight: bold; background: transparent;"
+            )
+            self.calib_error_label.setText(
+                f"Reprojection error: {calib_info['error']:.3f} px"
+            )
+            self.calib_images_label.setText(f"Images used: {calib_info['num_images']}")
+            self.calib_date_label.setText(f"Date: {calib_info['date']}")
+            if calib_info['baseline_mm']:
+                self.calib_baseline_label.setText(
+                    f"Baseline: {calib_info['baseline_mm']:.1f} mm"
                 )
+            for lbl in [self.calib_error_label, self.calib_images_label,
+                        self.calib_date_label,  self.calib_baseline_label]:
+                lbl.setStyleSheet(
+                    f"color: {quality_color}; font-size: 12px; background: transparent;"
+                )
+            self.calibration_details_frame.setVisible(True)
+            if hasattr(self, 'btn_capture_3d'):
+                self.btn_capture_3d.setEnabled(self.cameras_available)
+            if hasattr(self, 'btn_process_3d'):
+                self.btn_process_3d.setEnabled(True)
+            self.is_calibrated = True
 
-        except Exception as e:
-            self.log_message(f"Calibration error: {e}", "ERROR")
-            QMessageBox.critical(self, "Error", f"Error during calibration:\n{e}")
-    
+        else:
+            self.calibration_status_label.setText("✗ Calibration Required")
+            self.calibration_status_label.setStyleSheet(
+                f"color: {RED_OFF}; font-weight: bold; background: transparent;"
+            )
+            if hasattr(self, 'calibration_details_frame'):
+                self.calibration_details_frame.setVisible(False)
+            if hasattr(self, 'btn_capture_3d'):
+                self.btn_capture_3d.setEnabled(False)
+            if hasattr(self, 'btn_process_3d'):
+                self.btn_process_3d.setEnabled(False)
+            self.is_calibrated = False
+
+        if hasattr(self, 'status_calibration_label'):
+            self.status_calibration_label.setText(
+                f"Calibration: {'OK' if self.is_calibrated else 'Required'}"
+            )
+
+    # ── 3D Capture ────────────────────────────────────────────────────────────
+
     def start_3d_capture(self):
-        """Iniciar captura para modelo 3D"""
         if not self.is_calibrated:
-            QMessageBox.warning(self, "Warning", 
-                              "You must calibrate the cameras before 3D capture")
+            QMessageBox.warning(
+                self, "Warning",
+                "Cameras must be calibrated before 3D capture."
+            )
             return
-        
         try:
-            # Mostrar advertencia y confirmar
-            msg = QMessageBox()
+            msg = QMessageBox(self)
             msg.setIcon(QMessageBox.Information)
-            msg.setWindowTitle("3D Capture Preparation")
-            msg.setText("Attention! You are about to start capture for a 3D model")
+            msg.setWindowTitle("3D Capture")
+            msg.setText("A 10-second countdown will start.")
             msg.setInformativeText(
-                "A 10-second countdown will start.\n"
-                "Prepare your object and ensure it is well lit."
+                "Position your object and ensure good lighting."
             )
             msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-            msg.setDefaultButton(QMessageBox.Ok)
-            
             if msg.exec_() != QMessageBox.Ok:
                 return
-            
-            # Iniciar cuenta regresiva
-            self.start_countdown_capture()
-            
+            self._start_countdown_capture()
         except Exception as e:
             self.log_message(f"Error starting 3D capture: {e}", "ERROR")
-            QMessageBox.critical(self, "Error", f"Error during 3D capture:\n{e}")
-    
-    def start_countdown_capture(self):
-        """Iniciar cuenta regresiva para captura"""
-        self.log_message("Iniciando cuenta regresiva para captura...")
-        
-        # Deshabilitar controles
+
+    def _start_countdown_capture(self):
+        self.log_message("Starting capture countdown...")
         self.btn_capture_3d.setEnabled(False)
         self.btn_calibrate.setEnabled(False)
         self.btn_cancel.setVisible(True)
-        
-        # Iniciar cuenta regresiva
         self.countdown_thread = CountdownThread(10)
-        self.countdown_thread.countdown_update.connect(self.update_countdown)
-        self.countdown_thread.countdown_finished.connect(self.capture_stereo_pair)
+        self.countdown_thread.countdown_update.connect(self._update_countdown)
+        self.countdown_thread.countdown_finished.connect(self._capture_stereo_pair)
         self.countdown_thread.start()
-    
-    def update_countdown(self, seconds):
-        """Actualizar display de cuenta regresiva"""
-        self.countdown_label.setText(f"Captura en: {seconds}")
-        self.countdown_label.setStyleSheet(f"""
-            background-color: {'#FFCDD2' if seconds <= 3 else '#FFF9C4'};
-            padding: 15px;
-            border-radius: 5px;
-            border: 2px solid {'#F44336' if seconds <= 3 else '#FF9800'};
-            font-size: 24px;
-            font-weight: bold;
-            color: {'#D32F2F' if seconds <= 3 else '#F57C00'};
-        """)
-    
-    def capture_stereo_pair(self):
-        """Ejecutar captura del par estéreo"""
+
+    def _update_countdown(self, seconds):
+        if seconds <= 3:
+            bg, fg = "#450A0A", RED_OFF
+        else:
+            bg, fg = "#1A2744", YELLOW_WARN
+        self.countdown_label.setText(f"Capture in: {seconds}s")
+        self.countdown_label.setStyleSheet(
+            f"background-color: {bg}; color: {fg};"
+            f"padding: 10px; border-radius: 6px; border: 1px solid {fg};"
+            f"font-size: 18px; font-weight: bold;"
+        )
+
+    def _capture_stereo_pair(self):
         preview_was_active = False
         try:
-            # CRÍTICO: Detener vista previa si está activa
             if self.preview_active:
                 preview_was_active = True
-                self.log_message("Deteniendo vista previa para captura...")
                 self.stop_preview()
-                # Dar tiempo para que los procesos de vista previa se cierren
                 import time
                 time.sleep(1.0)
 
-            self.countdown_label.setText("📸 CAPTURANDO...")
-            self.countdown_label.setStyleSheet("""
-                background-color: #C8E6C9;
-                padding: 15px;
-                border-radius: 5px;
-                border: 2px solid #4CAF50;
-                font-size: 20px;
-                font-weight: bold;
-                color: #2E7D32;
-            """)
+            self.countdown_label.setText("CAPTURING...")
+            self.countdown_label.setStyleSheet(
+                f"background-color: #052E16; color: {GREEN_ON};"
+                f"padding: 10px; border-radius: 6px; border: 1px solid {GREEN_ON};"
+                f"font-size: 18px; font-weight: bold;"
+            )
+            QApplication.processEvents()
 
-            QApplication.processEvents()  # Actualizar UI
-
-            # Realizar captura
             if self.stereo_camera:
-                capture_result = self.stereo_camera.capture_stereo_pair()
-
-                if capture_result.get('success', False):
-                    self.log_message("Par estéreo capturado exitosamente")
-                    self.countdown_label.setText("✅ Captura Exitosa")
+                result = self.stereo_camera.capture_stereo_pair()
+                if result.get('success', False):
+                    self.log_message("Stereo pair captured successfully")
+                    self.countdown_label.setText("✓ Capture Successful")
                     self.btn_process_3d.setEnabled(True)
                 else:
-                    error_msg = capture_result.get('error', 'Error desconocido')
-                    self.log_message(f"Error capturando par estéreo: {error_msg}", "ERROR")
-                    self.countdown_label.setText("❌ Error en Captura")
+                    self.log_message(
+                        f"Capture error: {result.get('error', 'Unknown')}", "ERROR"
+                    )
+                    self.countdown_label.setText("✗ Capture Error")
 
-            self.cleanup_after_capture(preview_was_active)
-
+            self._cleanup_after_capture(preview_was_active)
         except Exception as e:
-            self.log_message(f"Error durante captura: {e}", "ERROR")
-            self.countdown_label.setText("❌ Error en Captura")
-            self.cleanup_after_capture(preview_was_active)
-    
-    def cleanup_after_capture(self, restart_preview=False):
-        """Limpiar después de captura"""
-        # Restaurar controles
-        self.btn_capture_3d.setEnabled(True)
+            self.log_message(f"Capture error: {e}", "ERROR")
+            self.countdown_label.setText("✗ Capture Error")
+            self._cleanup_after_capture(preview_was_active)
+
+    def _cleanup_after_capture(self, restart_preview=False):
+        self.btn_capture_3d.setEnabled(
+            self.is_calibrated and self.cameras_available
+        )
         self.btn_calibrate.setEnabled(True)
         self.btn_cancel.setVisible(False)
-
-        # Reiniciar vista previa si estaba activa
         if restart_preview:
-            def delayed_restart():
-                self.log_message("Reiniciando vista previa...")
-                self.start_preview()
-            QTimer.singleShot(2000, delayed_restart)
+            QTimer.singleShot(2000, self.start_preview)
+        QTimer.singleShot(3000, self._restore_countdown_label)
 
-        # Restaurar estado normal después de 3 segundos
-        QTimer.singleShot(3000, self.restore_normal_state)
-    
-    def restore_normal_state(self):
-        """Restaurar estado normal de la interfaz"""
-        self.countdown_label.setText("Listo para captura")
-        self.countdown_label.setStyleSheet("""
-            background-color: #E3F2FD;
-            padding: 15px;
-            border-radius: 5px;
-            border: 2px solid #2196F3;
-            font-size: 16px;
-            font-weight: bold;
-            color: #1976D2;
-        """)
-    
+    def _restore_countdown_label(self):
+        self.countdown_label.setText("Ready for capture")
+        self.countdown_label.setStyleSheet(
+            f"background-color: {BG_CARD}; color: {TEXT_SECONDARY};"
+            f"padding: 10px; border-radius: 6px; border: 1px solid {BORDER_SUBTLE};"
+            f"font-size: 14px; font-weight: bold;"
+        )
+
     def cancel_operation(self):
-        """Cancelar operación en curso"""
         if self.countdown_thread and self.countdown_thread.isRunning():
             self.countdown_thread.stop()
             self.countdown_thread.wait()
-        
-        self.log_message("Operación cancelada por el usuario")
-        self.cleanup_after_capture()
-        self.restore_normal_state()
-    
-    def process_last_captures(self):
-        """Procesar últimas capturas para generar modelo 3D"""
-        try:
-            dialog = ProcessingDialog(self.camera_config, self)
-            dialog.exec_()
-        except Exception as e:
-            self.log_message(f"Error en procesamiento: {e}", "ERROR")
-            QMessageBox.critical(self, "Error", f"Error durante procesamiento:\n{e}")
-    
-    def on_left_frame_ready(self, frame):
-        """Callback para frame de cámara izquierda"""
-        pass  # Implementar si se necesita procesamiento adicional
-    
-    def on_right_frame_ready(self, frame):
-        """Callback para frame de cámara derecha"""
-        pass  # Implementar si se necesita procesamiento adicional
-    
-    def setup_log_panel(self, parent_splitter):
-        """Configurar panel de registro de actividades + control de captura"""
-        log_frame = QFrame()
-        log_frame.setFrameStyle(QFrame.StyledPanel)
-        parent_splitter.addWidget(log_frame)
+        self.log_message("Operation cancelled", "WARNING")
+        self._cleanup_after_capture()
+        self._restore_countdown_label()
 
-        log_layout = QVBoxLayout(log_frame)
+    # ── Log ───────────────────────────────────────────────────────────────────
 
-        # Controles de captura (movidos aqui para que quepan en pantalla)
-        capture_controls_group = self.create_capture_controls_group()
-        log_layout.addWidget(capture_controls_group)
+    def log_message(self, message, level="INFO"):
+        ts = datetime.now().strftime("%H:%M:%S")
+        color = {
+            "ERROR":   RED_OFF,
+            "WARNING": YELLOW_WARN,
+        }.get(level, TEXT_SECONDARY)
+        html = (
+            f'<span style="color:{TEXT_DIM}">[{ts}]</span> '
+            f'<span style="color:{color}">{level}: {message}</span>'
+        )
+        self.log_text.append(html)
+        self.log_text.verticalScrollBar().setValue(
+            self.log_text.verticalScrollBar().maximum()
+        )
+        if level == "ERROR":
+            logger.error(message)
+        elif level == "WARNING":
+            logger.warning(message)
+        else:
+            logger.info(message)
 
-        # Título del log
-        log_title = QLabel("Registro de Actividades")
-        log_title.setFont(QFont("Arial", 12, QFont.Bold))
-        log_title.setAlignment(Qt.AlignCenter)
-        log_layout.addWidget(log_title)
+    # ── Callbacks ─────────────────────────────────────────────────────────────
 
-        # Log text
-        self.log_text = QTextEdit()
-        self.log_text.setReadOnly(True)
-        self.log_text.setStyleSheet("""
-            QTextEdit {
-                background-color: #F5F5F5;
-                font-family: 'Courier New', monospace;
-                font-size: 10px;
-                border: 1px solid #CCCCCC;
-            }
-        """)
-        log_layout.addWidget(self.log_text)
+    def _on_left_frame(self, frame):
+        pass
+
+    def _on_right_frame(self, frame):
+        pass
+
+    # ── Close ─────────────────────────────────────────────────────────────────
 
     def closeEvent(self, event):
-        """Manejar cierre de ventana"""
         try:
-            self.log_message("Cerrando aplicación...")
-            
-            # Detener vista previa
+            self.log_message("Closing application...")
             if self.preview_active:
                 self.stop_preview()
-            
-            # Detener hilos
             if self.countdown_thread and self.countdown_thread.isRunning():
                 self.countdown_thread.stop()
                 self.countdown_thread.wait()
-            
-            # Cerrar sistema de cámaras
             if self.stereo_camera:
                 self.stereo_camera.cleanup()
-            
-            logger.info("Aplicación cerrada correctamente")
+            logger.info("Application closed")
             event.accept()
-            
         except Exception as e:
-            logger.error(f"Error durante cierre: {e}")
+            logger.error(f"Error during close: {e}")
             event.accept()
 
+
+# Alias for any code that still references the old name
+MainWindow = PhotogrammetryDashboard
+
+
 if __name__ == "__main__":
-    # Test de la ventana principal
     from config.camera_config import CameraConfig
-    
     app = QApplication(sys.argv)
-    
-    try:
-        config = CameraConfig()
-        window = MainWindow(config)
-        window.show()
-        
-        sys.exit(app.exec_())
-    except Exception as e:
-        print(f"Error: {e}")
-        QMessageBox.critical(None, "Error", f"Error iniciando aplicación:\n{e}")
-        sys.exit(1)
+    config = CameraConfig()
+    window = PhotogrammetryDashboard(config)
+    sys.exit(app.exec_())
