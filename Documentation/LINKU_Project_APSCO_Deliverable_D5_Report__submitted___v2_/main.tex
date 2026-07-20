@@ -1,0 +1,71 @@
+\documentclass[a4paper, twoside]{report}
+
+%% Language and font encodings
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+\usepackage{placeins}
+\usepackage{comment}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage[table]{xcolor}
+\raggedbottom
+
+%% Sets page size and margins
+\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+%% Useful packages
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{fancyhdr} % Paquete para personalizar encabezados y pies de página
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{rotating}
+\usepackage{pdflscape}
+
+%% --- ADD THIS ---
+\usepackage{parskip}
+%\usepackage{subfig} % Added by Gabriel Arias - INICTEL
+%% ----------------
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+%\title{D5 - LINKU Mission Requirements and General Configuration}
+% Update autor and other title stuff in title/title.tex
+
+\begin{document}
+\input{title/title.tex}
+
+\begin{abstract}
+This report presents the SRR-level architecture, Concept of Operations, mission requirements, and system requirements for the LINKU mission. LINKU is defined as a multi-satellite tether experiment composed of SAT-A, SAT-B, and SAT-C. SAT-A acts as the carrier satellite, while SAT-B and SAT-C form the tether-experiment payload and become the two end bodies of a non-conductive tethered system after separation. The report describes the transition from the integrated SAT-ABC configuration to the coupled SAT-BC configuration and finally to the deployed SAT-B/SAT-C tethered configuration.
+
+The report defines the system configuration, SAT-B/SAT-C separation and tether deployment mechanism, tether storage and passive braking concept, measurement architecture, and main subsystem analyses. The measurement approach combines camera observations, GNSS-derived relative motion, tether-tension measurements, and telemetry to support comparison with pre-flight tether-dynamics simulations and ground-test results. The subsystem analyses cover electrical power, communications, attitude determination and control, and structural configuration.
+
+Using the mission objectives, Concept of Operations, system architecture, and subsystem analyses as a basis, the report defines requirements allocated to deployment, measurement, communications, power, ADCS, structural, data-handling, and operational functions. It also presents an SRR-level verification approach based on analysis, testing, inspection, and demonstration to support progression toward PDR and Engineering Model development.
+\end{abstract}
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+\input{project/introduction.tex}
+\input{project/chapter2.tex}
+%\input{project/chapter3.tex}
+\input{project/chapter4.tex}
+\input{project/chapter5.tex}
+\input{project/chapter6.tex}
+\input{project/chapter7.tex}
+\input{project/chapter8.tex}
+\input{project/chapter9.tex}
+\input{project/conclusion.tex}
+\input{appendix/appendix.tex}
+
+%\bibliographystyle{apalike}
+\bibliographystyle{IEEEtran}
+\bibliography{bibs/sample}
+
+\end{document}

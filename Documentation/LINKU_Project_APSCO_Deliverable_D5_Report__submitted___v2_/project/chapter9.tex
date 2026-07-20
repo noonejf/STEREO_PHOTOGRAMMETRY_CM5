@@ -1,0 +1,89 @@
+\chapter{Verification Approach}
+\label{ch:verification_approach}
+
+This chapter describes the verification approach for the LINKU requirements defined in Chapters~\ref{ch:mission_requirements} and~\ref{ch:system_requirements}. At SRR level, the objective is to verify that the mission architecture, subsystem concepts, and reference design values are technically consistent and suitable for progression toward PDR and Engineering Model development.
+
+The verification approach uses four standard methods:
+\begin{itemize}
+    \item \textbf{Analysis (A):} verification through calculations, simulations, models, or numerical assessment;
+    \item \textbf{Test (T):} verification through laboratory, functional, environmental, or subsystem-level testing;
+    \item \textbf{Inspection (I):} verification through review of drawings, CAD models, interface definitions, hardware configuration, or documentation;
+    \item \textbf{Demonstration (D):} verification through operation of a function or sequence under representative conditions.
+\end{itemize}
+
+\section{Verification Philosophy}
+\label{sec:verification_philosophy}
+
+The SRR verification approach confirms the feasibility of the main mission functions and the consistency of the system architecture. It does not replace the detailed qualification and acceptance process required for a flight model. Instead, it establishes the verification basis that will be expanded during PDR and Engineering Model testing.
+
+At this stage, analysis is the main method used to assess mission performance, tether deployment dynamics, link budgets, EPS capability, ADCS feasibility, and structural dynamic behavior. Inspection is used to verify accommodation, clearances, interfaces, and CAD-based configuration constraints. Testing and demonstration are required for functions that depend on hardware behavior, including the deployment mechanism, tether storage and braking, sensor integration, camera acquisition, data handling, and communications functions.
+
+\section{Verification by Subsystem}
+\label{sec:verification_by_subsystem}
+
+Deployment and tether-system requirements shall be verified through analytical sizing, simulation, CAD inspection, and ground deployment tests. The current SRR basis includes spring sizing, tether container sizing, braking-force estimation, and release-mechanism simulation. Engineering Model testing shall confirm release reliability, alignment, tether release, braking behavior, and repeatability.
+
+Measurement and instrumentation requirements shall be verified through component selection, interface inspection, functional testing, and integrated measurement tests. Force-sensor verification shall use representative tether loading paths, while GNSS and camera verification shall confirm data acquisition, time tagging, and compatibility with the post-processing workflow.
+
+Communications requirements shall be verified through link-budget analysis, interface testing, and end-to-end communication demonstrations. The UHF, S-band, and SAT-B/SAT-C inter-satellite links shall be evaluated using the selected radios, antenna configurations, modulation and coding schemes, and ground-station assumptions.
+
+Power requirements shall be verified through power-generation analysis, power-budget consolidation, and duty-cycle assessment. The EPS verification shall be updated when payload operating modes, communication schedules, battery sizing, and subsystem power consumption are consolidated.
+
+ADCS requirements shall be verified through simulation, functional testing of sensors and actuators, and hardware-in-the-loop testing where available. The SRR analysis provides the basis for SAT-ABC and SAT-BC detumbling feasibility, while later stages shall close the velocity-vector pointing, pre-separation attitude, and post-release stabilization cases.
+
+Structural and mechanical requirements shall be verified through CAD inspection, finite-element analysis, interface checks, and mechanical testing. The current modal analysis provides reference dynamic behavior for SAT-B, SAT-C, and SAT-BC. Launcher-specific structural requirements shall be incorporated once the launch interface is defined.
+
+Data handling and operational requirements shall be verified through software and functional tests of data acquisition, storage, time tagging, compression, and downlink prioritization. Critical operational commands, including SAT-BC release and SAT-B/SAT-C separation, shall be verified through command-sequence demonstrations and status-confirmation tests.
+
+\section{Preliminary Requirements Verification Summary}
+\label{sec:preliminary_requirements_verification_summary}
+
+\begin{table}[htbp]
+\centering
+\caption{Preliminary verification summary for LINKU requirements.}
+\label{tab:requirements_verification_summary}
+\small
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{p{3.5cm}p{3.0cm}p{8.0cm}}
+\toprule
+\textbf{Requirement group} &
+\textbf{Verification method} &
+\textbf{Planned verification evidence} \\
+\midrule
+Mission requirements &
+A, D &
+Mission scenario analysis, ConOps review, tether-dynamics comparison plan, and in-orbit experiment data products. \\
+
+Deployment and tether system &
+A, T, I, D &
+Spring sizing, braking analysis, tether container sizing, CAD inspection, release simulation, and Engineering Model deployment tests. \\
+
+Measurement and instrumentation &
+T, I, D &
+Sensor selection review, force-sensor tests, camera acquisition tests, GNSS data acquisition tests, and integrated time-tagging demonstration. \\
+
+Communications &
+A, T, D &
+UHF, S-band, and SAT-B/SAT-C link budgets; radio interface tests; antenna tests; and end-to-end data-transfer demonstrations. \\
+
+Power system &
+A, I, T &
+EPS power-generation simulation, power budget, duty-cycle analysis, battery sizing, and subsystem power-consumption tests. \\
+
+ADCS &
+A, T, D &
+Detumbling simulations, pointing-control simulations, sensor and actuator tests, and closed-loop demonstrations when available. \\
+
+Structural and mechanical &
+A, I, T &
+CAD accommodation inspection, clearance analysis, modal analysis, interface checks, vibration test plan, and mechanical integration tests. \\
+
+Data handling and operations &
+A, T, D &
+Data budget, storage assessment, image-compression tests, time-tagging verification, command-sequence demonstrations, and downlink-prioritization tests. \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+The verification matrix will be expanded during PDR to include requirement status, verification responsibility, test configuration, acceptance criteria, and supporting evidence. Requirements without closed numerical values at SRR shall be updated once the Engineering Model configuration, selected hardware, and detailed subsystem interfaces are consolidated.

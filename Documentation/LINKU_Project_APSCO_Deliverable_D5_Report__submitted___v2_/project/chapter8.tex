@@ -1,0 +1,269 @@
+\chapter{System Requirements}
+\label{ch:system_requirements}
+This chapter defines system-level requirements allocated to the LINKU satellite system. The requirements translate the mission objectives into system functions, performance constraints, and interface needs at SRR level. Values included in this chapter correspond to the current reference architecture and are expected to be refined during the subsequent design stages, when hardware selection, detailed interfaces, and verification models are consolidated.
+
+\section{Deployment and Tether System Requirements}
+\label{sec:req_deployment_tether}
+
+\begin{table}[H]
+\centering
+\caption{Deployment and tether system requirements.}
+\label{tab:req_deployment_tether}
+\small
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{p{2.4cm}p{12.4cm}}
+\toprule
+\textbf{ID} & \textbf{System requirement} \\
+\midrule
+SYS-DEP-001 &
+The system shall accommodate the coupled SAT-BC assembly inside SAT-A before release from the carrier satellite. \\
+
+SYS-DEP-002 &
+The SAT-BC assembly shall be compatible with the available SAT-A accommodation envelope, including a maximum accommodated height of \(240~\mathrm{mm}\) and an approximate transverse envelope of \(20 \times 20~\mathrm{cm}\). \\
+
+SYS-DEP-003 &
+The SAT-A release interface shall provide a controlled deployment path for SAT-BC and shall preserve clearance between SAT-BC and the internal faces of the SAT-A structure during ejection. \\
+
+SYS-DEP-004 &
+The SAT-B/SAT-C separation and deployment mechanism shall provide the initial relative motion required to separate SAT-B and SAT-C and initiate tether release. \\
+
+SYS-DEP-005 &
+The SAT-B/SAT-C separation mechanism shall be compatible with the current reference masses \(m_B = 5~\mathrm{kg}\) and \(m_C = 0.5~\mathrm{kg}\) used for deployment sizing. \\
+
+SYS-DEP-006 &
+The SAT-B/SAT-C separation mechanism shall be sized using a reference relative separation velocity of \(v_\mathrm{rel}=1.5~\mathrm{m/s}\) for the current conservative sizing case. \\
+
+SYS-DEP-007 &
+The tether deployment system shall support deployment of a non-conductive tether toward the nominal length of \(100~\mathrm{m}\). \\
+
+SYS-DEP-008 & 
+The tether braking function shall reduce the SAT-B/SAT-C relative velocity to below \(0.1~\mathrm{m/s}\) near full tether extension. \\
+
+SYS-DEP-009 &
+The tether storage system shall provide an allocated storage volume of at least \(100~\mathrm{cm^3}\) for the tether and supporting release elements. \\
+
+SYS-DEP-010 &
+The SAT-B/SAT-C retention and release interface shall keep SAT-B and SAT-C mechanically coupled before the separation command and allow release after activation of the separation mechanism. \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section{Measurement and Instrumentation Requirements}
+\label{sec:req_measurement_instrumentation}
+
+\begin{table}[H]
+\centering
+\caption{Measurement and instrumentation requirements.}
+\label{tab:req_measurement_instrumentation}
+\small
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{p{2.4cm}p{12.4cm}}
+\toprule
+\textbf{ID} & \textbf{System requirement} \\
+\midrule
+SYS-MEAS-001 &
+The measurement system shall acquire data to observe SAT-B/SAT-C separation, tether deployment, tethered-system motion, and tension response. \\
+
+SYS-MEAS-002 &
+The camera system shall include three \(12~\mathrm{MP}\) cameras, with two cameras accommodated on SAT-B and one camera accommodated on SAT-C. \\
+
+SYS-MEAS-003 &
+The camera system shall support visual observation of the tether and the opposite satellite during the deployment and tethered-system observation intervals. \\
+
+SYS-MEAS-004 &
+SAT-B and SAT-C shall each include GNSS capability to provide time-tagged position data suitable for deriving the SAT-B/SAT-C relative-position vector during post-processing. \\
+
+SYS-MEAS-005 &
+The tether-tension measurement system shall measure the tether load at the SAT-B and SAT-C tether interfaces. \\
+
+SYS-MEAS-006 &
+The tether-tension measurement interface shall be mechanically and electrically compatible with the selected force sensor and shall preserve the tether load path required for tension measurement. \\
+
+SYS-MEAS-007 &
+Camera, GNSS, tether-tension, and housekeeping data shall be time-correlated to support ground-based reconstruction and comparison with simulations. \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section{Communications Requirements}
+\label{sec:req_communications}
+
+\begin{table}[H]
+\centering
+\caption{Communications requirements.}
+\label{tab:req_communications}
+\small
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{p{2.4cm}p{12.4cm}}
+\toprule
+\textbf{ID} & \textbf{System requirement} \\
+\midrule
+SYS-COM-001 &
+The SAT-B--Ground UHF link shall support bidirectional TT\&C, housekeeping, and low-rate telemetry at a reference data rate of \(9.6~\mathrm{kbps}\) and a reference transmitter power of \(1~\mathrm{W}\). \\
+
+SYS-COM-002 &
+The SAT-B--Ground S-band link shall support selected tether-experiment data downlink at a reference data rate of \(200~\mathrm{kbps}\) and a reference transmitter power of \(2~\mathrm{W}\). \\
+
+SYS-COM-003 &
+The SAT-B/SAT-C inter-satellite link shall support bidirectional experiment-data transfer and coordination at a reference data rate of \(1~\mathrm{Mbps}\) using a candidate \(2.4~\mathrm{GHz}\) short-range link and a reference transmitter power of \(20~\mathrm{dBm}\). \\
+
+SYS-COM-004 &
+SAT-B shall receive experiment data from SAT-C, combine them with its own data products, store selected information, and transmit selected data to the ground station. \\
+
+SYS-COM-005 &
+The communications architecture shall not depend on a direct SAT-A--SAT-B or SAT-A--SAT-C link after SAT-BC release. \\
+
+SYS-COM-006 &
+SAT-A shall retain independent UHF TT\&C and S-band mission-data downlink capability after SAT-BC release. \\
+
+SYS-COM-007 &
+Antennas mounted on SAT-B and SAT-C shall be compact and non-deployable to reduce the risk of mechanical interference with the tether. \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section{Power Requirements}
+\label{sec:req_power}
+
+\begin{table}[H]
+\centering
+\caption{Power requirements.}
+\label{tab:req_power}
+\small
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{p{2.4cm}p{12.4cm}}
+\toprule
+\textbf{ID} & \textbf{System requirement} \\
+\midrule
+SYS-EPS-001 &
+The EPS shall support the essential bus and payload functions required in the SAT-ABC, SAT-BC, and deployed SAT-B/SAT-C configurations. \\
+
+SYS-EPS-002 &
+The EPS sizing shall account for representative LEO operation at \(700~\mathrm{km}\) altitude and the inclination cases used in the current power-generation analysis. \\
+
+SYS-EPS-003 &
+The power budget shall include the main operational loads associated with ADCS, communications, cameras, GNSS receivers, tether-tension sensors, onboard computing, and data storage. \\
+
+SYS-EPS-004 &
+Payload and communications operation shall be compatible with the available power-generation capability of each satellite configuration through duty-cycle management when required. \\
+
+SYS-EPS-005 &
+The EPS sizing shall include power margin provisions to account for degradation, modeling uncertainty, conversion losses, and variations in operational load. \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section{ADCS Requirements}
+\label{sec:req_adcs}
+
+\begin{table}[H]
+\centering
+\caption{ADCS requirements.}
+\label{tab:req_adcs}
+\small
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{p{2.4cm}p{12.4cm}}
+\toprule
+\textbf{ID} & \textbf{System requirement} \\
+\midrule
+SYS-ADCS-001 &
+The SAT-ABC configuration shall reduce its angular rate below \(\|\boldsymbol{\omega}\| < 1~\mathrm{deg/s}\) before SAT-BC release. \\
+
+SYS-ADCS-002 &
+The SAT-ABC configuration shall provide an attitude-determination settling interval before the deployment-orientation maneuver. \\
+
+SYS-ADCS-003 & 
+The SAT-ABC configuration shall support velocity-vector pointing before activation of the SAT-A release interface for SAT-BC deployment. \\
+
+SYS-ADCS-004 &
+The SAT-BC configuration shall reduce its angular rate below \(\|\boldsymbol{\omega}\| < 1~\mathrm{deg/s}\) before the SAT-B/SAT-C separation command. \\
+
+SYS-ADCS-005 & 
+The SAT-BC configuration shall support the required nadir-pointing condition before the SAT-B/SAT-C separation command so that tether deployment occurs along the intended direction. \\
+
+SYS-ADCS-006 &
+The ADCS design shall be compatible with representative mass-property uncertainty, actuator limits, sensor errors, and environmental disturbance torques considered in the SRR analysis. \\
+
+SYS-ADCS-007 &
+SAT-A shall support re-stabilization after SAT-BC release to account for the change in mass properties and inertia. \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section{Structural and Mechanical Requirements}
+\label{sec:req_structural_mechanical}
+
+\begin{table}[H]
+\centering
+\caption{Structural and mechanical requirements.}
+\label{tab:req_structural_mechanical}
+\small
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{p{2.4cm}p{12.4cm}}
+\toprule
+\textbf{ID} & \textbf{System requirement} \\
+\midrule
+SYS-STR-001 &
+SAT-A shall provide a 12U CubeSat-compatible carrier structure for accommodation and release of SAT-BC. \\
+
+SYS-STR-002 &
+SAT-B shall accommodate the tether storage and deployment elements, SAT-C accommodation region, separation interface, experiment electronics, communications equipment, and measurement interfaces within its non-standard geometry. \\
+
+SYS-STR-003 &
+SAT-C shall accommodate the tether-end instrumentation, including camera, GNSS, and tether-tension sensing interfaces, within its non-standard geometry. \\
+
+SYS-STR-004 &
+The SAT-BC mechanical configuration shall maintain the structural clearances and guiding interfaces required for release from SAT-A. \\
+
+SYS-STR-005 &
+The SAT-A, SAT-B, SAT-C, and SAT-BC mechanical configurations shall be compatible with the defined accommodation volumes, assembly interfaces, and deployment clearances. \\
+
+SYS-STR-006 &
+The SAT-B, SAT-C, and SAT-BC structures shall satisfy launcher-specific structural dynamic requirements once the launch interface is defined. Until then, modal behavior shall be assessed using finite-element analysis as a reference design criterion. \\
+
+SYS-STR-007 &
+The SAT-B/SAT-C retention, locking, and release interfaces shall withstand pre-release mechanical constraints and allow commanded separation. \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section{Data Handling and Operational Requirements}
+\label{sec:req_data_handling_operations}
+
+\begin{table}[H]
+\centering
+\caption{Data handling and operational requirements.}
+\label{tab:req_data_handling_operations}
+\small
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{p{2.4cm}p{12.4cm}}
+\toprule
+\textbf{ID} & \textbf{System requirement} \\
+\midrule
+SYS-DH-001 &
+SAT-B shall store selected experiment data from SAT-B and SAT-C before downlink to the ground station. \\
+
+SYS-DH-002 &
+The data-handling approach shall support image selection, prefiltering, compression, and prioritized downlink of experiment data. \\
+
+SYS-DH-003 &
+The system shall maintain time tags for camera, GNSS, tether-tension, and housekeeping data to support post-processing. \\
+
+SYS-DH-004 &
+The operational sequence shall inhibit SAT-B/SAT-C separation until the required SAT-BC stabilization and pre-separation orientation conditions are satisfied. \\
+
+SYS-DH-005 &
+The command and telemetry architecture shall support acknowledgment or status confirmation for critical deployment and separation commands. \\
+
+SYS-DH-006 &
+The system shall provide onboard storage capacity for selected experiment data acquired outside ground-station contact periods, as defined by the mission data budget. \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

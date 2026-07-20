@@ -1,0 +1,64 @@
+\chapter{Conclusions}
+\label{ch:conclusions}
+
+This deliverable establishes the SRR-level architecture baseline for the LINKU mission and defines the corresponding mission and system requirements. The results from previous LINKU studies were consolidated into an updated multi-satellite configuration, a coherent Concept of Operations, subsystem-level analyses, and a verification approach suitable for progression toward PDR and Engineering Model development.
+
+The mission architecture was defined around three satellites: SAT-A, SAT-B, and SAT-C. SAT-A acts as the carrier satellite, while SAT-B and SAT-C form the tether-experiment payload. The use of the SAT-ABC, SAT-BC, and SAT-B/SAT-C tethered-system definitions provides a consistent nomenclature for describing the mission stages, deployment events, subsystem functions, and requirement allocation.
+
+The updated Concept of Operations defines the transition from the integrated SAT-ABC configuration to the coupled SAT-BC configuration and finally to the deployed SAT-B/SAT-C tethered system. This sequence clarifies the role of the active control phases before tether deployment: SAT-ABC must be stabilized and oriented for SAT-BC release, and SAT-BC must be stabilized and oriented before the SAT-B/SAT-C separation command. After tether deployment, the mission transitions to observation of tethered-system motion and gravity-gradient-influenced behavior.
+
+At the system-configuration level, the current carrier--payload arrangement is feasible as an SRR architecture. SAT-BC is accommodated within the SAT-A 12U CubeSat-compatible envelope, with the tether-experiment payload located above the ejection platform and the SAT-A bus subsystems allocated in the lower region. The accommodation analysis also identifies key design constraints, including the available height, transverse envelope, deployment clearance, and the need for guiding features to control the SAT-BC release path.
+
+The tether experiment was defined as the primary payload of the mission. The selected configuration uses a non-conductive tether with a nominal length of \(100~\mathrm{m}\), connecting SAT-B and SAT-C after separation. The deployment mechanism, tether storage, passive braking concept, and measurement architecture provide a reference basis for observing SAT-B/SAT-C separation, tether release, tension build-up, possible slack/taut transitions, residual oscillations, and subsequent tethered-system motion. These observations are intended to support comparison with pre-flight tether-dynamics simulations and ground-test results.
+
+The subsystem analyses support the consistency of the current architecture at SRR level. The communications architecture assigns SAT-B as the main data-handling and downlink node for the tether experiment after SAT-BC release. The electrical power analysis provides a first assessment of power-generation capability and operational constraints. The ADCS analysis supports the feasibility of the main pre-deployment attitude-control functions, including SAT-ABC detumbling, velocity-vector pointing, SAT-BC stabilization, and pre-separation nadir pointing. The structural design and modal analyses provide a reference mechanical baseline for SAT-A, SAT-B, SAT-C, and the coupled SAT-BC configuration.
+
+The mission and system requirements defined in this deliverable provide a first consistent requirements baseline for the LINKU SRR. These requirements reflect the updated mission architecture and are allocated to deployment, measurement, communications, power, ADCS, structural, data-handling, and operational functions. Requirements that currently use reference values must be refined during PDR as hardware selection, interface definitions, budgets, and verification models are consolidated.
+
+The verification approach defines how the current requirements will be assessed through analysis, testing, inspection, and demonstration. At SRR level, the emphasis is on architectural consistency and feasibility. During the Engineering Model stage, verification must focus on the deployment mechanism, tether storage and braking behavior, sensor integration, camera acquisition, communications links, data handling, ADCS functions, and structural interfaces.
+
+In conclusion, the D5 baseline provides a coherent system-level definition of the LINKU mission for SRR. The architecture, ConOps, payload concept, subsystem analyses, requirements, and verification approach are sufficiently defined to guide the next design phase. The main work toward PDR should focus on closing hardware selections, refining budgets and interfaces, validating the separation and tether deployment mechanism, consolidating the communications and data-handling architecture, and defining the tests and verification activities for the Engineering Model.
+
+
+
+
+
+
+
+
+
+
+
+\begin{comment}
+\chapter{Conclusions}
+\label{ch:conclusions}
+
+This deliverable establishes the SRR-level architecture baseline for the LINKU mission and defines the corresponding mission and system requirements. The document consolidates the results from previous LINKU studies and translates them into an integrated multi-satellite configuration, an updated Concept of Operations, subsystem-level analyses, and a preliminary verification approach.
+
+The mission architecture was defined around three satellites: SAT-A, SAT-B, and SAT-C. SAT-A acts as the carrier satellite, while SAT-B and SAT-C form the tether-experiment payload. The configuration sequence was clarified through the use of the SAT-ABC, SAT-BC, and SAT-B/SAT-C tethered-system definitions. This nomenclature provides a consistent basis for describing the mission stages, deployment events, subsystem functions, and requirement allocation.
+
+The Concept of Operations was updated to describe the transition from the integrated SAT-ABC configuration to the coupled SAT-BC configuration and finally to the deployed SAT-B/SAT-C tethered system. The main active control phases occur before tether deployment: SAT-ABC must be stabilized and oriented for SAT-BC release, and SAT-BC must be stabilized and oriented before the SAT-B/SAT-C separation command. After tether deployment, the experiment transitions to the observation of tethered-system motion and gravity-gradient-influenced behavior.
+
+The system configuration confirms the feasibility of the current carrier--payload arrangement at the architectural level. SAT-BC is accommodated inside the SAT-A 12U CubeSat-compatible envelope, with the payload located above the ejection platform and the SAT-A bus subsystems allocated in the lower region. The current SAT-BC accommodation is constrained by the available height and transverse envelope, and the layout indicates that guiding features are required to control the SAT-BC release path and avoid contact with the internal SAT-A structure during ejection.
+
+The tether experiment was defined as the primary payload of the mission. The selected configuration uses a non-conductive tether with a nominal length of \(100~\mathrm{m}\), connecting SAT-B and SAT-C after separation. The experiment is intended to characterize the deployment process, tension build-up, possible slack/taut transitions, residual oscillations, and subsequent tethered-system motion. These measurements provide the basis for comparing the observed in-orbit response with pre-flight tether-dynamics simulations and ground-test results.
+
+The separation and tether deployment mechanism was developed to a reference SRR-level concept. The current design uses a spring-actuated separation approach, a retention and release interface, tether storage in SAT-B, and a passive braking concept to reduce the relative velocity near full tether extension. Analytical sizing, mechanical configuration, and simulation results provide a first basis for the mechanism design; however, release reliability, braking repeatability, tether routing, and deployment robustness must be verified through Engineering Model testing.
+
+The measurement architecture was defined around complementary data sources. Camera observations, GNSS-derived relative motion, tether-tension measurements, and housekeeping telemetry are used together to reconstruct the deployment sequence and analyze the tethered-system response. The stereo vision concept and associated tests show the relevance of image-based observation, while also identifying the need for controlled imaging conditions, robust tether detection, and further validation of the reconstruction approach.
+
+The communications architecture was updated to support the current mission configuration. SAT-B acts as the main communications and data-handling node for the tether experiment after SAT-BC release, receiving data from SAT-C through the SAT-B/SAT-C inter-satellite link and downlinking selected experiment data to the ground station. The UHF, S-band, and short-range inter-satellite links provide a consistent reference architecture for TT\&C, experiment-data transfer, and selected data downlink. The next design stage must close the link budgets using selected radios, modulation and coding schemes, antenna patterns, losses, and ground-station assumptions.
+
+The electrical power analysis provides a first assessment of power generation and operational constraints for the main mission configurations. The results support the use of duty-cycle management for payload and communications operations, especially because continuous raw image downlink is not compatible with the reference downlink capacity. Power budgets, battery sizing, subsystem duty cycles, and operating modes must be consolidated as the hardware configuration matures.
+
+The ADCS analysis confirms the feasibility of the main active attitude-control functions required before tether deployment. The SAT-ABC configuration requires detumbling, attitude-determination convergence, and velocity-vector pointing before SAT-BC release. The SAT-BC configuration requires detumbling, stabilization, and nadir-pointing preparation before SAT-B/SAT-C separation. These analyses support the SRR-level architecture, while detailed implementation, actuator selection, sensor integration, and hardware-level validation remain tasks for the following design stages.
+
+The structural design and modal analyses provide a reference mechanical baseline for SAT-A, SAT-B, SAT-C, and the coupled SAT-BC configuration. The current CAD models demonstrate the internal accommodation concept and the integration of representative payload and subsystem elements. The modal results provide initial dynamic behavior estimates, but launcher-specific mechanical requirements, interface loads, vibration constraints, and detailed structural margins must be incorporated when the launch interface is defined.
+
+The mission and system requirements defined in this deliverable provide a first consistent requirements baseline for the LINKU SRR. These requirements reflect the updated mission architecture and are allocated to deployment, measurement, communications, power, ADCS, structural, data-handling, and operational functions. Requirements with reference values are suitable for SRR-level assessment but must be refined during PDR as hardware selection, interface definitions, budgets, and verification models are consolidated.
+
+The verification approach establishes how the current requirements will be assessed through analysis, testing, inspection, and demonstration. At SRR level, the emphasis is on architectural consistency and feasibility. During the Engineering Model stage, verification must focus on the deployment mechanism, tether storage and braking behavior, sensor integration, camera acquisition, communications links, data handling, ADCS functions, and structural interfaces.
+
+In conclusion, the current D5 baseline provides a coherent system-level definition of the LINKU mission for SRR. The architecture, ConOps, payload concept, subsystem analyses, requirements, and verification approach are sufficiently mature to guide the next design phase. The main work toward PDR should focus on closing hardware selections, refining budgets and interfaces, validating the separation and tether deployment mechanism, consolidating the communications and data-handling architecture, and defining the Engineering Model verification campaign.
+
+\end{comment}

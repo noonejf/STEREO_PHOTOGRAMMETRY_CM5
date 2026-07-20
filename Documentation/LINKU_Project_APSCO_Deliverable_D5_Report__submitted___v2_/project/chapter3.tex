@@ -1,0 +1,107 @@
+\chapter{Mission Concept of Operations}
+
+\section{Mission Concept of Operations}
+\label{sec:mission_conops}
+
+The LINKU mission is organized around the deployment and observation of a tethered satellite system. The mission sequence is defined according to four mission operational stages associated with the main satellite configurations involved in the experiment: SAT-ABC, SAT-BC, the separated SAT-B and SAT-C tethered system, and SAT-A after SAT-BC deployment. These stages provide a common reference for the subsystem analyses presented in the following sections.
+
+Each mission stage is divided into sequential steps. This structure preserves the detailed mission sequence while avoiding the use of subsystem-specific phase numbering.
+
+\subsection{Mission Stage 1: SAT-ABC Integrated Configuration}
+\label{sub:conops_stage1_satabc}
+
+At the beginning of the mission, SAT-A, SAT-B, and SAT-C are mechanically integrated and behave as a single rigid body, referred to as SAT-ABC. The main objective of this stage is to stabilize the integrated spacecraft and orient it for the release of SAT-BC.
+
+At the beginning of the mission, SAT-A, SAT-B, and SAT-C are mechanically integrated and behave as a single rigid body, referred to as SAT-ABC. After release from the deployer, the integrated satellite may present a non-zero initial angular rate. Therefore, the first operational objective is to reduce the initial tumbling motion and stabilize the SAT-ABC configuration.
+
+Once detumbling has been completed, the satellite enters an attitude-determination settling interval. This interval allows the attitude estimation algorithms to converge and provides time to verify the stability of the integrated configuration before performing the next maneuver. After this settling interval, SAT-ABC is oriented along the required deployment direction to prepare for the release of the coupled SAT-BC system from SAT-A.
+
+
+The corresponding steps are:
+
+\begin{itemize}
+    \item \textbf{Step 1.1 -- SAT-ABC release and initialization:} SAT-A is released from the deployer while containing SAT-B and SAT-C. The integrated SAT-ABC configuration may present a non-zero initial angular rate, leading to initial tumbling.
+
+    \item \textbf{Step 1.2 -- SAT-ABC detumbling and stabilization:} The integrated configuration reduces its angular rate and reaches a stable attitude condition using the active ADCS.
+
+    \item \textbf{Step 1.3 -- SAT-ABC settling interval:} The spacecraft remains in a settling mode to allow attitude-determination algorithms to converge and to verify that the integrated configuration is stable before the next maneuver.
+
+    \item \textbf{Step 1.4 -- SAT-ABC deployment orientation:} SAT-ABC is oriented along the required deployment direction to prepare for the release of the coupled SAT-BC system from SAT-A.
+
+    \item \textbf{Step 1.5 -- SAT-BC release from SAT-A:} SAT-A deploys the coupled SAT-B/SAT-C system, which remains mechanically integrated as SAT-BC.
+\end{itemize}
+
+\subsection{Mission Stage 2: SAT-BC Coupled Configuration}
+\label{sub:conops_stage2_satbc}
+
+After deployment from SAT-A, SAT-B and SAT-C remain mechanically coupled and are modeled as a single rigid body, referred to as SAT-BC. The main objective of this stage is to stabilize SAT-BC and orient it for the SAT-B/SAT-C separation and tether deployment.
+
+After deployment from SAT-A, SAT-B and SAT-C remain mechanically coupled and are modeled as a single rigid body, referred to as SAT-BC. This configuration may also experience a non-zero angular rate immediately after release. Therefore, SAT-BC must perform an initial detumbling and stabilization process before the tether-deployment sequence.
+
+Following detumbling, SAT-BC enters a settling interval to allow attitude determination to converge and to verify the stability of the coupled configuration. The coupled body is then oriented so that the SAT-B/SAT-C separation and tether deployment occur along the intended direction. This active attitude-control phase is required before initiating the internal separation mechanism.
+
+
+The corresponding steps are:
+
+\begin{itemize}
+    \item \textbf{Step 2.1 -- SAT-BC release and initialization:} SAT-BC is released from SAT-A and may present a non-zero initial angular rate, leading to initial tumbling.
+
+    \item \textbf{Step 2.2 -- SAT-BC detumbling and stabilization:} The coupled configuration reduces its angular rate and reaches a stable attitude condition using active attitude control.
+
+    \item \textbf{Step 2.3 -- SAT-BC settling interval:} SAT-BC remains in a settling mode to allow attitude-determination algorithms to converge and to verify that the coupled configuration is stable.
+
+    \item \textbf{Step 2.4 -- SAT-BC nadir-pointing orientation:} SAT-BC is oriented so that the SAT-B/SAT-C separation and tether deployment occur along the intended direction.
+
+    \item \textbf{Step 2.5 -- SAT-B/SAT-C separation command:} The internal separation mechanism is activated to initiate the separation between SAT-B and SAT-C and the deployment of the non-conductive tether.
+\end{itemize}
+
+\subsection{Mission Stage 3: SAT-B and SAT-C Tethered Configuration}
+\label{sub:conops_stage3_tethered}
+
+After SAT-B/SAT-C separation, the tether is deployed up to its nominal maximum length of \(100~\mathrm{m}\). Once the tethered configuration is established, the experiment transitions from the active pre-separation attitude-control phase to passive gravity-gradient behavior.
+
+After SAT-BC has been properly oriented, an internal mechanism within SAT-B initiates the separation between SAT-B and SAT-C and deploys the non-conductive tether. The nominal maximum tether length is \(100~\mathrm{m}\). Once the tethered configuration is established, the system transitions from active attitude control to passive gravity-gradient stabilization.
+
+The primary objective of this stage is to observe the deployment process and the subsequent tethered dynamics. The expected passive behavior of the tethered system provides the basis for the mission experiment, allowing the measured motion to be compared with pre-flight dynamic simulations.
+
+
+The corresponding steps are:
+
+\begin{itemize}
+    \item \textbf{Step 3.1 -- Tether deployment:} SAT-B and SAT-C separate while the non-conductive tether is deployed toward its nominal maximum length.
+
+    \item \textbf{Step 3.2 -- Passive gravity-gradient operation:} After deployment, the tethered system evolves under passive gravity-gradient stabilization.
+
+    \item \textbf{Step 3.3 -- Tethered-system observation:} The deployment process and subsequent relative motion are observed to support comparison with pre-flight dynamic simulations.
+\end{itemize}
+
+\subsection{Mission Stage 4: SAT-A Post-Deployment Operation}
+\label{sub:conops_stage4_sata_post_deployment}
+
+After the release of SAT-BC, SAT-A remains as an independent spacecraft. The departure of SAT-BC changes the mass properties and inertia of SAT-A, requiring re-stabilization before any subsequent operation.
+
+After the release of SAT-BC, SAT-A remains as an independent spacecraft. The departure of SAT-BC changes the mass properties and inertia of SAT-A, requiring re-stabilization before any subsequent operation. Although SAT-A is expected to support a secondary mission after SAT-BC deployment, the detailed definition of this secondary mission is outside the scope of the present document, which focuses on the tether deployment and observation experiment.
+
+The corresponding steps are:
+
+\begin{itemize}
+    \item \textbf{Step 4.1 -- SAT-A re-stabilization:} SAT-A performs a re-stabilization maneuver to compensate for the disturbance induced by the release of SAT-BC and the change in its mass properties.
+
+    \item \textbf{Step 4.2 -- SAT-A secondary mission:} SAT-A is expected to support an independent secondary mission after the deployment of SAT-BC. The detailed definition of this secondary mission is outside the scope of the present document, which focuses on the tether deployment and observation experiment.
+\end{itemize}
+
+\section{Operational Concept}
+
+This section describes how the satellite system is operated to achieve the mission objectives. It explains the interaction between spacecraft subsystems, payload operations, and ground segment activities. The section outlines how the satellites transition between operational phases, how measurements are acquired, and how experimental data are transmitted to the ground.
+
+\section{Deployment Sequence}
+
+This section describes the sequence of events leading to tether deployment including spacecraft orientation prior to deployment, activation of the separation mechanism between SAT-B and SAT-C, controlled release of the tether, and braking of the deployment near full extension. Diagrams illustrating the deployment sequence and simplified CAD representations of the mechanism may be included to clarify the operational process. The objective is to explain how the experiment is executed, not the detailed mechanical design.
+
+\section{Measurement Concept}
+
+This section describes how the mission collects experimental data. It explains how tension sensors, GNSS receivers, and cameras are used together to observe the behavior of the tethered satellite system and how these measurements will support validation of theoretical models and numerical simulations. It also explains how measurements from different sensors are synchronized and how they contribute to reconstructing the dynamics of the tether system. 
+
+\section{Communications and Data Handling Concept}
+This section describes how telemetry and experimental data are transmitted and handled during the mission. It introduces the communication architecture including inter-satellite communication between SAT-B and SAT-C and communication with ground stations. 
+The section may summarize preliminary link budget analyses and explain the role of different communication links, including inter-satellite communication between SAT-B and SAT-C and communication with ground stations.
