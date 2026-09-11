@@ -807,3 +807,42 @@ The principal results of the current work can be summarized as follows:
     \item AI-assisted approaches are more appropriate as complementary tools than as primary scientific reconstruction methods. Their most promising future roles include robust mask generation, knot solving, ambiguity resolution, and anomaly detection.
     \item The experimental results support the central premise of the current work: tether observation should be treated primarily as a geometric and radiometric reconstruction problem, not as a conventional texture-based photogrammetry problem.
 \end{itemize}
+
+\begin{figure}[htbp]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[
+        font=\small,
+        node distance = 10mm,
+        stage/.style = {rectangle, draw, rounded corners, fill=blue!8,
+                        text width=3.2cm, align=center, minimum height=1.3cm},
+        note/.style  = {rectangle, draw=green!45!black, fill=green!8, dashed,
+                        text width=3.2cm, align=center, font=\small, minimum height=1.3cm},
+        arr/.style   = {-{Stealth[length=2.5mm]}, thick},
+    ]
+
+    \node[stage] (extract)  {Tether extraction (mask)};
+    \node[stage, right=of extract]  (center)  {Centerline estimation};
+    \node[stage, right=of center]   (corresp) {Stereo correspondence};
+    \node[stage, right=of corresp]  (recon)   {3D reconstruction};
+
+    \draw[arr] (extract) -- (center);
+    \draw[arr] (center) -- (corresp);
+    \draw[arr] (corresp) -- (recon);
+
+    \node[note, below=6mm of extract] (ai1)
+        {AI option: learned classifier replaces the manual threshold};
+    \node[note, below=6mm of center] (ai2)
+        {AI option: learned scorer resolves ambiguous branches/crossings};
+
+    \draw[arr, green!45!black] (extract.south) -- (ai1.north);
+    \draw[arr, green!45!black] (center.south) -- (ai2.north);
+
+    \end{tikzpicture}}
+    \caption[Integration points of the AI-assisted components within the geometry-driven pipeline]{Integration points of the AI-assisted components within the geometry-driven pipeline. Both AI options act as drop-in replacements for a single existing step, mask thresholding and branch scoring respectively, without changing the surrounding pipeline stages or their inputs and outputs.}
+    \label{fig:ai-integration-points}
+\end{figure}
+
+The AI-assisted components referenced above are intended to integrate at specific points of the existing geometry-driven pipeline shown in Figure~\ref{fig:figure1.4} and Figure~\ref{fig:ai-integration-points}, rather than as an independent reconstruction stage. Mask generation would replace the current threshold-based tether extraction step with a learned classifier that outputs the same binary mask format already consumed by the centerline-extraction stage, so the downstream correspondence and triangulation steps remain unchanged. Ambiguity and crossing resolution would operate within the existing centerline-tracking step: at each point where the tracking process must choose between multiple plausible continuations, the fixed decision rules currently used would be replaced by weights learned from previously verified tether paths, while the surrounding search, stereo correspondence, and triangulation logic remains the same. This targeted integration strategy preserves the deterministic, physically interpretable nature of the geometry-driven framework while allowing specific, well-bounded stages to benefit from data-driven support.
+
+The practical path toward this integration follows three near-term steps. First, the verified-path dataset must grow from its current size to the tens of samples typically required to train a small classifier of this kind. Second, an offline tool must be developed to convert each verified path into labeled training examples at every branch point it contains, since this step does not exist yet. Third, the resulting classifier would be validated against held-out verified paths and compared directly against the current fixed-weight decision rule before being considered for operational use, as part of the maturation activities planned toward PDR.

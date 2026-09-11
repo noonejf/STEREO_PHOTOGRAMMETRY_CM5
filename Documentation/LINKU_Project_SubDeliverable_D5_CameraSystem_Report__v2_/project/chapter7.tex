@@ -139,8 +139,9 @@ Benchmarking activities should quantify:
     \item Processing time per image.
     \item Memory utilization.
     \item Processor workload.
-    \item Power consumption.
-    \item Maximum sustainable image acquisition rate.
+    \item Power consumption.\todo{Pending: power consumption budget by operational stage (idle, preview, capture, processing). Needs CM5 and camera-module datasheet figures or bench measurement.}
+    \item Maximum sustainable image acquisition rate.\todo{Pending: number of images at target resolution obtainable per operational period. Needs onboard storage capacity and/or downlink data rate as inputs.}
+    \item Rolling-shutter distortion under spacecraft rotation.\todo{Pending experiment: validate software-based rolling-shutter correction under controlled rotation rates, to establish the maximum tolerable angular velocity for usable tether imaging.}
 \end{itemize}
 
 These measurements will establish whether low-level tether detection can be performed onboard before transmitting reduced data products or selected image subsets to the ground segment. Such an approach could significantly reduce downlink requirements while preserving scientifically relevant information.
