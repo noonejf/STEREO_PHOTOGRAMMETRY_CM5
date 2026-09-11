@@ -1,0 +1,70 @@
+{
+    "left_camera": {
+        "camera_id": 0,
+        "name": "Left Camera (CAM0)",
+        "sensor_type": "IMX477",
+        "max_resolution": [
+            4056,
+            3040
+        ],
+        "preview_resolution": [
+            1920,
+            1440
+        ],
+        "capture_resolution": [
+            4056,
+            3040
+        ],
+        "framerate": 15,
+        "exposure_mode": "auto",
+        "awb_mode": "auto",
+        "iso": 0,
+        "shutter_speed": 0,
+        "brightness": 50,
+        "contrast": 50,
+        "saturation": 50
+    },
+    "right_camera": {
+        "camera_id": 1,
+        "name": "Right Camera (CAM1)",
+        "sensor_type": "IMX477",
+        "max_resolution": [
+            4056,
+            3040
+        ],
+        "preview_resolution": [
+            1920,
+            1440
+        ],
+        "capture_resolution": [
+            4056,
+            3040
+        ],
+        "framerate": 15,
+        "exposure_mode": "auto",
+        "awb_mode": "auto",
+        "iso": 0,
+        "shutter_speed": 0,
+        "brightness": 50,
+        "contrast": 50,
+        "saturation": 50
+    },
+    "stereo": {
+        "baseline_mm": 100.0,
+        "convergence_angle": 0.0,
+        "sync_tolerance_ms": 50,
+        "use_charuco": true,
+        "charuco_squares_x": 5,
+        "charuco_squares_y": 7,
+        "charuco_square_size_mm": 37.0,
+        "charuco_marker_size_mm": 29.6,
+        "charuco_dict_name": "DICT_6X6_250",
+        "calibration_board_size": [
+            9,
+            6
+        ],
+        "calibration_square_size_mm": 24.0,
+        "min_calibration_images": 10,
+        "max_calibration_images": 30
+    }
+}

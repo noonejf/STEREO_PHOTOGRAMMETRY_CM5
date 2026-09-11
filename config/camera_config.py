@@ -20,8 +20,8 @@ class CameraSettings:
     name: str
     sensor_type: str = "IMX477"
     max_resolution: Tuple[int, int] = (4056, 3040)  # 12.3MP máximo
-    preview_resolution: Tuple[int, int] = (1920, 1440)  # Para vista previa
-    capture_resolution: Tuple[int, int] = (1920, 1440)  # CAMBIO: Usar misma resolución que preview para evitar crop
+    preview_resolution: Tuple[int, int] = (1920, 1440)  # Para vista previa (~2.8MP)
+    capture_resolution: Tuple[int, int] = (4056, 3040)  # Captura de foto a resolución completa (12.3MP). Requiere --mode explícito, ver get_libcamera_cmd
     framerate: int = 15
     exposure_mode: str = "auto"
     awb_mode: str = "auto"
@@ -172,11 +172,15 @@ class CameraConfig:
             cmd += f" --height {camera_settings.preview_resolution[1]}"
 
         elif operation == "capture":
-            # --- LÓGICA DE CAPTURA (PARA MODELO 3D) ---
-            # Usar MISMA resolución que preview (1920x1440) porque funciona sin crop
+            # --- LÓGICA DE CAPTURA (PARA MODELO 3D, RESOLUCIÓN COMPLETA) ---
+            # --mode fuerza al ISP a leer el sensor completo (4056x3040) antes de
+            # escalar/recortar a --width/--height. Sin --mode, libcamera puede elegir
+            # un modo de sensor recortado en vez de usar el campo de visión completo
+            # (esto fue lo que causó el crop reportado al usar 3840x2880 sin --mode).
             if not output_file:
                 output_file = f"capture_cam{camera_id}.jpg"
             cmd = f"libcamera-jpeg --camera {camera_id} -o {output_file}"
+            cmd += f" --mode {camera_settings.max_resolution[0]}:{camera_settings.max_resolution[1]}:12:P"
             cmd += f" --width {camera_settings.capture_resolution[0]}"
             cmd += f" --height {camera_settings.capture_resolution[1]}"
             cmd += f" -t {duration_ms}"

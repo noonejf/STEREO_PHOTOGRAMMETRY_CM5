@@ -37,7 +37,7 @@ CAMERAS = {
         "description":      "12.3 MP — sensor 6.287×4.712 mm — pixel 1.55 µm",
         "lenses": ["Lens 6mm F1.2 (CS-Mount)", "Lens 8mm F1.6-F16 Zoom (C-Mount)", "Varifocal Lens 2.8-12mm F1.6 (C-Mount)"],
     },
-    "Raspberry Pi Camera Module 3 (IMX708)": {
+    "Arducam Hawk-eye (OV64A40)": {
         "sensor_width_mm":  7.4,
         "sensor_height_mm": 5.55,
         "resolution_h":     9152,
@@ -46,6 +46,16 @@ CAMERAS = {
         "optical_size":     '1/1.7"',
         "description":      "64 MP — sensor 7.4×5.55 mm — fixed manual focus",
         "lenses": ["Integrated Lens 5.1mm F1.8 (fixed)"],
+    },
+    "Arducam 12MP IMX708 Wide Angle (B0310)": {
+        "sensor_width_mm":  6.45,
+        "sensor_height_mm": 3.63,
+        "resolution_h":     4608,
+        "resolution_v":     2592,
+        "pixel_size_um":    1.4,
+        "optical_size":     '1/2.43"',
+        "description":      "11.9 MP — sensor 6.45×3.63 mm — pixel 1.4 um",
+        "lenses": ["Arducam Wide-Angle M12 Lens 2.87mm F2.8 (B0310)"],
     },
 }
 
@@ -79,6 +89,18 @@ LENSES = {
         "fov_h_deg":       84.0,
         "mount":           "integrated",
         "description":     "5.1 mm F1.8 · FOV 84° diagonal · MOD 0.08 m",
+    },
+    "Arducam Wide-Angle M12 Lens 2.87mm F2.8 (B0310)": {
+        "focal_length_mm": 2.87,
+        "f_number_min":    2.8,
+        "f_number_max":    2.8,       # fixed aperture
+        "adjustable_f":   False,
+        # MOD no especificado por el fabricante en la ficha de producto (lente manual).
+        # Placeholder conservador, verificar con prueba fisica antes de usar en calculos finales.
+        "mod_mm":          100.0,
+        "fov_h_deg":       120.0,     # 120(H) x 152(D) x 66(V) segun ficha de producto
+        "mount":           "M12",
+        "description":     "2.87 mm F2.8 · FOV 120 H / 152 D / 66 V deg · MOD no especificado (placeholder 0.1 m)",
     },
     "Varifocal Lens 2.8-12mm F1.6 (C-Mount)": {
         "focal_length_mm":     2.8,
