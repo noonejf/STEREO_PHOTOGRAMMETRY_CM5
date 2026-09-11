@@ -1,0 +1,24 @@
+\chapter{Evaluation and Reporting Plan}
+\label{chap:rs-results}
+
+This chapter defines how results will be evaluated and reported once the experiments of Chapter \ref{chap:rs-setup} are executed. No results exist yet; this chapter defines the criteria that will be applied to them.
+
+\section{Reporting format}
+
+For each angular velocity tested, in each phase, the following will be reported:
+
+\begin{itemize}
+    \item The uncorrected distorted image and the corrected image, for visual reference.
+    \item The four evaluation metrics of Chapter \ref{chap:rs-methodology}, for the uncorrected and corrected image, against the static baseline.
+    \item A plot of each metric's degradation versus angular velocity, with and without correction, to visualize where performance drops below an acceptable level.
+\end{itemize}
+
+\section{Interpretation criteria}
+
+\todo[inline]{Pending decision, to be set before running the experiment: define the maximum acceptable degradation in each metric (for example, endpoint position error, path coverage percentage) relative to the static baseline, below which imagery at a given angular velocity is considered usable. This threshold should be consistent with the operational tolerances already used elsewhere in the Camera System Report, rather than chosen independently.}
+
+\section{Expected outcome and operational recommendation}
+
+The intended output of this experiment is a single operational number: the maximum spacecraft rotation rate, with correction applied, at which tether imagery remains usable by the existing pipeline. This number will either confirm the first-pass estimate of approximately 1 degree per second from Section \ref{sec:first-pass-estimate}, or replace it with an experimentally validated value, which is the primary purpose of this document.
+\\\\
+This recommendation is intended to be provided to the ADCS subsystem as an attitude-control-rate requirement during tether imaging windows, and should be read together with the operational parameters (power consumption per stage, image acquisition rate) tracked separately in the Camera System Report, Chapter 7, since attitude control, power, and imaging cadence are jointly constrained by the same imaging windows.

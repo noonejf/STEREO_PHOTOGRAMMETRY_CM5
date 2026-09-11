@@ -1,0 +1,19 @@
+\chapter*{Introduction}
+\addcontentsline{toc}{chapter}{Introduction}
+
+The LINKU camera system report and the underlying camera configuration analysis did not originally account for spacecraft rotation during image capture. This was identified as a gap: the Arducam HQ 477 (Sony IMX477) sensors used by the system are rolling-shutter sensors, meaning the image is not captured all at once but scanned row by row over a finite readout time. If the spacecraft rotates during that readout window, the resulting image is geometrically sheared, with each row effectively taken from a slightly different attitude.
+\\\\
+This is a more serious problem for LINKU than for typical photography, for a reason specific to this mission: the tether itself is only expected to occupy one to three pixels of width in the image, per the sub-pixel observability analysis in the Camera System Report. A rolling-shutter shear of even two or three pixels, which would be a barely noticeable artifact in an ordinary photograph, is comparable in magnitude to the entire object being measured.
+\\\\
+A first estimate, worked out from the camera system's own operating parameters and the IMX477 datasheet, is presented in Chapter \ref{chap:rs-background} and indicates that a spacecraft rotation rate at or below approximately 1.05 degree per second (under the software's current 15 fps configuration) to approximately 2.76 degree per second (if a faster sensor readout mode is used) keeps this shear within a tolerable range. This document plans the experiment required to test these estimates directly, rather than relying on them as an assumption, and to validate a software-based correction approach as the near-term mitigation strategy, before considering a hardware change such as a global-shutter sensor.
+\\\\
+This document is organized as follows:
+
+\begin{itemize}
+    \item Chapter 1 presents the rolling-shutter physics, the first-pass tolerance estimate, and the relevant correction literature.
+    \item Chapter 2 defines the two-phase experimental methodology: a synthetic validation phase followed by a physical rotation-rig validation phase.
+    \item Chapter 3 defines the experimental setup required for each phase.
+    \item Chapter 4 defines how results will be evaluated once the experiments are executed.
+\end{itemize}
+
+\todo[inline]{This document is a working draft. The physics background (Chapter 1) and methodology (Chapter 2) are complete. The experimental setup (Chapter 3) and results (Chapter 4) are pending execution.}

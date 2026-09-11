@@ -1,0 +1,18 @@
+\chapter{Experimental Setup}
+\label{chap:rs-setup}
+
+This chapter defines what needs to be built to execute the methodology of Chapter \ref{chap:rs-methodology}. All items in this chapter are pending; none have been executed yet.
+
+\section{Phase 1 setup: synthetic validation}
+
+\todo[inline]{Pending: implement the row-dependent shear model (Section \ref{sec:first-pass-estimate}) as a function that takes a static image and an angular velocity and returns the synthetically sheared image. Implement the corresponding inverse (correction) function that takes a sheared image and the same angular velocity and returns the corrected image. Select 3 to 5 representative static tether photographs already available in the existing dataset to use as ground truth for this phase, covering straight, curved, and if available a self-crossing configuration.}
+
+\section{Phase 2 setup: physical rotation rig}
+
+\todo[inline]{Pending: design and build a rotation stage (stepper motor or servo-driven turntable) capable of controlled, known angular velocities in the range defined in Chapter \ref{chap:rs-methodology}, with either commanded-rate accuracy or an encoder providing measured rate, since the correction algorithm's input quality directly determines its output quality. Mount the stereo camera rig on this stage such that it rotates while imaging the tether proxy inside the dark enclosure, following the same illumination and enclosure configuration used for the Camera System Report experiments.}
+
+\todo[inline]{Pending: define how the rig's angular velocity will be communicated to the correction algorithm for each capture (for example, a logged commanded value, or an encoder reading synchronized to the capture timestamp), since this stands in for the ADCS angular-rate telemetry that would be available in flight.}
+
+\section{Software implementation}
+
+\todo[inline]{Pending: implement the correction as a processing step compatible with the existing pipeline, positioned before segmentation, so that its output can be fed into the unmodified downstream stages (segmentation, endpoint detection, path tracing) for the comparison defined in Chapter \ref{chap:rs-methodology}.}

@@ -1,0 +1,76 @@
+\chapter{Rolling-Shutter Background and First-Pass Estimate}
+\label{chap:rs-background}
+
+\section{Rolling-shutter distortion mechanism}
+
+A rolling-shutter sensor does not expose its full frame simultaneously. Instead, rows are exposed and read out sequentially, so the top row of an image and the bottom row correspond to slightly different instants in time. For a static camera and a static scene this has no visible effect, but if the camera itself rotates during the readout window, each row records the scene from a slightly different orientation, producing a geometric shear or skew across the image rather than a uniform blur.
+\\\\
+This is a distinct phenomenon from ordinary motion blur, which is caused by relative motion during a single row's exposure time and occurs with any shutter type, rolling or global. A rolling-shutter sensor can therefore exhibit both effects at once: shear from rotation during the full-frame readout, and blur from motion during each row's individual exposure.
+
+\section{First-pass tolerance estimate}
+\label{sec:first-pass-estimate}
+
+Using the camera system's real operating parameters, an order-of-magnitude estimate can be made without any new hardware or experiment.
+\\\\
+The instantaneous field of view (IFOV) per output pixel, using the 8~mm focal length lens and the 1920$\times$1440 capture resolution configured in the software, is approximately:
+
+\begin{equation}
+\text{IFOV} \approx \frac{\text{pixel pitch (effective)}}{\text{focal length}} \approx 0.023^\circ \text{ per pixel}
+\end{equation}
+
+A first, naive bound can be derived from the camera configuration's current software framerate setting of 15 fps, which implies a full-frame readout time on the order of:
+
+\begin{equation}
+T_{\text{readout,software}} \approx \frac{1}{15\text{ fps}} \approx 67\text{ ms}
+\end{equation}
+
+However, this framerate is a conservative software/driver setting, not a sensor limitation. The Sony IMX477 datasheet's Features section states the sensor supports full-resolution readout at up to 60 frame/s (10-bit Normal mode) or 40 frame/s (12-bit Normal mode) \cite{sony_imx477_datasheet}. This gives a datasheet-sourced upper bound on the full-frame period of:
+
+\begin{equation}
+T_{\text{readout,12-bit}} \approx \frac{1}{40\text{ fps}} \approx 25\text{ ms}, \qquad
+T_{\text{readout,10-bit}} \approx \frac{1}{60\text{ fps}} \approx 16.7\text{ ms}
+\end{equation}
+
+These are still upper bounds: the complete datasheet's AC Characteristics section (Section 8-2) documents the master clock, PLL, and serial communication timing in detail, but the exact row-scan-only readout time as a function of operating mode is stated to require the separate Software Reference Manual, which is not publicly available \cite{sony_imx477_datasheet}. The frame period therefore still includes an unknown amount of blanking time in addition to the actual row-scan time, and the true row-scan-only readout time is expected to be somewhat shorter than either value above. \todo{Pending: obtain the IMX477 Software Reference Manual, or a bench measurement, to replace this datasheet-feature-list bound with the exact row-scan readout time.}
+\\\\
+If a rolling-shutter shear of up to approximately 3 pixels is treated as the tolerable limit, a threshold chosen because the tether itself is only 1 to 3 pixels wide, so any larger shear would be comparable to or larger than the target itself, then the maximum tolerable angular velocity for each readout-time bound is:
+
+\begin{equation}
+\omega_{\max,\text{software 15fps}} \approx \frac{3 \times 0.023^\circ}{0.067\text{ s}} \approx 1.05^\circ/\text{s}, \qquad
+\omega_{\max,\text{12-bit sensor limit}} \approx \frac{3 \times 0.023^\circ}{0.025\text{ s}} \approx 2.76^\circ/\text{s}
+\end{equation}
+
+This is a meaningful and somewhat unexpected finding: the widely used guidance of keeping spacecraft rotation at or below approximately 1 degree per second appears to reflect the software's current, conservative 15 fps configuration rather than a hard sensor limitation. If the capture pipeline is reconfigured to use a faster full-resolution readout mode, the sensor itself may tolerate rotation rates 2 to 4 times higher before reaching the same 3-pixel shear limit. This is exactly the kind of estimate the experiment defined in this document is meant to test directly rather than rely on: it depends on an approximated readout time (bounded, not exact) and an assumed tolerable shear threshold, both stated as such above, and it has direct consequences for the ADCS attitude-control-rate requirement recommended in Chapter \ref{chap:rs-results}.
+
+\section{Power cost of faster readout}
+\label{sec:power-cost}
+
+Running the sensor at a faster readout mode to gain rotation tolerance is not free: it draws more power. The IMX477 datasheet reports the sensor's current consumption at full resolution, 30 frame/s, as approximately 25.1 mA (typical) to 34.2 mA (maximum) on the analog supply (2.8 V) and 185.0 mA (typical) to 267.5 mA (maximum) on the digital supply (1.05 V), with a small additional interface-supply contribution of 2.4 mA to 2.8 mA at 1.8 V \cite{sony_imx477_datasheet}. Combining supply voltages and currents gives an approximate power draw, per camera, of:
+
+\begin{equation}
+P_{\text{camera, 30fps, typ}} \approx (2.8\text{V} \times 25.1\text{mA}) + (1.05\text{V} \times 185.0\text{mA}) + (1.8\text{V} \times 2.4\text{mA}) \approx 269\text{ mW}
+\end{equation}
+
+\begin{equation}
+P_{\text{camera, 30fps, max}} \approx (2.8\text{V} \times 34.2\text{mA}) + (1.05\text{V} \times 267.5\text{mA}) + (1.8\text{V} \times 2.8\text{mA}) \approx 382\text{ mW}
+\end{equation}
+
+This figure is specified at 30 frame/s, not at the 40 to 60 frame/s modes discussed above; the datasheet does not publish current consumption at those higher rates in the sections available for this document, so the power draw at 40 to 60 fps is expected to be somewhat higher than the values above, not lower. \todo{Pending: obtain current-consumption figures at 40 fps and 60 fps specifically (or measure them on the bench) to quantify the exact power cost of the faster readout modes considered in this chapter, rather than only the 30 fps reference point.}
+\\\\
+This is directly relevant to the operational parameters tracked in the Camera System Report (power consumption per stage, Chapter 7): approximately 270 to 380 mW per camera at 30 fps is now a concrete, datasheet-sourced figure for the image sensor itself during active capture, with two LINKU cameras per stereo pair implying roughly 540 to 760 mW combined for the sensors alone, before adding the Raspberry Pi Compute Module 5's own processing power draw. This closes part of that pending item; the CM5 processing-side power budget remains open.
+
+\section{Correction approaches in the literature}
+
+Two complementary correction strategies are relevant to this application.
+
+\subsection{Geometric correction using known angular rate}
+
+Karpenko et al. demonstrated that rolling-shutter shear and camera motion can be jointly modeled and corrected using synchronized gyroscope measurements, without requiring machine learning or training data: the row-dependent warp is computed directly from the known angular velocity at the time each row was captured, then geometrically inverted \cite{karpenko2011rollingshutter}. This is the most directly applicable approach for LINKU, because the ADCS subsystem is expected to provide angular rate telemetry, giving the correction algorithm exactly the input this method requires, and because it does not depend on a training dataset that does not yet exist for this application.
+
+\subsection{Spacecraft-specific applications}
+
+Rolling-shutter correction has also been studied specifically for spacecraft attitude sensors, where distortion from vehicle rotation directly degrades attitude determination accuracy \cite{starsensor2023rollingshutter}. This confirms that the problem is a recognized concern in flight hardware generally, not one specific to low-cost COTS sensors, although the correction requirements for a star sensor (arc-second attitude accuracy) are substantially stricter than what is required here. \todo{This specific citation could not be freely downloaded (IEEE Xplore paywall, no open-access copy found) and its author list is unverified. Treat this paragraph's claim as plausible but unconfirmed until a full copy is obtained, for example through institutional IEEE Xplore access.}
+
+\subsection{Learning-based correction}
+
+More recent work has explored learning-based rolling-shutter correction assisted by IMU data \cite{mo2021imurollingshutter}. This approach is noted for completeness but is not adopted as the primary method for this document, since it requires a training dataset of matched rolling-shutter and global-shutter image pairs that does not currently exist for this application, and the geometric approach of Section \ref{sec:first-pass-estimate} is expected to be sufficient given that the correction only needs to remove a known, physically modeled shear rather than recover general motion blur.

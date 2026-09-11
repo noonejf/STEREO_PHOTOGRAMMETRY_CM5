@@ -1,0 +1,26 @@
+\chapter{Conclusions and Status}
+
+This document defines a concrete, literature-grounded methodology for establishing whether Blender-rendered images of the LINKU tether can be trusted as a proxy for photographs that cannot yet be taken physically, most importantly the orbital illumination condition. The methodology follows the precedent set by SISPO, validating simulator realism through direct comparison against real reference imagery rather than through visual inspection, and adapts it to this project by using the reconstruction pipeline itself, rather than a human observer, as the comparison instrument.
+\\\\
+The literature review identified the correct physical values to use for solar illumination in Blender: a Blackbody shader at approximately 5772K for spectral color, and a Sun strength of approximately 1361 W/m\textsuperscript{2} (AM0, extraterrestrial solar constant) for orbital-condition irradiance, as opposed to the lower ground-level value assumed by default in most Blender tutorials.
+
+\section{Current status}
+
+\begin{itemize}
+    \item Literature review: complete.
+    \item Methodology definition: complete.
+    \item Blender scene construction: pending.
+    \item Laboratory photograph capture: pending.
+    \item Matched-pair comparison: pending.
+    \item Orbital-condition render generation: pending, and dependent on the laboratory-condition result.
+\end{itemize}
+
+\section{Next steps}
+
+\begin{enumerate}
+    \item Measure or confirm the real dark-enclosure light source's spectral and irradiance characteristics.
+    \item Build the Blender scene replicating the laboratory dark enclosure.
+    \item Capture the reference real photographs.
+    \item Render the matched simulated counterparts and run the comparison defined in Chapter \ref{chap:methodology}.
+    \item Decide, using the interpretation criteria of Chapter \ref{chap:results}, whether to proceed to orbital-condition renders.
+\end{enumerate}

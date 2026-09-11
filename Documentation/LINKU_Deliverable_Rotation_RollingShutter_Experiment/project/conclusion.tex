@@ -1,0 +1,26 @@
+\chapter{Conclusions and Status}
+
+This document formalizes the rotation and rolling-shutter mitigation plan that was identified as a gap in the original Camera System Report. A first-pass, parameter-based estimate places the maximum tolerable spacecraft rotation rate between approximately 1.05 degree per second (under the software's current 15 fps configuration) and approximately 2.76 degree per second (if the sensor's faster full-resolution readout modes are used, per the IMX477 datasheet), and a two-phase experimental plan is defined to test these estimates directly and to validate a geometric, gyroscope-rate-based correction approach following the precedent established by Karpenko et al. \cite{karpenko2011rollingshutter}.
+\\\\
+The software-based correction approach was selected as the near-term direction over a hardware change such as a global-shutter sensor, since it can be validated using the existing camera hardware and does not require a new procurement cycle. A global-shutter sensor remains a viable longer-term option if the software correction proves insufficient at the rotation rates required by the mission's attitude control budget.
+
+\section{Current status}
+
+\begin{itemize}
+    \item Rolling-shutter physics and first-pass estimate: complete.
+    \item Literature review and correction approach selection: complete.
+    \item Two-phase methodology definition: complete.
+    \item Phase 1 (synthetic validation) implementation: pending.
+    \item Phase 2 (physical rotation rig) design and construction: pending.
+    \item Results and operational recommendation: pending.
+\end{itemize}
+
+\section{Next steps}
+
+\begin{enumerate}
+    \item Obtain the IMX477 datasheet readout timing to replace the framerate-based approximation used in Section \ref{sec:first-pass-estimate}.
+    \item Implement and run the Phase 1 synthetic validation.
+    \item Design and build the Phase 2 rotation rig.
+    \item Run the Phase 2 physical validation and compare against Phase 1.
+    \item Report the validated maximum operational rotation rate to the ADCS subsystem as an attitude-control-rate requirement during tether imaging windows.
+\end{enumerate}

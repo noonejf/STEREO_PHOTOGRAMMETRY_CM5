@@ -1,0 +1,75 @@
+\chapter{Validation Methodology}
+\label{chap:methodology}
+
+\section{Scope}
+\label{sec:methodology-scope}
+
+This document addresses scene-level realism first: correct geometry, correct tether proxy appearance, and correct illumination (spectral color and irradiance, as defined in Chapter \ref{chap:background}). Camera-level realism, sensor noise, and optical aberrations of the specific camera model in use, is treated as a future refinement and is not required for the first validation pass, since the reconstruction pipeline's segmentation and tracking stages are expected to be more sensitive to illumination and contrast than to these secondary effects. This should be revisited if the first validation pass shows disagreement that scene-level factors cannot explain.
+
+\section{The core problem: no ground truth exists for the orbital condition}
+
+The central difficulty is that the condition of real interest, the tether photographed in orbit, cannot be photographed for real. There is no ground-truth image to compare against for that condition, which means realism cannot be validated directly where it matters most.
+\\\\
+The proposed solution is to validate indirectly, through a condition that is one step removed from orbit but still has a real photographable reference: the laboratory dark enclosure. Figure \ref{fig:validation-strategy} summarizes this two-tier strategy.
+
+\begin{figure}[!ht]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[
+        font=\small,
+        node distance = 10mm and 12mm,
+        stage/.style   = {rectangle, draw, rounded corners, fill=blue!8,
+                          text width=4.2cm, align=center, minimum height=1.4cm},
+        okstage/.style = {rectangle, draw=green!45!black, fill=green!8, rounded corners,
+                          text width=4.2cm, align=center, minimum height=1.4cm},
+        pendstage/.style = {rectangle, draw=gray, fill=gray!5, dashed, rounded corners,
+                          text width=4.2cm, align=center, minimum height=1.4cm},
+        arr/.style     = {-{Stealth[length=2.5mm]}, thick},
+    ]
+
+    \node[okstage] (real) {Real photograph\\Laboratory dark enclosure + tether proxy};
+    \node[pendstage, right=of real] (sim) {Blender render\\Same enclosure, same proxy, same lighting geometry};
+    \node[stage, below=of real, xshift=2.6cm] (pipeline) {Same reconstruction pipeline applied to both images};
+    \node[pendstage, below=of pipeline] (compare) {Compare: mask, endpoints, path, 3D metrics};
+
+    \draw[arr] (real) -- (pipeline);
+    \draw[arr] (sim) -- (pipeline);
+    \draw[arr] (pipeline) -- (compare);
+
+    \node[pendstage, below=14mm of compare, text width=9cm] (orbit)
+        {If agreement is demonstrated: reconfigure the same Blender scene for orbital illumination (AM0, 5772K, vacuum, no enclosure). Treat its output as a supported extrapolation.};
+    \draw[arr, gray, dashed] (compare) -- (orbit);
+
+    \end{tikzpicture}}
+    \caption[Two-tier validation strategy: laboratory agreement first, orbital extrapolation second]{Two-tier validation strategy. Solid green boxes have a real reference available today. Dashed gray boxes are pending. The orbital-condition render (bottom) is only trusted to the extent that the laboratory-condition render (top) is shown to agree with its real photographic counterpart.}
+    \label{fig:validation-strategy}
+\end{figure}
+
+\section{Comparison instrument: the reconstruction pipeline itself}
+
+Rather than relying on visual inspection or generic image-similarity metrics to decide whether the render "looks real enough," this methodology reuses the project's own reconstruction pipeline as the comparison instrument. The logic is direct: the pipeline is the actual downstream consumer of these images in operational use, so agreement at the pipeline's output is a more relevant realism criterion than agreement at the pixel level or to a human observer.
+\\\\
+For a matched pair of images, one real and one simulated, of the same tether configuration, the following outputs are compared:
+
+\begin{itemize}
+    \item \textbf{Segmentation mask}: coverage percentage and, where a pixel-level correspondence can be established, intersection-over-union between the real and simulated mask.
+    \item \textbf{Endpoint detection}: position of the two detected tether ends, compared directly since both images represent the same physical configuration.
+    \item \textbf{Path tracing}: coverage percentage and path length from the SmartWireTracker output.
+    \item \textbf{3D reconstruction metrics}: total length, straightness, and curvature, when both images are available as part of a stereo pair.
+\end{itemize}
+
+Close agreement across these outputs is the evidence required before the orbital-condition render is treated as informative rather than speculative.
+
+\section{Independent variables to control}
+
+To keep the comparison meaningful, the following must be matched between the real photograph and the Blender render as closely as physically and digitally possible:
+
+\begin{itemize}
+    \item Tether proxy geometry and pose (same physical configuration, or a measured and replicated one).
+    \item Camera intrinsic parameters (focal length, sensor size, field of view) matching the calibrated real camera.
+    \item Camera extrinsic parameters (position and orientation relative to the tether) matching the real capture setup.
+    \item Illumination geometry (light source position and direction relative to the tether and camera).
+    \item Illumination spectral color and irradiance, per Chapter \ref{chap:background}, matched to the real dark-enclosure light source for the laboratory-condition render, and set to AM0/5772K only for the orbital-condition render.
+\end{itemize}
+
+\todo[inline]{Pending: measure the real dark-enclosure light source's actual spectral color temperature and irradiance (if not already characterized in the Camera System Report) so the laboratory-condition Blender render matches the real light source rather than an assumed value.}

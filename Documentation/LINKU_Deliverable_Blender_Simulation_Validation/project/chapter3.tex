@@ -1,0 +1,20 @@
+\chapter{Experimental Setup}
+\label{chap:experimental-setup}
+
+This chapter defines what needs to be built and captured to execute the methodology of Chapter \ref{chap:methodology}. All items in this chapter are pending; none have been executed yet.
+
+\section{Blender scene construction}
+
+\todo[inline]{Pending: build the Blender scene. Required elements: (1) tether proxy geometry matching the real proxy's diameter and material appearance, (2) dark-enclosure interior geometry and matte-black material properties, (3) camera object with intrinsic parameters matching the calibrated real camera, (4) light source configured per Chapter \ref{chap:background}: Blackbody shader at approximately 5772K, Sun strength set to the real light source's measured irradiance for the laboratory-condition render, and to 1361 W/m\textsuperscript{2} (AM0) for the orbital-condition render.}
+
+\section{Laboratory photograph capture}
+
+\todo[inline]{Pending: capture a real photograph (or stereo pair) of the tether proxy inside the dark enclosure, under a known and reproducible pose, using the calibrated camera. This is the ground-truth reference for the laboratory-condition comparison. Record the exact tether pose so it can be replicated in the Blender scene.}
+
+\section{Matched-pair generation}
+
+\todo[inline]{Pending: for each real photograph captured above, render the corresponding Blender scene from the same camera position, orientation, and tether pose, producing one matched real/simulated pair per configuration tested. A minimum of 3 to 5 matched pairs, covering different tether poses (straight, curved, and one closer to a self-crossing configuration if feasible), is recommended before drawing conclusions from a single case.}
+
+\section{Orbital-condition render generation}
+
+\todo[inline]{Pending, and dependent on satisfactory agreement in the laboratory-condition comparison (Chapter \ref{chap:results}): reconfigure the validated Blender scene to represent orbital conditions (vacuum, no enclosure, AM0 solar illumination, unobstructed star-field or black background) and render the tether under representative deployment geometries.}

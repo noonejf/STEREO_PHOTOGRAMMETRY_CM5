@@ -1,0 +1,26 @@
+\chapter*{Introduction}
+\addcontentsline{toc}{chapter}{Introduction}
+
+The LINKU stereo vision system has been developed and validated using a laboratory dark enclosure that reproduces the low-texture, high-contrast optical conditions expected during orbital tether observation, as described in the Camera System Report. That validation is limited to what can physically be built and photographed on the ground. It cannot directly test the actual orbital environment: vacuum, unfiltered solar illumination, and the absence of any enclosing structure.
+\\\\
+Blender, and specifically its Cycles physically based renderer, offers a way to extend testing beyond the laboratory by generating synthetic images of the tether under conditions that are difficult or impossible to reproduce physically, most importantly orbital solar illumination. However, a synthetic image is only useful as evidence if there is a documented basis for trusting that it behaves like a real photograph would, at least with respect to the properties the reconstruction pipeline actually depends on: radiometric contrast, edge sharpness, and background noise characteristics.
+\\\\
+This document defines how that trust is established. The approach does not attempt to prove that a Blender render "looks like" a photograph in a general sense. Instead, it proposes a concrete, two-step validation:
+
+\begin{enumerate}
+    \item Build a Blender scene that replicates the laboratory dark enclosure and tether proxy as closely as possible, render it, and compare the render against a real photograph of the same physical configuration, using the project's own reconstruction pipeline as the comparison instrument rather than visual inspection alone.
+    \item Only after that laboratory-scale agreement is demonstrated, reconfigure the same Blender scene to represent orbital illumination (vacuum, AM0 solar spectrum, no enclosure) and treat its output as a evidence-supported extrapolation, not an unverified assumption.
+\end{enumerate}
+
+This structure follows the precedent of SISPO, a peer-reviewed Blender-Cycles-based space imaging simulator that established its own credibility by comparing renders directly against real spacecraft camera images \cite{sispo2022}. The tether observation problem addressed here is smaller in scope, but the underlying validation logic is the same: a simulator is only as trustworthy as the evidence that it matches reality where reality can still be checked.
+\\\\
+This document is organized as follows:
+
+\begin{itemize}
+    \item Chapter 1 reviews the relevant literature on physically based rendering realism and on the characterization of solar illumination for space applications.
+    \item Chapter 2 defines the validation methodology, including the two-tier laboratory-then-orbital strategy and the metrics used for comparison.
+    \item Chapter 3 defines the experimental setup required to execute the methodology.
+    \item Chapter 4 defines how results will be evaluated and reported once the experiments are executed.
+\end{itemize}
+
+\todo[inline]{This document is a working draft. The literature review (Chapter 1) and methodology (Chapter 2) are complete. The experimental setup (Chapter 3) and results (Chapter 4) are pending execution of the Blender scene construction and the laboratory photo capture session.}

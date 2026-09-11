@@ -1,0 +1,44 @@
+\chapter{Background and Literature Review}
+\label{chap:background}
+
+\section{Physically based rendering realism}
+
+Blender's Cycles engine is a path tracing renderer that simulates the physical transport of light energy through a scene, including scattering, reflection, and refraction, rather than approximating these effects with non-physical shading tricks. Because of this, Cycles renders can be difficult to distinguish from real photographs when scene geometry, materials, and illumination are defined with physically accurate values rather than visually adjusted ones \cite{blendergrid_physical_brightness}.
+\\\\
+The relevant precedent for this document is SISPO (Space Imaging Simulator for Proximity Operations), a Blender-Cycles-based simulator developed for small solar system body fly-by and terrestrial planet surface mission simulation \cite{sispo2022}. SISPO is directly relevant for two reasons:
+
+\begin{itemize}
+    \item It validates realism the same way this document proposes to: by comparing rendered output directly against real spacecraft camera imagery, in that case the AMICA instrument images of asteroid Itokawa taken by the Hayabusa spacecraft, rather than by subjective visual inspection.
+    \item Beyond scene lighting and geometry, it models camera-level realism explicitly: dark-current sensor noise drawn from a folded normal distribution, tangential and sagittal astigmatism and comatic aberration through dedicated point-spread functions, and lens distortion through a Brown-Conrady radial and tangential distortion model.
+\end{itemize}
+
+This indicates that scene-level realism (correct geometry and lighting) and camera-level realism (sensor noise and optical aberrations) are treated as two separate concerns that both need to be addressed for a render to be trustworthy as a proxy for a real photograph. Section \ref{sec:methodology-scope} defines which of these two concerns this document addresses first, and which are deferred as future refinements.
+
+\section{Characterizing solar illumination}
+
+A physically based renderer only produces a physically meaningful image if its light sources are configured with real radiometric and spectral values, not with values chosen to "look right" on a monitor. Two properties of the sun matter for this purpose: its spectral color, and its irradiance.
+
+\subsection{Spectral color}
+
+The integral of the measured extraterrestrial solar spectrum matches the integral of a blackbody spectrum at 5772 K \cite{meftah2018solariss}. This is the specific figure to use, rather than other round numbers sometimes seen in informal sources, since it is the value stated directly in the SOLAR-ISS reference spectrum paper based on SOLAR/SOLSPEC space-based measurements. Blender's Sun light object supports a Blackbody shader node that takes a color temperature directly and produces the corresponding spectral color, so this value can be used directly rather than approximated with a manually picked color. A broader review of solar spectral characterization methods and their mutual agreement is given by Thuillier et al. \cite{thuillier2022solarspectra}.
+\\\\
+For applications requiring higher spectral fidelity than a blackbody approximation, dedicated reference spectra exist. The SOLAR-ISS reference spectrum, derived from the SOLAR/SOLSPEC instrument aboard the International Space Station, provides measured solar spectral irradiance from 165 to 3000 nm at high spectral resolution \cite{meftah2018solariss}. This is a more rigorous reference than a blackbody approximation but is unlikely to be necessary for this validation, since the reconstruction pipeline operates on broadband intensity images rather than spectral data; the blackbody approximation is expected to be sufficient and is recommended as the default.
+
+\subsection{Irradiance}
+
+Blender's Sun light strength in Cycles is expressed directly in units of irradiance, watts per square meter (W/m\textsuperscript{2}), which is the same unit used to report solar irradiance \cite{blendergrid_physical_brightness}. This makes the value directly settable rather than requiring unit conversion.
+\\\\
+Two different irradiance values are relevant depending on which condition is being simulated:
+
+\begin{itemize}
+    \item \textbf{Ground-level, atmosphere-attenuated illumination}: commonly cited around 1050 W/m\textsuperscript{2} for direct sunlight after atmospheric absorption and scattering. This is the value used in most Blender outdoor-lighting tutorials, because most Blender scenes represent terrestrial, not orbital, conditions.
+    \item \textbf{Extraterrestrial illumination (AM0, Air Mass Zero)}: the internationally recommended solar constant (IAU, 2015) is approximately 1361 W/m\textsuperscript{2}. This is the traditional engineering reference value, used in standards such as ASTM E490 for spacecraft and photovoltaic component testing, and is recommended as the default for this document. A more recent reprocessing of SOLAR/SOLSPEC space-based measurements reports a total solar irradiance of 1372.3 $\pm$ 16.9 W/m\textsuperscript{2}, stated explicitly as 11 W/m\textsuperscript{2} above the IAU 2015 value \cite{meftah2018solariss}. The two values differ by less than 1\%, and either is defensible; this document adopts 1361 W/m\textsuperscript{2} because it is the more widely referenced engineering value, and notes 1372.3 W/m\textsuperscript{2} as an available refinement if higher precision is later judged necessary.
+\end{itemize}
+
+The orbital-condition Blender scene described in this document must use one of the two AM0 values above, not the ground-level value. This distinction is easy to overlook because most publicly available Blender tutorials and default scene templates assume a terrestrial, atmosphere-filtered Sun.
+\\\\
+\todo[inline]{The ASTM E490 standard itself has not been directly reviewed for this document; the 1361 W/m\textsuperscript{2} figure above is sourced from its role as a comparison point in Meftah et al. \cite{meftah2018solariss}, not from a direct reading of the standard. Obtain and verify against ASTM E490 directly if this figure needs to be cited as a primary requirement rather than as background justification.}
+
+\section{Validating rendered realism against real images}
+
+Beyond space-specific simulators, general computer graphics research has also studied how to determine whether a rendered image is convincingly realistic when compared against real photographs, typically through structured user studies or quantitative image similarity metrics, as in the two-alternative forced-choice study by Kluge and Staadt \cite{kluge2024photorealism}. This body of work is relevant background but is not the primary methodology adopted here: rather than asking whether a human observer finds the render convincing, Chapter \ref{chap:methodology} proposes asking whether the project's own automated reconstruction pipeline produces consistent results on the render and on the real photograph. This is a stricter and more directly relevant test for this application, since the pipeline, not a human viewer, is the actual downstream consumer of the images.

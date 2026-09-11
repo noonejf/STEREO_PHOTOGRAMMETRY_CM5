@@ -1,0 +1,58 @@
+\documentclass[a4paper, twoside]{report}
+
+%% Language and font encodings
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+\usepackage{placeins}
+\usepackage{tabularx}
+\setcounter{secnumdepth}{3}
+\usepackage{array}
+\usepackage{subcaption}
+\usepackage[table]{xcolor}
+
+\newcolumntype{M}[1]{>{\centering\arraybackslash}m{#1}}
+
+%% Sets page size and margins
+\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+%% Useful packages
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{fancyhdr}
+
+\usepackage{parskip}
+
+%% Pipeline / methodology diagrams
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning}
+
+\begin{document}
+\input{title/title.tex}
+
+\begin{abstract}
+This working document defines the experimental plan to characterize and mitigate rolling-shutter image distortion caused by spacecraft rotation during tether imaging. The LINKU stereo vision system uses rolling-shutter CMOS sensors (Sony IMX477), which read the image sensor row by row rather than capturing the full frame instantaneously. If the spacecraft rotates during that readout window, the image is geometrically sheared, an effect that is proportionally more severe for this mission than for typical photography because the tether itself occupies only one to three pixels of width, so even a small geometric shear is comparable in magnitude to the target being measured.
+
+A first-pass calculation, using the camera system's own operating parameters (8 mm focal length, 1920x1440 capture resolution) and the IMX477 datasheet's stated frame-rate capability, indicates a tolerable rotation rate of approximately 1.05 degree per second under the software's current conservative 15 fps configuration, or approximately 2.76 degree per second if the sensor's faster full-resolution readout modes (up to 40 to 60 fps) are used instead, for a 3-pixel shear limit. This document plans the experiment to test both estimates directly and to validate a software-based correction approach, rather than relying on either estimate alone.
+
+This document is a working draft. The rolling-shutter physics and the two-phase experimental plan are defined; the synthetic validation, the physical rotation rig, and the resulting data are pending.
+\end{abstract}
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+\input{project/introduction.tex}
+\input{project/chapter1.tex}
+\input{project/chapter2.tex}
+\input{project/chapter3.tex}
+\input{project/chapter4.tex}
+\input{project/conclusion.tex}
+
+\bibliographystyle{ieeetr}
+\bibliography{bibs/sample}
+
+\end{document}

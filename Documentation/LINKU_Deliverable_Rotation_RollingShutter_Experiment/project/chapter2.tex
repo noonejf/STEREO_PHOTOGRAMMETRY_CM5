@@ -1,0 +1,83 @@
+\chapter{Experimental Methodology}
+\label{chap:rs-methodology}
+
+\section{Two-phase strategy}
+
+Validating a rolling-shutter correction approach requires two things that are not both available immediately: a known, controllable angular velocity to test against, and a way to tell whether the correction actually worked. This document splits the validation into two phases so that the correction algorithm itself can be tested before any new hardware needs to be built.
+
+\begin{figure}[!ht]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[
+        font=\small,
+        node distance = 10mm and 12mm,
+        stage/.style   = {rectangle, draw, rounded corners, fill=blue!8,
+                          text width=4.0cm, align=center, minimum height=1.4cm},
+        pendstage/.style = {rectangle, draw=gray, fill=gray!5, dashed, rounded corners,
+                          text width=4.0cm, align=center, minimum height=1.4cm},
+        arr/.style     = {-{Stealth[length=2.5mm]}, thick},
+    ]
+
+    \node[pendstage] (static) {Static lab photo\\(tether, no rotation)};
+    \node[pendstage, right=of static] (synthwarp) {Apply synthetic shear\\at chosen angular rate};
+    \node[pendstage, right=of synthwarp] (correct) {Apply correction\\using the same known rate};
+    \node[stage, right=of correct] (pipeline1) {Run pipeline,\\compare to static baseline};
+
+    \draw[arr] (static) -- (synthwarp);
+    \draw[arr] (synthwarp) -- (correct);
+    \draw[arr] (correct) -- (pipeline1);
+
+    \node[above=6mm of static, font=\bfseries\small, text width=16cm, align=left]
+        {Phase 1: synthetic validation (no new hardware required)};
+
+    \node[pendstage, below=16mm of static] (rig) {Rotation rig\\at controlled angular rate};
+    \node[pendstage, right=of rig] (realcapture) {Real capture\\of tether under rotation};
+    \node[pendstage, right=of realcapture] (correct2) {Apply correction\\using rig's known rate};
+    \node[stage, right=of correct2] (pipeline2) {Run pipeline,\\compare to static baseline};
+
+    \draw[arr] (rig) -- (realcapture);
+    \draw[arr] (realcapture) -- (correct2);
+    \draw[arr] (correct2) -- (pipeline2);
+
+    \node[above=6mm of rig, font=\bfseries\small, text width=16cm, align=left]
+        {Phase 2: physical validation (requires the rotation rig)};
+
+    \end{tikzpicture}}
+    \caption[Two-phase rolling-shutter correction validation strategy]{Two-phase validation strategy. Phase 1 tests whether the correction algorithm is mathematically sound using a synthetically warped static image. Phase 2 tests the same correction against a real rotating capture, once the rig exists.}
+    \label{fig:rs-validation-strategy}
+\end{figure}
+
+\subsection{Phase 1: synthetic validation}
+
+A static, already-captured laboratory tether photograph is used as ground truth. A synthetic rolling-shutter shear is applied to it, computed from a chosen angular velocity and the readout-time model of Section \ref{sec:first-pass-estimate}, producing an image equivalent to what the camera would have captured while rotating at that rate. The correction algorithm is then applied using that same known angular velocity as input, and its output is compared back against the original static image.
+\\\\
+This phase isolates the correction algorithm from any hardware uncertainty: the ground truth, the applied distortion, and the angular velocity are all exactly known by construction, so any residual error after correction is attributable to the algorithm itself rather than to measurement uncertainty.
+
+\subsection{Phase 2: physical validation}
+
+The camera and tether proxy are mounted so that the camera assembly rotates at a controlled, known angular velocity while imaging the tether inside the dark enclosure. The same correction algorithm is applied using the rig's commanded or measured angular velocity, standing in for the angular-rate telemetry that would be provided by the ADCS subsystem in flight. Results are compared against a static baseline capture of the same tether configuration.
+\\\\
+This phase validates the full chain, including effects that Phase 1 cannot capture, such as illumination changes during rotation, vibration from the rig itself, and any timing mismatch between the commanded angular velocity and the camera's actual exposure window.
+
+\section{Sweep of angular velocities}
+
+Both phases should test a sweep of angular velocities rather than a single value, to characterize how performance degrades with increasing rotation rate rather than only confirming or denying a single threshold:
+
+\begin{center}
+0, 0.25, 0.5, 1.0, 2.0, 5.0 degrees per second
+\end{center}
+
+The 1.0 and 2.0 degree per second points are included specifically to bracket the two first-pass estimates of Section \ref{sec:first-pass-estimate} (approximately 1.05 degree per second under the current 15 fps software configuration, and approximately 2.76 degree per second under the sensor's faster full-resolution readout modes). Points below and above these characterize the margin around both estimates.
+
+\section{Evaluation metrics}
+
+For each angular velocity tested, in both phases, the following are computed and compared against the static baseline, reusing the project's existing reconstruction pipeline rather than introducing new metrics:
+
+\begin{itemize}
+    \item SmartWireTracker coverage percentage.
+    \item Endpoint detection position error.
+    \item Traced path length error.
+    \item 3D reconstruction curvature and straightness error, where a stereo pair is available.
+\end{itemize}
+
+Each metric is reported for the uncorrected distorted image and for the corrected image, at each angular velocity, so that the correction's benefit (the difference between the two) is explicit rather than only the corrected result in isolation.

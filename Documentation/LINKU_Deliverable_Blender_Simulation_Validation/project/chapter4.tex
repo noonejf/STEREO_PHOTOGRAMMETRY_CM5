@@ -1,0 +1,29 @@
+\chapter{Evaluation and Reporting Plan}
+\label{chap:results}
+
+This chapter defines how results will be evaluated and reported once the experiments of Chapter \ref{chap:experimental-setup} are executed. No results exist yet; this chapter defines the criteria that will be applied to them.
+
+\section{Reporting format}
+
+For each matched real/simulated pair, the following will be reported side by side:
+
+\begin{itemize}
+    \item The real photograph and the Blender render, for visual reference.
+    \item The segmentation mask obtained from each, with coverage percentage.
+    \item The detected endpoints from each, with pixel-distance between the real and simulated endpoint positions.
+    \item The traced path from each, with coverage percentage and path length.
+    \item A qualitative note on any visible discrepancy and a hypothesis for its cause (for example: material reflectance mismatch, light source position error, or camera intrinsic mismatch).
+\end{itemize}
+
+\section{Interpretation criteria}
+
+\todo[inline]{Pending decision, to be set before running the experiment rather than after seeing the results, to avoid post-hoc rationalization: define the quantitative agreement threshold (for example, endpoint position error below N pixels, mask coverage within X percentage points) below which the laboratory-condition render is considered validated and the orbital-condition extrapolation is considered supported.}
+
+\section{Outcome paths}
+
+Two outcomes are possible once the laboratory-condition comparison is complete:
+
+\begin{itemize}
+    \item \textbf{Agreement within the defined threshold}: proceed to generate and use orbital-condition renders, with the explicit caveat that confidence is inherited from laboratory-scale agreement and has not been independently verified for the orbital condition itself.
+    \item \textbf{Disagreement beyond the defined threshold}: do not proceed to orbital-condition renders until the source of disagreement is identified and corrected. Likely candidates, in rough order of expected impact, are light source spectral or irradiance mismatch, tether material reflectance mismatch, and camera intrinsic parameter mismatch.
+\end{itemize}
