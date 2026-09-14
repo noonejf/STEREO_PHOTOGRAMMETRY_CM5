@@ -9,7 +9,15 @@ This chapter defines what needs to be built and captured to execute the methodol
 
 \section{Laboratory photograph capture}
 
-\todo[inline]{Pending: capture a real photograph (or stereo pair) of the tether proxy inside the dark enclosure, under a known and reproducible pose, using the calibrated camera. This is the ground-truth reference for the laboratory-condition comparison. Record the exact tether pose so it can be replicated in the Blender scene.}
+A reference stereo pair has been selected from the existing capture archive: the tether enters the frame from above the camera and falls toward the background, chosen because this configuration is simple to reproduce and reason about (no self-crossing, no ambiguous topology) for a first matched-pair test.
+
+\begin{itemize}
+    \item Left image: \texttt{data/captures/stereo\_20260213\_140535/left.jpg}
+    \item Right image: \texttt{data/captures/stereo\_20260213\_140535/right.jpg}
+    \item Metadata: \texttt{data/captures/stereo\_20260213\_140535/metadata.json} (capture resolution 1920$\times$1440, baseline 100 mm, synchronization quality "EXCELENTE", 10.4 ms time difference between cameras)
+\end{itemize}
+
+\todo[inline]{Pending: this pair was captured before the current calibration was invalidated (Chapter 7 recalibration item, Camera System Report), so it is usable as a 2D reference for mask/endpoint/path comparison but not for 3D reconstruction comparison. Also pending: document the physical pose of the tether proxy for this specific capture (approach angle, distance from camera, support/attachment point) so it can be replicated in the Blender scene.}
 
 \section{Matched-pair generation}
 
