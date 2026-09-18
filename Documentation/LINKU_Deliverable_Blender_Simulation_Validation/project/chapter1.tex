@@ -14,6 +14,30 @@ The relevant precedent for this document is SISPO (Space Imaging Simulator for P
 
 This indicates that scene-level realism (correct geometry and lighting) and camera-level realism (sensor noise and optical aberrations) are treated as two separate concerns that both need to be addressed for a render to be trustworthy as a proxy for a real photograph. Section \ref{sec:methodology-scope} defines which of these two concerns this document addresses first, and which are deferred as future refinements.
 
+\subsection{Other published Blender-based space imaging tools}
+
+SISPO is not an isolated case. Table \ref{tab:blender-space-tools} summarizes three other tools that use Blender as the rendering core for space-imaging applications, found while searching for this document, each with a different validation strategy.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption{Published tools that use Blender as the rendering core for space-imaging simulation.}
+\label{tab:blender-space-tools}
+\begin{tabularx}{\textwidth}{p{0.16\textwidth} p{0.16\textwidth} X}
+\toprule
+\textbf{Tool} & \textbf{Origin} & \textbf{Validation / realism approach} \\
+\midrule
+SISPO \cite{sispo2022} & Univ. of Tartu / Aalto Univ. & Pixel-level comparison against real Hayabusa/AMICA imagery of asteroid Itokawa; explicit camera noise and lens-aberration models. \\
+CORTO \cite{pugliatti2023corto} & DART Lab, Politecnico di Milano & Built on Blender 4.0; used operationally for CubeSat and lunar mission image generation and closed-loop GNC testing. \\
+BlenderProc \cite{denninger2019blenderproc} & German Aerospace Center (DLR) & Not space-specific; general-purpose photorealistic training-data pipeline. Included here because it is the most widely adopted procedural-scripting pattern for Blender-as-a-library, which CORTO and SISPO both follow. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+A separate preprint surveying open-source tools for lunar synthetic imagery lists Blender alongside Unity as a general-purpose option, contrasted with space-specific commercial tools (PANGU, SurRender) and with CORTO itself, described there as "used to model space imaging scenarios with high realism," validated against real mission data \cite{singla2026lunarsim}. This is treated as a secondary, not yet peer-reviewed source (stated as such in the preprint itself) and is cited only to point to CORTO, not as an independent methodology reference.
+\\\\
+The common pattern across all three primary tools is the same one this document already follows: Blender/Cycles for physically based rendering, plus a validation step against something real, either real mission imagery (SISPO) or operational deployment in an existing lab pipeline (CORTO). No tool among those found publishes an exact numeric Sun-strength or camera-exposure value that could be copied directly; each defines its own scene-specific calibration, which is consistent with this document's own approach of deriving values from first principles rather than from a single external reference number.
+
 \section{Characterizing solar illumination}
 
 A physically based renderer only produces a physically meaningful image if its light sources are configured with real radiometric and spectral values, not with values chosen to "look right" on a monitor. Two properties of the sun matter for this purpose: its spectral color, and its irradiance.

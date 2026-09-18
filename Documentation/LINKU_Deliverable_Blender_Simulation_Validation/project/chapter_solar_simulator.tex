@@ -1,0 +1,121 @@
+\chapter{Physical Solar Illumination Characterization}
+\label{chap:physical-solar}
+
+\section{Why this matters}
+
+Chapter \ref{chap:methodology} requires the laboratory-condition Blender render to match the real dark-enclosure light source, not an assumed value. That real light source, currently a single unspecified bulb, has never been characterized: its irradiance, spectral color, and beam behavior are unknown. Without characterizing it, there is no real value to match in Blender, and the physical experiment itself provides a weaker reference than it could. This chapter defines the parameters that matter and what published, real-world precedents (all downloaded and read for this document, not summarized from search results alone) already report for similar small-satellite-budget setups.
+
+\section{What "simulating the Sun" means, quantitatively}
+
+A light source is not judged as a solar simulator by whether it looks bright and white. The photovoltaic testing industry has a formal standard, IEC 60904-9, that classifies solar simulators on exactly three measurable properties: how closely the output spectrum matches the reference solar spectrum, how uniform the irradiance is across the illuminated area, and how stable the irradiance is over time. Table \ref{tab:iec-classes} reproduces the classification thresholds.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption{IEC 60904-9 solar simulator classification thresholds, with Short-Term and Long-Term Instability (STI/LTI) reported separately, as reproduced in \cite{schulthess2026classaaa}. The primary standard itself remains paywalled and was not directly reviewed for this document.}
+\label{tab:iec-classes}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Class} & \textbf{Spectral match} & \textbf{Spatial non-uniformity} & \textbf{STI} & \textbf{LTI} \\
+\midrule
+A   & 0.75--1.25$\times$ reference & $\leq$2\%  & $\leq$0.5\% & $\leq$2\% \\
+B   & 0.6--1.4$\times$ reference   & $\leq$5\%  & $\leq$2\%   & $\leq$5\% \\
+C   & 0.4--2.0$\times$ reference   & $\leq$10\% & $\leq$10\%  & $\leq$10\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\todo[inline]{Pending: the exact 2020-edition A+ class thresholds were not confirmed from a primary source (IEC 60904-9 is a paid standard, not freely available). Table \ref{tab:iec-classes} is now sourced from its reproduction inside a peer-reviewed conference paper rather than a vendor page, which is more reliable, but it should still not be cited as a verbatim reproduction of the standard's own text without obtaining the standard itself.}
+
+The same standard (via IEC 60904-3) defines the reference AM1.5G spectrum used for the spectral-match comparison as six wavelength intervals. Table \ref{tab:am15g-bins} reproduces the irradiance fraction carried by each interval, as tabulated in \cite{schulthess2026classaaa}; this is the concrete target distribution an LED array would need to reproduce, band by band, to claim a given spectral-match class.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption{AM1.5G reference spectrum, irradiance fraction per wavelength interval (400--1100~nm range), as defined in IEC 60904-3 and reproduced in \cite{schulthess2026classaaa}.}
+\label{tab:am15g-bins}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Interval} & \textbf{Wavelength range (nm)} & \textbf{Irradiance fraction (\%)} & \textbf{Cumulative (\%)} \\
+\midrule
+1 & 400--500  & 18.4 & 18.4 \\
+2 & 500--600  & 19.9 & 38.3 \\
+3 & 600--700  & 18.4 & 56.7 \\
+4 & 700--800  & 14.9 & 71.6 \\
+5 & 800--900  & 12.5 & 84.1 \\
+6 & 900--1100 & 15.9 & 100.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A three-letter code (for example, AAA) reports the class for each property in that order. The ETH Zurich Class AAA testbed described below reports a spectral match below 1.3\%, spatial non-uniformity below 1.28\% over a 16.5~cm $\times$ 16.5~cm area, and long-term instability below 0.6\% \cite{schulthess2026classaaa}, comfortably inside Class A on every axis; this is a concrete existence proof of what "AAA" means in practice, not just a table of limits.
+
+\section{Technology comparison}
+
+Three light-source technologies dominate solar simulator design, each with a different cost/accuracy trade-off. Table \ref{tab:tech-comparison} summarizes them, grounded in the comparative literature review found inside \cite{rezende2024lowcost}, which itself surveys several prior simulator designs before selecting an approach.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption{Solar simulator light-source technology comparison.}
+\label{tab:tech-comparison}
+\begin{tabularx}{\textwidth}{p{0.16\textwidth} X X}
+\toprule
+\textbf{Technology} & \textbf{Spectral quality} & \textbf{Cost and practical notes} \\
+\midrule
+Xenon arc lamp & Best broadband match to the solar spectrum, including UV; industry reference for Class AAA systems. & Most expensive per watt; requires housing, filtering, and lamp replacement; typically only justified for dedicated PV-testing labs. \\
+Metal halide & Matches natural sunlight ``satisfactorily'' per prior work, far less costly per watt than xenon arc. & A published large-area design used seven 1500~W outdoor stadium lights, keeping total fabrication cost below \$10{,}000 \cite{rezende2024lowcost}. Still a large, high-power, heat-generating source, oversized for a small dark-box enclosure. \\
+LED array & Spectrum is tunable by combining multiple LED bins (one LED wavelength per solar spectral band), rather than fixed by the emitter. Achieves Class AAA when actively controlled and calibrated \cite{schulthess2026classaaa}. & Cheapest, most reliable, and most compact option; the technology recommended for small-satellite-budget setups by every LED-based precedent found for this document. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Precedents at CubeSat/small-team budget scale}
+
+Two of the papers found for this document describe LED-based solar simulators built and characterized end to end, at opposite ends of the budget range. Table \ref{tab:precedents} compares them directly.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption{Two published LED-based solar simulator implementations.}
+\label{tab:precedents}
+\begin{tabularx}{\textwidth}{p{0.16\textwidth} X X}
+\toprule
+\textbf{} & \textbf{Rezende et al., UFSC \cite{rezende2024lowcost}} & \textbf{Schulthess et al., ETH Zurich \cite{schulthess2026classaaa}} \\
+\midrule
+Purpose & Low-cost 2U CubeSat EPS/solar-panel test bench, university team & Reproducible energy-harvesting research testbed \\
+Target class & Not classified against IEC 60904-9 in the reviewed excerpt; explicitly a low-cost design & Verified Class AAA \\
+Dynamic range & Not specified in the reviewed excerpt & 5.7~mW/m\textsuperscript{2} to 908~kW/m\textsuperscript{2} \\
+Reported precision & Not the paper's focus (functional EPS testing) & Spectral match $<$1.3\%, non-uniformity $<$1.28\% over 16.5$\times$16.5~cm, long-term instability $<$0.6\% \\
+Control & LED duty-cycle control (pattern seen across the designs it reviews: PID in LabView, or Arduino via PC) & Closed-loop Hardware-in-the-Loop (HIL) with integrated illuminance and spectral sensors \\
+Approach & Enclosure with LEDs mounted on the internal walls, CubeSat placed inside; a hexagonal LED arrangement is the common pattern across the designs it reviews for uniform illumination & Actively cooled light board, reflective aluminium panel enclosure, temperature-controlled device-under-test stage \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Within its own literature review, \cite{rezende2024lowcost} also reports a specific, reproducible LED-selection method used by a Cal Poly Space Environments Laboratory design: covering the 250--2500~nm range with one LED per spectral bin (7 bins, plus one incandescent bulb for the far end of the range), targeting a total cost under \$1{,}000 using spare equipment. Designs reviewed there commonly use 6 to 8 LEDs in a hexagonal arrangement to keep the illuminated area uniform.
+
+\subsection{Concrete build parameters from the two precedents}
+\label{sec:concrete-build-parameters}
+
+Both \cite{rezende2024lowcost} and \cite{schulthess2026classaaa} publish enough implementation detail to read off actual component-level numbers, not just performance figures. These are reported here at three different scales so LINKU's own choice can be positioned between them.
+
+\begin{itemize}
+    \item \textbf{Rezende et al. (UFSC), simplest build}: 10 white LEDs, each rated at approximately 10~W, driven at 36~V, sized to deliver 1000~W/m\textsuperscript{2} at the device-under-test surface, roughly matching the AM0 solar constant. Housed in a 440$\times$340$\times$340~mm wooden box, a similar order of size to LINKU's own dark enclosure. No spectral tuning: all 10 LEDs are the same white type, current-controlled from a LabVIEW interface to vary intensity only, not spectral shape.
+    \item \textbf{A mid-scale precedent cited inside \cite{schulthess2026classaaa}'s own comparison table (L\'opez-Fragu et al., ``TIM'19'')}: 34 off-the-shelf LEDs spanning 350--1100~nm, reaching Class AAA spectral match within a 1~cm\textsuperscript{2} area and a maximum irradiance of 818~W/m\textsuperscript{2}, explicitly optimized for cost efficiency and modularity rather than large illuminated area.
+    \item \textbf{Schulthess et al. (ETH Zurich), most instrumented build}: 2964 LEDs across 8 distinct types (three infrared peaks at 740, 850, and 940~nm, plus red, green, blue, and broadband white/warm-white types for the visible band), each type driven by a \textit{Renesas ISL78171} constant-current driver IC with 16-bit combined dimming resolution, closing the loop against an 18-channel spectrometer and two ambient-light sensors. This is the level of instrumentation required to actively hold Class AAA, well beyond LINKU's likely scope, but it shows exactly which physical wavelength peaks (740/850/940~nm IR plus RGB) a small LED-based design needs to cover the camera-relevant spectral range.
+\end{itemize}
+
+For LINKU's scale and budget, the Rezende-style single-spectrum build (few LEDs, current-controlled intensity only) is the realistic starting point; the TIM'19-style 34-LED, multi-wavelength build is a realistic upgrade path if spectral match, not just irradiance level, needs to be demonstrated later.
+
+\section{Recommendation for LINKU}
+
+Given the budget and scale of the LINKU dark-box setup (comparable to the CubeSat EPS test bench in \cite{rezende2024lowcost}, not to a dedicated PV-testing lab), an LED-array approach is the appropriate technology, not xenon arc or metal halide. Reaching full Class AAA performance (as in \cite{schulthess2026classaaa}) requires closed-loop spectral and illuminance sensing that is likely out of scope for this project's budget; reaching a documented, consistent Class B or C, or simply reporting the same three measured numbers (spectral match, non-uniformity, instability) without formally claiming a class, is a realistic and still scientifically useful target.
+
+\section{What needs to be measured or built}
+
+\todo[inline]{Pending: select and mount LEDs. Following the Rezende-style precedent (Section \ref{sec:concrete-build-parameters}), start with a small number of white LEDs (order of magnitude: 6--10), current-controlled for intensity, spanning the visible-to-near-IR range relevant to the camera's spectral sensitivity, inside the existing dark enclosure, replacing or supplementing the current unspecified bulb. Multi-wavelength spectral tuning (the TIM'19/34-LED precedent) is a later upgrade, not a first-build requirement.}
+
+\todo[inline]{Pending: measure, with whatever instrumentation is available (a lux meter is a usable minimum; a spectrometer would allow an actual spectral-match calculation against Table \ref{tab:iec-classes}), the following for the resulting setup: (1) irradiance in W/m\textsuperscript{2} at the tether proxy location, (2) spatial non-uniformity across the enclosure's working area, (3) short-term temporal instability over a typical capture session.}
+
+\todo[inline]{Pending: once measured, feed the real irradiance and color values into the Blender Sun/Point light setup for the laboratory-condition render (Chapter \ref{chap:experimental-setup}), replacing the currently placeholder light energy value.}
