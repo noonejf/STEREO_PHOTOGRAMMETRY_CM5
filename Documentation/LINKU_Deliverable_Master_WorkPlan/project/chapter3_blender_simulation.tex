@@ -1,0 +1,31 @@
+\chapter{Blender Simulation Testing}
+\label{chap:blender-simulation}
+
+This chapter summarizes the Blender Simulation Realism Validation report. See that document for full methodology, literature review, and sourcing.
+
+\section{Current status}
+
+\begin{itemize}
+    \item Literature review and validation methodology: complete. The strategy follows the SISPO precedent (compare rendered output against real imagery using the project's own reconstruction pipeline as the comparison instrument, not visual inspection alone).
+    \item The Blender scene \texttt{SIMULATION/Simulation\_DarkBox.blend} exists, with the enclosure's matte-black material correctly applied to the real panel meshes and the Sun light's irradiance and angular-diameter settings confirmed against Blender's own documentation.
+    \item One open bug remains unresolved: the tether curve renders dark and unlit regardless of light wattage (tested from 50W to 1000W). The self-shadowing/viewing-angle hypothesis has not yet been tested.
+    \item A real reference stereo pair has already been selected for the laboratory-condition comparison: \texttt{data/captures/stereo\_20260213\_140535/left.jpg} and \texttt{right.jpg}.
+    \item A physical dark-room solar illumination characterization plan exists (IEC 60904-9 target metrics, LED array recommendation, concrete component-level precedents), but the real light source in the box has not yet been measured.
+    \item Matched-pair comparison and orbital-condition rendering are both pending, in that order, since the orbital render is only trusted once the laboratory-condition render is shown to agree with its real counterpart.
+\end{itemize}
+
+\section{Objective}
+
+Establish, through the project's own reconstruction pipeline, whether the Blender render is realistic enough to stand in for imagery that cannot be captured physically today (the tether under orbital illumination in vacuum).
+
+\section{Step-by-step tasks}
+
+\begin{enumerate}[leftmargin=*]
+    \item Resolve the tether-rendering bug (dark tether regardless of wattage), either through continued headless script debugging or visual debugging once Blender's GPU/driver access is confirmed working.
+    \item Characterize the real dark-enclosure light source: measure irradiance (W/m\textsuperscript{2}) at the tether location, spatial non-uniformity, and short-term temporal instability, using at minimum a lux meter.
+    \item Feed the measured real-light values into the Blender Sun/Point light setup for the laboratory-condition render, replacing the current placeholder value.
+    \item Render the laboratory-condition scene matching the already-selected reference photo pair's camera position, orientation, and tether pose.
+    \item Run the project's reconstruction pipeline (segmentation, endpoint detection, path tracing) on both the real photo and the Blender render, and compare the outputs directly.
+    \item If agreement is satisfactory, generate 3 to 5 additional matched pairs covering different tether poses (straight, curved, near self-crossing) before drawing conclusions from a single case.
+    \item Reconfigure the validated scene for orbital conditions (vacuum, AM0 illumination, no enclosure, unobstructed background) and render representative deployment geometries.
+\end{enumerate}

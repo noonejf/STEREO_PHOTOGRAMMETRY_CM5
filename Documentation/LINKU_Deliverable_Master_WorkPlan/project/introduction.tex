@@ -1,0 +1,24 @@
+\chapter{Introduction}
+\label{chap:introduction}
+
+\section{Purpose}
+
+Two working documents already define detailed objectives and methodology for specific parts of the camera system: the Blender Simulation Realism Validation report and the Rotation/Rolling-Shutter Experiment report. Separately, six areas were identified as needing to be explicitly mapped and tracked: new camera prototype, Blender simulation testing, power consumption, mode of use, data volume produced, and tether reconstruction.
+
+This document brings both sources together into one place. Rolling-shutter correction and Blender simulation validation each already have a dedicated report; rather than duplicating their content, this plan summarizes their current status and folds their remaining steps into the corresponding chapter here, so all seven areas can be read, tracked, and updated from a single document.
+
+\section{How to read this document}
+
+Each of Chapters \ref{chap:tether-reconstruction} through \ref{chap:data-mode-of-use} covers one tracking area with the same three-part structure:
+
+\begin{itemize}
+    \item \textbf{Current status}: what already exists, verified directly against the code, data, and prior reports at the time of writing, not assumed from memory.
+    \item \textbf{Objective}: the concrete end state that would close this area.
+    \item \textbf{Step-by-step tasks}: an ordered list of actions needed to reach that objective. Steps are ordered by dependency, not by estimated duration, since no dates are assigned in this version of the document.
+\end{itemize}
+
+Chapter \ref{chap:recalibration} covers stereo camera recalibration on its own, since it is not one of the six original tracking areas but blocks tasks inside several of them. Chapter \ref{chap:dependencies} maps how the chapters depend on one another, so the plan can be worked in a sensible order even without fixed dates.
+
+\section{What this document is not}
+
+This is not a new technical report. Facts already established and cited with sources in the Blender Simulation Validation report, the Rotation/Rolling-Shutter report, and the Camera System Report are referenced here by name rather than re-derived or re-cited. Where a number in this document is new (for example, current dataset sizes), it was measured directly from the repository at the time of writing.

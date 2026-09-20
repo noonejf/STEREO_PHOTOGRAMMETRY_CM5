@@ -1,0 +1,52 @@
+\chapter{Mode of Use and Data Volume}
+\label{chap:data-mode-of-use}
+
+These two tracking areas are covered in one chapter because the achievable data volume directly constrains what capture cadence is realistic, and vice versa. Each keeps its own status, objective, and task list so both remain individually traceable.
+
+\section{Mode of use}
+
+\subsection{Current status}
+
+\begin{itemize}
+    \item Only qualitative statements currently exist: the APSCO report states capture rate is higher during satellite separation and lower during stable observation, that saturated or non-informative images are discarded before downlink, and that a compression plus prioritized selective-downlink scheme is used rather than continuous raw downlink.
+    \item No explicit trigger-condition table or command-sequence specification for camera capture exists yet.
+    \item Integration with the OBC/EPS command interface (in the separate \texttt{INTEGRACION\_EPS\_OBC} and \texttt{TRANSMITER\_UHF\_H7} projects) has not been reviewed for this plan and is not yet cross-referenced from the camera system documentation.
+\end{itemize}
+
+\subsection{Objective}
+
+Define precisely when and how often the camera captures images, including the trigger mechanism, and connect that definition to the OBC command interface.
+
+\subsection{Step-by-step tasks}
+
+\begin{enumerate}[leftmargin=*]
+    \item Define explicit capture cadence per mission phase (separation, stabilization, stable observation) as concrete numbers, replacing the current qualitative "higher/lower" description.
+    \item Define the trigger mechanism: autonomous (timer- or event-based) versus ground-commanded, and review the OBC integration code in \texttt{INTEGRACION\_EPS\_OBC} for the existing command interface this would need to use.
+    \item Define the onboard image-quality pre-filter logic: the concrete criteria that mark an image as saturated or non-informative and cause it to be discarded before consuming downlink budget.
+    \item Document the result as a concept-of-operations section, cross-referenced from the APSCO report rather than duplicated into it.
+\end{enumerate}
+
+\section{Data volume produced}
+
+\subsection{Current status}
+
+\begin{itemize}
+    \item Capture resolution is established: 4056$\times$3040 (approximately 12.3~MP) for full-resolution capture, 1920$\times$1440 for preview.
+    \item The mission downlink budget is known: S-band at 200~kbps, giving approximately 15~MB per 10-minute pass. The APSCO report already states explicitly that this is not compatible with continuous downlink of raw full-resolution images.
+    \item No JPEG file-size estimate at the 4056$\times$3040 capture resolution exists anywhere in the project.
+    \item The number of images obtainable per operational period is an open item in the Camera System Report, pending both a file-size figure and an onboard storage capacity figure.
+\end{itemize}
+
+\subsection{Objective}
+
+Quantify exactly how many images, at what resolution and compression level, can be produced, stored onboard, and downlinked per operational period.
+
+\subsection{Step-by-step tasks}
+
+\begin{enumerate}[leftmargin=*]
+    \item Measure the actual JPEG file size at the 4056$\times$3040 capture resolution with a simple bench test (capture one image, record the file size); no estimate currently exists for this.
+    \item Compute onboard storage capacity in number of storable images, using the project's assumed SD card size (64~GB or larger, per the installation guidance already in the repository).
+    \item Compute the downlink-limited image count per pass (approximately 15~MB per 10-minute pass divided by the measured JPEG file size).
+    \item Compare the storage-limited and downlink-limited image counts to identify which one is the actual bottleneck.
+    \item Feed the resulting number back into the capture-cadence decision in the Mode of Use section above, so the defined cadence stays realistic against what can actually be stored and downlinked.
+\end{enumerate}

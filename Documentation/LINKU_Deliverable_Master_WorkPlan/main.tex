@@ -1,0 +1,55 @@
+\documentclass[a4paper, twoside]{report}
+
+%% Language and font encodings
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+\usepackage{placeins}
+\usepackage{tabularx}
+\setcounter{secnumdepth}{3}
+\usepackage{array}
+\usepackage[table]{xcolor}
+
+%% Sets page size and margins
+\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+%% Useful packages
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+
+\usepackage{parskip}
+
+%% Dependency diagram
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning}
+
+\begin{document}
+\input{title/title.tex}
+
+\begin{abstract}
+This document consolidates, into a single work plan, every pending objective currently spread across the project's technical deliverables (Blender Simulation Realism Validation, Rotation/Rolling-Shutter Experiment, Camera System Report) together with six tracking areas explicitly requested for mapping: new camera prototype, Blender simulation testing, power consumption, mode of use, data volume produced, and tether reconstruction.
+
+No dates are assigned yet. Each chapter instead states the current, verified status of one area, its objective, and the ordered, actionable steps needed to reach that objective. A closing chapter maps dependencies between chapters, since several tasks share the same blocker (most notably, stereo camera recalibration).
+\end{abstract}
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+\input{project/introduction.tex}
+\input{project/chapter1_tether_reconstruction.tex}
+\input{project/chapter2_camera_prototype.tex}
+\input{project/chapter3_blender_simulation.tex}
+\input{project/chapter4_rolling_shutter.tex}
+\input{project/chapter5_power_consumption.tex}
+\input{project/chapter6_data_and_mode_of_use.tex}
+\input{project/chapter7_recalibration.tex}
+\input{project/chapter8_dependencies.tex}
+\input{project/conclusion.tex}
+
+\end{document}

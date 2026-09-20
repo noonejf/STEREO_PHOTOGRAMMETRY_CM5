@@ -1,0 +1,28 @@
+\chapter{Tether Reconstruction}
+\label{chap:tether-reconstruction}
+
+\section{Current status}
+
+The reconstruction pipeline is split into two AI components, treated as a single conceptual problem: given a segmented thread image, tangled or not, trace the correct path. This was an explicit correction made earlier in the project after the two were initially (and incorrectly) described as separate systems.
+
+\begin{itemize}
+    \item \textbf{Model 1, cable segmentation}: implemented and trained. A Random Forest classifier using 9 pixel-level features (BGR, HSV, local contrast), trained on 6 stereo pairs expanded to 60 images through augmentation, reaches F1 = 0.97. This score is on the training set only; no held-out validation split has been run, so the real generalization performance is currently unknown. Trained weights exist at \texttt{data/models/mask\_model.pkl}.
+    \item \textbf{Model 2, unified wire-tracker and knot-resolver}: dataset-collection stage only, not yet trained. The proposed architecture reuses the existing classical search (depth-first search with backtracking, already implemented in \texttt{processing/smart\_wire\_tracker.py}) and replaces only its local branch-scoring rule with a learned one, rather than building a separate model from scratch.
+    \item A classical, non-AI tracker is already functional today: \texttt{processing/smart\_wire\_tracker.py} performs DFS with backtracking and distance-transform-based adaptive width estimation. This is usable independently of Model 2 and is the fallback/baseline Model 2 must be benchmarked against.
+    \item Dataset sizes, measured directly from the repository: \texttt{data/ai\_dataset/mask\_dataset/metadata.json} contains 6 labeled entries; \texttt{data/ai\_dataset/path\_dataset/metadata.json} contains 1 labeled entry. Out of 65 stereo capture sessions available under \texttt{data/captures/}, only these have been mined into training data. A path-dataset size of roughly 30 to 100 labeled examples has been estimated internally as the minimum needed to train even a small classifier for Model 2.
+\end{itemize}
+
+\section{Objective}
+
+Reach a trained and validated Model 2 that resolves ambiguous crossings and knots at least as reliably as the classical DFS tracker handles simple, non-crossing cases, with Model 1's real accuracy confirmed on unseen images rather than only on its training set.
+
+\section{Step-by-step tasks}
+
+\begin{enumerate}[leftmargin=*]
+    \item Mine the remaining, currently unused capture sessions (59 of 65) into \texttt{mask\_dataset} and \texttt{path\_dataset}. This is software-only, requires no hardware or recalibration, and is the single largest immediately actionable item in this chapter.
+    \item Split \texttt{mask\_dataset} into a held-out validation set and recompute Model 1's F1 score on images it was not trained on, to replace the current training-only 0.97 figure with a real generalization estimate.
+    \item Prioritize growing \texttt{path\_dataset} toward the 30 to 100 range using sessions that contain crossings or knot-like configurations specifically, not just simple single-strand cases, since those are the examples Model 2 needs to learn the branch-scoring rule from.
+    \item Implement Model 2 by keeping the existing DFS-with-backtracking structure in \texttt{smart\_wire\_tracker.py} and replacing only its local branch-scoring heuristic with a classifier trained on the grown \texttt{path\_dataset}.
+    \item Benchmark Model 2 against the classical tracker baseline on the same held-out images, using mask coverage percentage, path length accuracy, and endpoint position accuracy as the comparison metrics, before adopting the learned version as the default.
+    \item Update the AI pipeline status table (currently in the Camera System Report) to reflect the new validated status of both models once the steps above are complete.
+\end{enumerate}

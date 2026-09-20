@@ -1,0 +1,24 @@
+\chapter{Power Consumption}
+\label{chap:power-consumption}
+
+\section{Current status}
+
+\begin{itemize}
+    \item Camera sensor power is quantified: the IMX477 datasheet gives approximately 269~mW (typical) to 382~mW (maximum) per camera at 30fps full resolution, so approximately 540 to 760~mW combined for the stereo pair, sensors only. This figure comes from a datasheet table watermarked confidential by the manufacturer; citing it was an explicit, informed decision made earlier in this project, documented in the Rotation/Rolling-Shutter report's bibliography.
+    \item The CM5 board's own processing-side power draw is not characterized at all: no bench measurement or datasheet-derived figure exists for it in any project document.
+    \item No complete per-stage power budget exists (idle, preview streaming, full-resolution capture, AI/processing). This is an open item already flagged as pending in the Camera System Report.
+    \item No comparison against the satellite's EPS-side power allocation for the camera subsystem has been made; the EPS/OBC integration code (outside this repository, in the \texttt{INTEGRACION\_EPS\_OBC} working directory) has not yet been reviewed for this purpose.
+\end{itemize}
+
+\section{Objective}
+
+Produce a complete power budget covering every relevant operational stage and every subsystem that draws power during camera operation, not only the camera sensors.
+
+\section{Step-by-step tasks}
+
+\begin{enumerate}[leftmargin=*]
+    \item Obtain or bench-measure the CM5's own power draw at each operational stage: idle, preview streaming, full-resolution capture, and AI/processing (segmentation and tracking inference).
+    \item Combine the CM5 figures with the already-known camera sensor figures to produce a single per-stage total power table.
+    \item Cross-check the resulting figures against the EPS subsystem's power allocation for the camera system, reviewing the \texttt{INTEGRACION\_EPS\_OBC} project for any existing power-budget documentation or constraints.
+    \item Document the final table in the Camera System Report, replacing the currently open power-budget todo item.
+\end{enumerate}

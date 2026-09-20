@@ -1,0 +1,26 @@
+\chapter{Stereo Camera Recalibration}
+\label{chap:recalibration}
+
+This is not one of the six original tracking areas, but it blocks tasks inside Chapters \ref{chap:camera-prototype} and \ref{chap:blender-simulation}, and is broken out on its own so that dependency is explicit rather than buried inside those chapters.
+
+\section{Current status}
+
+\begin{itemize}
+    \item The currently loaded calibration (\texttt{data/calibration/calibration\_data.json}) is explicitly flagged as poor quality by its own metadata: reprojection error 1.53~px, \texttt{is\_good\_quality: false}, dated 2026-02-16, using 25 images.
+    \item That calibration was computed at 1920$\times$1440, which predates the code fix that forces full-sensor 4056$\times$3040 capture resolution. Even if its reprojection error were acceptable, it would not match the resolution the system now captures at.
+    \item 23 additional timestamped calibration attempts exist under \texttt{data/calibration/}, spanning October 2025 to February 2026, indicating recalibration has been attempted repeatedly without yet producing a result flagged as good quality at the current capture resolution.
+    \item The cameras are not currently physically installed in the dark enclosure, which is the immediate practical blocker to running a new calibration session at all.
+\end{itemize}
+
+\section{Objective}
+
+Produce a calibration flagged as good quality by the existing validation logic, at the current 4056$\times$3040 full-sensor capture resolution.
+
+\section{Step-by-step tasks}
+
+\begin{enumerate}[leftmargin=*]
+    \item Physically mount the finalized camera hardware in the dark enclosure (shared step with Chapter \ref{chap:camera-prototype}).
+    \item Run a new calibration session (10 to 30 chessboard image pairs, 10x7 squares, 24~mm) at the current full 4056$\times$3040 capture resolution.
+    \item Confirm the resulting calibration is flagged \texttt{is\_good\_quality: true} by the existing validation logic in \texttt{camera/camera\_calibration.py}; if not, repeat with better lighting or more varied board angles/distances per the existing troubleshooting guidance.
+    \item Update \texttt{config/camera\_config.py}'s auto-loaded calibration reference and confirm downstream code (stereo processing, point cloud generation) picks up the new calibration correctly.
+\end{enumerate}

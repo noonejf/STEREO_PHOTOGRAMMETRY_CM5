@@ -1,0 +1,27 @@
+\chapter{Rotation and Rolling-Shutter Correction}
+\label{chap:rolling-shutter}
+
+This chapter summarizes the Rotation/Rolling-Shutter Experiment report. It is not one of the six originally listed tracking areas, but it is an active objective from an existing deliverable and is included here so the full plan lives in one place.
+
+\section{Current status}
+
+\begin{itemize}
+    \item A two-phase methodology is already defined: Phase 1 is a synthetic validation using existing static photographs with no hardware required; Phase 2 is a physical rotation rig.
+    \item A rotation-tolerance formula has been derived: approximately 1.05\textdegree/s using the software's current 15fps setting, or approximately 2.76\textdegree/s using the IMX477 datasheet's stated 40fps 12-bit full-resolution capability.
+    \item The exact row-scan-only readout time needed to convert the datasheet's frame-rate figure into a confirmed (not estimated) tolerance still requires the IMX477 Software Reference Manual, which is not publicly available, or a direct bench measurement.
+    \item The correction method identified in the literature (Karpenko, Jacobs, Baek, Levoy) uses gyroscope data to correct rolling-shutter distortion; this has not yet been implemented.
+\end{itemize}
+
+\section{Objective}
+
+Implement and validate a software-based rolling-shutter correction usable when the satellite is rotating during image capture.
+
+\section{Step-by-step tasks}
+
+\begin{enumerate}[leftmargin=*]
+    \item Implement Phase 1: apply the gyroscope-based correction method to existing static photographs with synthetically injected rotation, to validate the correction algorithm itself without needing rotation hardware.
+    \item Attempt to obtain the IMX477 Software Reference Manual, or bench-measure the actual row readout time directly, to replace the two estimated tolerance figures with a confirmed one.
+    \item Build the Phase 2 physical rotation rig: mount a camera on a rotating stage with a known, controllable angular velocity.
+    \item Capture real images of a static scene while rotating, and apply the same correction algorithm validated in Phase 1.
+    \item Compare corrected against uncorrected images quantitatively, using the reconstruction pipeline's output agreement against a static (non-rotating) reference as the metric.
+\end{enumerate}

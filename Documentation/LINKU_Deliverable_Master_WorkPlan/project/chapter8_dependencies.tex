@@ -1,0 +1,70 @@
+\chapter{Dependency Map and Master Checklist}
+\label{chap:dependencies}
+
+\section{Why order matters more than dates here}
+
+Without fixed dates, the useful question is not "when" but "what can be worked on right now versus what is waiting on something else." Most chapters in this plan are independent of one another and can proceed in parallel today. Physical access to the camera hardware is the one recurring blocker that several chapters share.
+
+\section{Dependency diagram}
+
+Figure \ref{fig:dependency-map} separates tasks that can start immediately (top row, no shared blocker) from the single physical-access blocker (middle) and the tasks that wait on it (bottom row).
+
+\begin{figure}[!ht]
+\centering
+\begin{tikzpicture}[
+    node distance=0.7cm and 0.5cm,
+    box/.style={rectangle, rounded corners, draw=black, minimum height=1.1cm, text width=2.6cm, align=center, font=\scriptsize},
+    freebox/.style={box, fill=green!12},
+    blockbox/.style={box, fill=orange!25, text width=6cm},
+    waitbox/.style={box, fill=blue!10},
+    arr/.style={-{Latex[length=2mm]}, thick}
+]
+
+\node[freebox] (tether) {Tether reconstruction: dataset growth, Model 1/2};
+\node[freebox, right=of tether] (blender2d) {Blender: bug fix, light char., 2D comparison};
+\node[freebox, right=of blender2d] (rsphase1) {Rolling-shutter Phase 1 (synthetic)};
+\node[freebox, right=of rsphase1] (power) {Power: CM5 bench test};
+\node[freebox, right=of power] (data) {Data volume + mode of use definition};
+
+\node[blockbox, below=of blender2d, xshift=1.8cm] (mount) {Physical blocker: mount finalized camera sensor in the dark enclosure};
+
+\node[waitbox, below=of mount, xshift=-2.6cm] (recal) {Full stereo recalibration (4056$\times$3040)};
+\node[waitbox, below=of mount, xshift=2.6cm] (rsphase2) {Rolling-shutter Phase 2 (rotation rig)};
+
+\node[waitbox, below=of recal, xshift=-1.5cm] (protovalid) {Camera prototype: end-to-end validation};
+\node[waitbox, below=of recal, xshift=1.5cm] (blender3d) {Blender: 3D / orbital-condition render};
+
+\draw[arr] (mount) -- (recal);
+\draw[arr] (mount) -- (rsphase2);
+\draw[arr] (recal) -- (protovalid);
+\draw[arr] (recal) -- (blender3d);
+
+\end{tikzpicture}
+\caption{Dependency map. Green: can start immediately, no shared blocker. Orange: the one recurring physical blocker. Blue: waits on that blocker.}
+\label{fig:dependency-map}
+\end{figure}
+
+\section{Master checklist}
+
+Table \ref{tab:master-checklist} lists every chapter's objective as a single line, so the whole plan's status can be read at a glance without opening every chapter.
+
+\begin{table}[!ht]
+\centering
+\small
+\begin{tabularx}{\textwidth}{p{0.28\textwidth} X c}
+\toprule
+\textbf{Area} & \textbf{Objective} & \textbf{Blocked?} \\
+\midrule
+Tether reconstruction & Trained, validated Model 2; validated Model 1 & No \\
+Camera prototype & Sensor decision, physical build, validated & Final step only \\
+Blender simulation & Lab-condition agreement confirmed; orbital render produced & Partially \\
+Rolling-shutter correction & Correction validated synthetically and physically & Phase 2 only \\
+Power consumption & Complete per-stage power budget & No \\
+Mode of use & Defined trigger conditions and cadence per phase & No \\
+Data volume & Quantified images per operational period & No \\
+Recalibration & Good-quality calibration at full resolution & Yes, on camera mounting \\
+\bottomrule
+\end{tabularx}
+\caption{Master checklist across all tracking areas.}
+\label{tab:master-checklist}
+\end{table}

@@ -1,0 +1,26 @@
+\chapter{New Camera Prototype}
+\label{chap:camera-prototype}
+
+\section{Current status}
+
+\begin{itemize}
+    \item The software stack currently assumes the Arducam HQ 477 (IMX477) sensor throughout: \texttt{config/camera\_config.py} and \texttt{camera/stereo\_camera.py} both reference it directly, and the libcamera capture command generation is built around its specific mode string.
+    \item Three sensor options are already compared quantitatively in \texttt{calculate\_cam/camera\_dof\_visualizer.py}: the current IMX477 baseline, the Arducam Hawk-eye (OV64A40, highest resolution), and the Arducam 12MP IMX708 Wide Angle B0310 (widest field of view, added to the comparator this project). Depth-of-field and field-of-view figures exist for all three, but no sensor choice has been recorded as final anywhere in the documentation.
+    \item The official APSCO deliverable already references a 12MP IMX708-based module as the reference sensor for the mechanical mounting and sunshade CAD renders included in that report. Mechanical accommodation figures exist, but no physical camera prototype or housing build status is documented beyond those renders.
+    \item No camera is currently physically installed in the dark enclosure (\texttt{SIMULATION/Simulation\_DarkBox.blend} and the physical box are not synchronized with any live camera hardware at present).
+\end{itemize}
+
+\section{Objective}
+
+Decide on the flight camera sensor using the tradeoffs already computed, then physically build, mount, and validate that camera in the real hardware end to end.
+
+\section{Step-by-step tasks}
+
+\begin{enumerate}[leftmargin=*]
+    \item Review the DOF/FOV comparison already produced by \texttt{camera\_dof\_visualizer.py} for all three sensors at the tether's expected observation distance, and make an explicit, documented sensor decision (stay with IMX477, or move to Hawk-eye/IMX708).
+    \item Record the decision and its rationale in the Camera System Report, which is currently silent on this choice.
+    \item If a sensor other than IMX477 is selected: update \texttt{config/camera\_config.py} and \texttt{camera/stereo\_camera.py}, which are currently hardcoded around IMX477 assumptions, and confirm the generated libcamera command works for the new sensor.
+    \item Physically mount the chosen camera(s) in the dark enclosure, matching the mechanical CAD renders already produced for the APSCO report.
+    \item Recalibrate the stereo pair at full resolution with the finalized camera hardware (shared blocker, see Chapter \ref{chap:recalibration}).
+    \item Capture a validation stereo pair with the new hardware and confirm the reconstruction pipeline (Chapter \ref{chap:tether-reconstruction}) runs end to end on it without modification.
+\end{enumerate}
