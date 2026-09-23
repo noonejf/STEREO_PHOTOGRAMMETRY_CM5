@@ -1,0 +1,462 @@
+project: JOSESI WORKPLAN
+type: free
+
+phase: Fase 1 - Decision y desbloqueo fisico #164
+  description: 22 sep al 23 oct, 4.5 semanas. Supuesto de capacidad para todo el plan, 10 horas semanales para LINKU (las horas de cada paquete son estimados de planificacion sobre esa base). Un solo frente critico a la vez (sensor, luego montaje) mas 2 frentes de software en paralelo que no necesitan hardware (minado de dataset, bug de Blender). La semana del 5 oct tiene el feriado del jueves 8.
+  color: #3ecf74
+  deliverable: Sensor de vuelo decidido #306
+    description: Primer eslabon de la ruta critica. Define resolucion, consumo del sensor, tolerancia de rolling shutter y que va a calibrarse.
+    package: Confirmar disponibilidad del sensor candidato #1486
+      description: Chequeo aislado y lo primero de todo el plan. Si el sensor elegido no esta fisicamente en laboratorio, el plazo de compra es el mayor riesgo de todo el cierre de nucleo, mejor saberlo el primer dia que el viernes.
+
+Done when: Se sabe si el sensor candidato esta en laboratorio o hay que comprarlo, y en ese caso el plazo estimado de llegada
+      priority: critical
+      status: done
+      hours: 1
+      progress: 50%
+      start: 2026-09-22
+      due: 2026-09-23
+    package: Reuniones de avance fase 1 #1522
+      description: Antes de cada reunion actualizar estados en este archivo.
+      execution: serial
+      task: Reunion de avance 25 sep #816
+        description: Presentar este plan a los profesores. Sensor de vuelo decidido.
+        status: in-progress
+        progress: 50%
+        type: approval
+        start: 2026-09-24
+        end: 2026-09-25
+        due: 2026-09-25 10:00
+      task: Reunion de avance 9 oct #817
+        description: Montaje fisico en curso. Bug del tether en Blender resuelto. Mitad del dataset minado.
+        type: approval
+        start: 2026-10-08
+        end: 2026-10-09
+        due: 2026-10-09 10:00
+      task: Reunion de avance 23 oct #818
+        description: Cierre de fase 1. Camaras montadas y listas para calibrar. Dataset minado al 100%. Preparacion de calibracion lista.
+        type: approval
+        start: 2026-10-22
+        end: 2026-10-23
+        due: 2026-10-23 10:00
+    package: Decision de sensor de vuelo #1523
+      description: Done when: Sensor elegido y justificado, listo para presentar en la reunion del 25 sep
+      priority: critical
+      hours: 3
+      type: decision
+      start: 2026-09-22
+      due: 2026-09-25 10:00
+      depends-on: Confirmar disponibilidad del sensor candidato
+      task: Revisar la comparacion DOF/FOV de camera_dof_visualizer.py (IMX477 / OV64A40 Hawk-eye / IMX708 Wide) a la distancia de observacion del tether #819
+        status: done
+        progress: 100%
+        start: 2026-09-22
+        end: 2026-09-25
+        due: 2026-09-25 10:00
+      task: Decidir y registrar la justificacion en el Camera System Report #820
+        status: done
+        progress: 100%
+        start: 2026-09-22
+        end: 2026-09-25
+        due: 2026-09-25 10:00
+    package: Adaptacion del software al sensor elegido #1524
+      description: Solo si el sensor elegido no es el IMX477. Si se mantiene el IMX477 este paquete queda en 0 horas.
+
+Done when: Captura a resolucion completa funcionando con el sensor nuevo
+      priority: high
+      hours: 6
+      start: 2026-09-26
+      due: 2026-10-02
+      depends-on: Decision de sensor de vuelo
+      task: Actualizar config/camera_config.py y camera/stereo_camera.py, y verificar el comando libcamera generado #821
+        start: 2026-09-26
+        end: 2026-09-29
+        due: 2026-10-02
+  deliverable: Hardware montado y listo para calibrar #321
+    description: Unico bloqueo fisico del plan. Lo esperan la calibracion, la validacion del prototipo y (en la extension) Blender 3D y rolling shutter fisico.
+    package: Montaje fisico en la caja oscura #1525
+      description: Done when: Par estereo fijo de forma rigida en la caja y capturando a resolucion completa
+      priority: critical
+      hours: 5
+      start: 2026-10-03
+      due: 2026-10-16
+      depends-on: Decision de sensor de vuelo
+      task: Montar las camaras segun los renders CAD del informe APSCO #822
+        start: 2026-10-03
+        end: 2026-10-06
+        due: 2026-10-16
+      task: Fijar el par de forma rigida para que la geometria estereo no cambie despues de calibrar #823
+        start: 2026-10-03
+        end: 2026-10-06
+        due: 2026-10-16
+    package: Preparacion de la sesion de calibracion #1526
+      description: Hay 23 intentos previos sin buena calidad a la resolucion actual. Conviene entender el patron antes de repetir, no solo repetir con mas cuidado.
+
+Done when: Causa probable de las fallas anteriores identificada y tablero de calibracion verificado
+      priority: high
+      hours: 4
+      start: 2026-10-03
+      due: 2026-10-23
+      task: Revisar los metadatos de los 23 intentos en data/calibration/ buscando un patron comun de falla #824
+        start: 2026-10-03
+        end: 2026-10-06
+        due: 2026-10-23
+      task: Verificar el tablero (9x6 esquinas internas, 24 mm de lado, plano y rigido) y preparar iluminacion uniforme sin reflejos #825
+        start: 2026-10-03
+        end: 2026-10-06
+        due: 2026-10-23
+  deliverable: Dataset de tether ampliado #322
+    description: Solo software, sin bloqueos de hardware. Es lo mas grande y mas seguro de avanzar del plan completo.
+    package: Minado de las 59 sesiones restantes #1527
+      description: Hoy solo se usan 6 de 65 sesiones (mask_dataset con 6 entradas, path_dataset con 1). Trabajo de fondo, no exige dedicacion diaria, se reparte a lo largo de toda la fase 1.
+
+Done when: Las 65 sesiones revisadas y minadas en mask_dataset y path_dataset, priorizando las que tienen cruces o nudos
+      priority: high
+      hours: 10
+      start: 2026-09-22
+      due: 2026-10-23
+      execution: serial
+      task: Clasificar las sesiones por tipo (hebra simple / curva / cruce / nudo) #826
+        start: 2026-09-22
+        end: 2026-09-25
+        due: 2026-10-23
+      task: Minar todas las sesiones en mask_dataset y path_dataset #827
+        start: 2026-09-26
+        end: 2026-10-20
+        due: 2026-10-23
+  deliverable: Simulacion Blender desbloqueada #323
+    package: Depuracion del tether oscuro en Blender #1528
+      description: El tether sale oscuro y sin iluminar con cualquier potencia entre 50W y 1000W. Horas inciertas, es debug, puede estirarse.
+
+Done when: El tether responde visiblemente a la luz de la escena
+      priority: high
+      hours: 6
+      start: 2026-09-22
+      due: 2026-10-09
+      execution: serial
+      task: Probar la hipotesis de auto-sombreado y angulo de vision, ocultando temporalmente los paneles de la caja para descartar que tapen la luz #828
+        start: 2026-09-22
+        end: 2026-09-25
+        due: 2026-10-09
+      task: Revisar normales, bevel y material de la curva del tether #829
+        start: 2026-09-26
+        end: 2026-10-02
+        due: 2026-10-09
+
+phase: Fase 2 - Calibracion y validaciones nucleo #168
+  description: 26 oct al 27 nov, 5 semanas. La calibracion es la ruta critica, con dos semanas de colchon para reintento (justificado por los 23 intentos previos fallidos). En paralelo, solo 2 a 3 frentes ligeros por semana, no todos a la vez.
+  color: #f39c12
+  deliverable: Calibracion estereo de buena calidad #324
+    package: Sesion de calibracion a resolucion completa #1529
+      description: Done when: calibration_data.json nuevo evaluado, is_good_quality true o motivo de falla identificado
+      priority: critical
+      hours: 5
+      start: 2026-10-26
+      due: 2026-11-06 10:00
+      execution: serial
+      depends-on: Montaje fisico en la caja oscura
+      task: Capturar entre 20 y 30 pares del tablero a resolucion completa, cubriendo todo el campo de vision, variando angulo y distancia #830
+        start: 2026-10-26
+        end: 2026-10-29
+        due: 2026-11-06 10:00
+      task: Validar con camera/camera_calibration.py #831
+        start: 2026-10-30
+        end: 2026-11-03
+        due: 2026-11-06 10:00
+    package: Reuniones de avance fase 2 #1530
+      execution: serial
+      task: Reunion de avance 6 nov #832
+        description: Sesion de calibracion hecha, en validacion. Luz de la caja caracterizada. F1 de Model 1 en validacion. Consumo del CM5 medido.
+        type: approval
+        start: 2026-11-05
+        end: 2026-11-06
+        due: 2026-11-06 10:00
+      task: Reunion de avance 20 nov #833
+        description: Calibracion con is_good_quality true, o reintento en curso. Render de laboratorio y comparacion 2D hechos. Modo de uso definido. Volumen de datos cuantificado.
+        type: approval
+        start: 2026-11-19
+        end: 2026-11-20
+        due: 2026-11-20 10:00
+      task: Reunion de avance 27 nov #834
+        description: Cierre de fase 2. Calibracion cargada en el software. Dataset y Model 1 cerrados para el nucleo.
+        type: approval
+        start: 2026-11-26
+        end: 2026-11-27
+        due: 2026-11-27 10:00
+    package: Reintento de calibracion #1531
+      description: Colchon de dos semanas, no una, dado el historial de 23 intentos fallidos. Puede no usarse completo, o puede necesitar mas de un intento; si pasa de aqui, es la primera senal de que el nucleo completo necesita correrse.
+
+Done when: calibration_data.json con is_good_quality true
+      priority: critical
+      hours: 5
+      start: 2026-11-09
+      due: 2026-11-20 10:00
+      depends-on: Sesion de calibracion a resolucion completa
+    package: Carga de la nueva calibracion en el software #1532
+      description: Done when: Procesamiento estereo y nube de puntos usan la calibracion nueva, y la de 1920x1440 queda marcada obsoleta
+      priority: critical
+      hours: 2
+      start: 2026-11-16
+      due: 2026-11-27 10:00
+      execution: serial
+      depends-on: Reintento de calibracion
+      task: Actualizar la referencia autocargada en config/camera_config.py y verificar que el procesamiento estereo la toma #835
+        start: 2026-11-16
+        end: 2026-11-19
+        due: 2026-11-27 10:00
+  deliverable: Simulacion Blender comparada en laboratorio #325
+    package: Caracterizacion de la luz real de la caja oscura #1533
+      description: Done when: Irradiancia, no uniformidad espacial e inestabilidad temporal registradas con un luxometro como minimo
+      priority: high
+      hours: 5
+      start: 2026-10-26
+      due: 2026-11-06 10:00
+      execution: serial
+      task: Medir irradiancia en la posicion del tether, no uniformidad en una grilla de puntos e inestabilidad de corto plazo #836
+        start: 2026-10-26
+        end: 2026-10-29
+        due: 2026-11-06 10:00
+      task: Convertir lux a W/m2 segun el espectro de la fuente #837
+        start: 2026-10-30
+        end: 2026-11-03
+        due: 2026-11-06 10:00
+    package: Render de laboratorio y comparacion 2D #1534
+      description: Requiere tambien el bug del tether resuelto (fase 1).
+
+Done when: Concordancia entre el render y la foto real de data/captures/stereo_20260213_140535 evaluada contra un criterio fijado de antemano
+      priority: high
+      hours: 8
+      start: 2026-11-09
+      due: 2026-11-20 10:00
+      execution: serial
+      depends-on: Caracterizacion de la luz real de la caja oscura
+      task: Cargar la irradiancia medida en la luz de la escena y renderizar replicando la foto real #838
+        start: 2026-11-09
+        end: 2026-11-12
+        due: 2026-11-20 10:00
+      task: Correr el pipeline de reconstruccion en foto y render, comparar, y decidir si la concordancia es satisfactoria #839
+        start: 2026-11-13
+        end: 2026-11-18
+        due: 2026-11-20 10:00
+  deliverable: Model 1 validado y dataset de Model 2 en marcha #326
+    package: Validacion de Model 1 con datos no vistos #1535
+      description: El F1 de 0.97 es solo de entrenamiento (6 pares aumentados a 60 imagenes). Separar por sesion de captura, no por imagen aumentada, para no filtrar datos entre entrenamiento y validacion.
+
+Done when: F1 de validacion reportado junto al 0.97 de entrenamiento
+      priority: high
+      hours: 5
+      start: 2026-10-26
+      due: 2026-11-06 10:00
+      execution: serial
+      depends-on: Minado de las 59 sesiones restantes
+    package: Crecimiento del path_dataset con cruces y nudos #1536
+      description: Meta de 30 a 100 ejemplos para Model 2, priorizando cruces y nudos. Llegar a 30 es la meta del nucleo; de 30 a 100 sigue en la fase de extension junto con el entrenamiento.
+
+Done when: Al menos 15 a 20 ejemplos con cruces o nudos etiquetados, tantos como se pueda dentro de las horas asignadas
+      hours: 6
+      start: 2026-10-26
+      due: 2026-11-27 10:00
+      execution: serial
+      depends-on: Minado de las 59 sesiones restantes
+  deliverable: Consumo de potencia y volumen de datos #327
+    package: Banco de pruebas de potencia del CM5 #1537
+      description: Hoy no existe ninguna cifra del CM5 en la documentacion.
+
+Done when: Consumo medido en reposo, preview, captura a resolucion completa y procesamiento IA
+      priority: high
+      hours: 5
+      start: 2026-10-26
+      due: 2026-11-06 10:00
+      execution: serial
+      task: Medir las cuatro etapas con un medidor USB-C o fuente de laboratorio, con y sin camaras conectadas para separar CM5 de sensores #840
+        start: 2026-10-26
+        end: 2026-10-29
+        due: 2026-11-06 10:00
+    package: Tabla de potencia por etapa #1538
+      description: Done when: Una tabla unica con el total por etapa, combinando CM5 medido y los 269 a 382 mW por camara del datasheet del sensor elegido
+      hours: 3
+      start: 2026-11-09
+      due: 2026-11-13
+      depends-on: Banco de pruebas de potencia del CM5
+    package: Medicion del tamano JPEG y volumen de datos #1539
+      description: Done when: Tamano JPEG medido a resolucion completa, e imagenes por pase y por dia calculadas contra el cuello de botella de almacenamiento o downlink (referencia S-band 200 kbps, unos 15 MB por pase de 10 min)
+      priority: high
+      hours: 4
+      start: 2026-11-09
+      due: 2026-11-20 10:00
+      execution: serial
+      depends-on: Decision de sensor de vuelo
+      task: Capturar imagenes representativas y registrar tamano medio y maximo por nivel de calidad JPEG #841
+        start: 2026-11-09
+        end: 2026-11-12
+        due: 2026-11-20 10:00
+      task: Calcular imagenes almacenables en la SD y limitadas por downlink, e identificar cual limita #842
+        start: 2026-11-13
+        end: 2026-11-18
+        due: 2026-11-20 10:00
+  deliverable: Modo de uso definido #328
+    package: Revision de INTEGRACION_EPS_OBC #1540
+      description: Done when: Interfaz de comandos del OBC y asignacion de potencia del EPS para la camara identificadas
+      hours: 3
+      start: 2026-10-26
+      due: 2026-11-06 10:00
+      execution: serial
+    package: Disparo y cadencia de captura #1541
+      description: Done when: Mecanismo de disparo (autonomo o comandado) y cadencia numerica por fase de mision decididos, y verificados contra el cuello de botella de datos
+      priority: high
+      hours: 3
+      type: decision
+      start: 2026-11-16
+      due: 2026-11-27 10:00
+      execution: serial
+
+phase: Fase 3 - Cierre del nucleo #169
+  description: 1 al 18 dic, 2.5 semanas, deliberadamente liviana porque suele coincidir con examenes finales. Es la validacion de que todo lo anterior funciona junto, mas la actualizacion de los informes.
+  color: #3498db
+  deliverable: Prototipo validado de extremo a extremo #329
+    package: Validacion end-to-end con el hardware final #1542
+      description: Done when: El pipeline de reconstruccion corre sobre un par estereo nuevo, capturado con el hardware final, sin modificar codigo
+      priority: critical
+      hours: 4
+      start: 2026-12-01
+      due: 2026-12-04
+      execution: serial
+      depends-on: Carga de la nueva calibracion en el software
+      task: Capturar un par de validacion con el tether en la caja y correr segmentacion, tracking y reconstruccion #843
+        start: 2026-12-01
+        end: 2026-12-04
+        due: 2026-12-04
+    package: Reunion de cierre de nucleo #1543
+      task: Reunion de cierre 18 dic #844
+        description: Nucleo cerrado. Prototipo validado extremo a extremo. Informes actualizados. Lista de lo que sigue en la fase de extension.
+        type: approval
+        start: 2026-12-17
+        end: 2026-12-18
+        due: 2026-12-18 10:00
+  deliverable: Documentacion nucleo actualizada #330
+    package: Actualizacion de informes #1544
+      description: Done when: Camera System Report y Master Work Plan reflejan la decision de sensor, la calibracion nueva, el estado de Model 1, potencia y volumen de datos
+      priority: high
+      hours: 10
+      type: document
+      start: 2026-12-07
+      due: 2026-12-18 10:00
+      depends-on: Validacion end-to-end con el hardware final
+      task: Actualizar el Camera System Report (decision de sensor, potencia, volumen de datos, estado de Model 1) #845
+        start: 2026-12-07
+        end: 2026-12-10
+        due: 2026-12-18 10:00
+      task: Actualizar el checklist maestro del Master Work Plan y listar lo pendiente de la fase de extension con su bloqueo #846
+        start: 2026-12-11
+        end: 2026-12-15
+        due: 2026-12-18 10:00
+
+phase: Fase 4 - Extension, fechas tentativas #172
+  description: Continua despues del cierre de nucleo (18 dic). Las fechas de esta fase son tentativas, no comprometidas, para tener una referencia de orden y ritmo; se ajustan segun como termine avanzando el nucleo. Arranca el 5 de enero para dar espacio a las fiestas de fin de ano.
+  color: #95a5a6
+  deliverable: Model 2 entrenado y comparado #339
+    package: Interfaz de scoring aprendido en smart_wire_tracker.py #1569
+      description: Se conserva el DFS con backtracking existente y solo se reemplaza la regla local de scoring de ramas. El scoring clasico queda como opcion por defecto mientras tanto.
+
+Done when: El tracker acepta scoring clasico o aprendido sin otros cambios
+      hours: 9
+      start: 2027-01-15
+      due: 2027-01-27
+      depends-on: Crecimiento del path_dataset con cruces y nudos
+    package: Entrenamiento y benchmark de Model 2 #1570
+      description: Necesita el path_dataset creciendo hacia 30 a 50 ejemplos, mas alla de los 15 a 20 del nucleo.
+
+Done when: Model 2 entrenado, evaluado con split por sesion, y comparado contra el tracker clasico en casos simples y con cruces
+      hours: 10
+      start: 2027-01-28
+      due: 2027-02-10
+      depends-on: Interfaz de scoring aprendido en smart_wire_tracker.py
+    package: Adopcion de Model 2 #1571
+      description: Criterio: en cruces y nudos, Model 2 debe ser al menos tan fiable como el tracker clasico en casos simples.
+
+Done when: Decidido si el scoring aprendido pasa a ser la opcion por defecto
+      type: decision
+      start: 2027-02-11
+      due: 2027-02-13
+      depends-on: Entrenamiento y benchmark de Model 2
+  deliverable: Simulacion Blender en 3D y condicion orbital #340
+    package: Comparacion 3D con la calibracion nueva #1572
+      description: Done when: Reconstruccion 3D del render comparada con la del par real usando la calibracion nueva
+      priority: low
+      hours: 5
+      start: 2027-01-05
+      due: 2027-01-13
+      depends-on: Render de laboratorio y comparacion 2D
+    package: Render en condiciones orbitales #1573
+      description: Solo tiene sentido si la comparacion de laboratorio fue satisfactoria.
+
+Done when: Renders orbitales de geometrias de despliegue representativas procesados por el pipeline
+      priority: low
+      hours: 4
+      start: 2027-01-14
+      due: 2027-01-20
+      depends-on: Comparacion 3D con la calibracion nueva
+  deliverable: Rolling shutter corregido y validado en fisico #341
+    package: Casos sinteticos y correccion con giroscopio #1574
+      description: Software puro, no depende de hardware. El candidato mas facil de adelantar si sobra tiempo en el nucleo.
+
+Done when: Correccion aplicada a casos sinteticos con mejora medible frente a la imagen sin corregir
+      hours: 8
+      start: 2027-01-05
+      due: 2027-01-14
+      task: Generar casos sinteticos de rotacion sobre fotos existentes en data/captures a distintas velocidades angulares #851
+        start: 2027-01-05
+        end: 2027-01-07
+        due: 2027-01-14
+      task: Implementar la correccion basada en giroscopio (Karpenko, Jacobs, Baek, Levoy) y medir la mejora #852
+        start: 2027-01-08
+        end: 2027-01-14
+        due: 2027-01-14
+    package: Tiempo de lectura por fila del sensor #1575
+      description: Depende de una respuesta externa (fabricante o distribuidor), tiempo fuera de control propio.
+
+Done when: Tiempo de lectura por fila confirmado y tolerancia de rotacion recalculada
+      priority: low
+      hours: 3
+      start: 2027-01-15
+      due: 2027-01-27
+      depends-on: Decision de sensor de vuelo
+    package: Construccion del banco de rotacion fisico #1576
+      description: Es una construccion mecatronica real (etapa giratoria, encoder o giroscopio, sincronizacion de tiempos), el item de horas mas inciertas de todo el plan.
+
+Done when: Etapa giratoria con velocidad angular conocida, controlable y registrada
+      priority: low
+      hours: 12
+      start: 2027-01-28
+      due: 2027-02-18
+    package: Captura y comparacion en el banco de rotacion #1577
+      description: Done when: Mejora de la correccion cuantificada sobre capturas fisicas reales, comparado contra una referencia estatica
+      priority: low
+      hours: 5
+      start: 2027-02-19
+      due: 2027-02-25
+      depends-on: Construccion del banco de rotacion fisico
+  deliverable: Consumo y modo de uso ampliados #342
+    package: Contraste con la asignacion de potencia del EPS #1578
+      description: Done when: Margen o exceso identificado por etapa frente a lo asignado por el EPS
+      priority: low
+      hours: 3
+      start: 2027-01-05
+      due: 2027-01-07
+      depends-on: Revision de INTEGRACION_EPS_OBC
+    package: Prefiltro de calidad a bordo #1579
+      description: Definir y probar el criterio de imagen saturada o no informativa que se descarta antes de gastar downlink.
+
+Done when: Criterios de descarte probados sobre las 65 sesiones existentes
+      priority: low
+      hours: 5
+      start: 2027-01-08
+      due: 2027-01-13
+    package: Documento de concepto de operaciones #1580
+      description: Done when: Seccion de concepto de operaciones redactada y referenciada desde el informe APSCO
+      priority: low
+      hours: 4
+      type: document
+      start: 2027-02-16
+      due: 2027-02-19
+      depends-on: Disparo y cadencia de captura

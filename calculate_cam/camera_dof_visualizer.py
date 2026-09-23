@@ -57,6 +57,26 @@ CAMERAS = {
         "description":      "11.9 MP — sensor 6.45×3.63 mm — pixel 1.4 um",
         "lenses": ["Arducam Wide-Angle M12 Lens 2.87mm F2.8 (B0310)"],
     },
+    "Arducam/RPi 12MP IMX708 Wide 102 deg (B0307/B0309)": {
+        "sensor_width_mm":  6.45,
+        "sensor_height_mm": 3.63,
+        "resolution_h":     4608,
+        "resolution_v":     2592,
+        "pixel_size_um":    1.4,
+        "optical_size":     '1/2.43"',
+        "description":      "11.9 MP — same IMX708 sensor as B0310 — integrated 102 deg HFOV lens",
+        "lenses": ["Integrated Lens 2.75mm F2.2 102deg (B0307/B0309)"],
+    },
+    "Arducam/RPi 12MP IMX708 Standard (B0306/B0308/B0312)": {
+        "sensor_width_mm":  6.45,
+        "sensor_height_mm": 3.63,
+        "resolution_h":     4608,
+        "resolution_v":     2592,
+        "pixel_size_um":    1.4,
+        "optical_size":     '1/2.43"',
+        "description":      "11.9 MP — same IMX708 sensor as B0310 — integrated 66 deg HFOV lens (RPi Camera Module 3 standard)",
+        "lenses": ["Integrated Lens 4.74mm F1.8 66deg (B0306/B0308/B0312)"],
+    },
 }
 
 LENSES = {
@@ -101,6 +121,32 @@ LENSES = {
         "fov_h_deg":       120.0,     # 120(H) x 152(D) x 66(V) segun ficha de producto
         "mount":           "M12",
         "description":     "2.87 mm F2.8 · FOV 120 H / 152 D / 66 V deg · MOD no especificado (placeholder 0.1 m)",
+    },
+    "Integrated Lens 2.75mm F2.2 102deg (B0307/B0309)": {
+        "focal_length_mm": 2.75,
+        "f_number_min":    2.2,
+        "f_number_max":    2.2,       # fixed aperture
+        "adjustable_f":   False,
+        # MOD tomado de la ficha del hermano de foco fijo B0309 ("Default Focus
+        # Distance 1.5 m - infinito"). B0307 es autofocus (PDAF) y no publica MOD
+        # propio; probablemente enfoca mas cerca, pero eso no esta verificado.
+        "mod_mm":          1500.0,
+        "fov_h_deg":       102.0,     # 120(D) x 102(H) x 67(V) segun ficha de producto
+        "mount":           "integrated",
+        "description":     "2.75 mm F2.2 · FOV 102 H / 120 D / 67 V deg · MOD 1.5 m (de B0309, verificar en B0307 AF)",
+    },
+    "Integrated Lens 4.74mm F1.8 66deg (B0306/B0308/B0312)": {
+        "focal_length_mm": 4.74,
+        "f_number_min":    1.8,
+        "f_number_max":    1.8,       # fixed aperture
+        "adjustable_f":   False,
+        # MOD tomado de la ficha del hermano de foco fijo B0308 ("Default Focus
+        # Distance 1.5 m - infinito"). B0306/B0312 son autofocus (PDAF+CDAF) y no
+        # publican MOD propio; probablemente enfocan mas cerca, no verificado.
+        "mod_mm":          1500.0,
+        "fov_h_deg":       66.0,      # 75(D) x 66(H) x 41(V) segun ficha de producto
+        "mount":           "integrated",
+        "description":     "4.74 mm F1.8 · FOV 66 H / 75 D / 41 V deg · MOD 1.5 m (de B0308, verificar en B0306/B0312 AF)",
     },
     "Varifocal Lens 2.8-12mm F1.6 (C-Mount)": {
         "focal_length_mm":     2.8,

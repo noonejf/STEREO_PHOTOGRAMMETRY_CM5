@@ -7,6 +7,38 @@ This chapter defines what needs to be built and captured to execute the methodol
 
 \todo[inline]{Pending: build the Blender scene. Required elements: (1) tether proxy geometry matching the real proxy's diameter and material appearance, (2) dark-enclosure interior geometry and matte-black material properties, (3) camera object with intrinsic parameters matching the calibrated real camera, (4) light source configured per Chapter \ref{chap:background}: Blackbody shader at approximately 5772K, Sun strength set to the real light source's measured irradiance for the laboratory-condition render, and to 1361 W/m\textsuperscript{2} (AM0) for the orbital-condition render.}
 
+\subsection{Chosen camera sensor and intrinsics}
+\label{sec:chosen-camera-intrinsics}
+
+The flight camera sensor was decided during the master work plan's sensor-decision task, using the depth-of-field and field-of-view comparison tool in \texttt{calculate\_cam/camera\_dof\_visualizer.py}. The tool was extended to cover five candidate optical configurations (the existing IMX477 baseline, an Arducam Hawk-eye OV64A40, and three IMX708-based Arducam/Raspberry~Pi modules with different lenses), evaluated by pixels occupied by a 1~mm-diameter thread at distances from 0.5 to 10~m.
+
+The result: the IMX708 module with its standard 66\textdegree{} horizontal field-of-view lens, fixed-focus variant, SKU B0308, was chosen. At every tested distance it matched the current IMX477 baseline's tether pixel resolution within a few percent (for example, 6.8~px versus 7.8~px at 0.5~m, both crossing below 1~px per thread around 4 to 5~m), while the two wider IMX708 lens options (102\textdegree{} and 120\textdegree{} horizontal FOV) lost resolvable pixels on the thread noticeably earlier, around 2~m. The Hawk-eye OV64A40 resolved the thread furthest (to roughly 8 to 10~m) but was not selected, since its 64~MP output is difficult to reconcile with the mission's downlink budget (Section \ref{chap:physical-solar}, and the communications link budget in the APSCO deliverable), and it is a non-standard sensor not covered by the mechanical mounting CAD already produced for the IMX708 module. The fixed-focus B0308 variant was preferred over its autofocus siblings (B0306, B0312, same optics) because a fixed lens has no moving focus mechanism to survive launch vibration or vacuum operation.
+
+Table \ref{tab:chosen-camera-intrinsics} lists the resulting camera intrinsics. These are the values the Blender camera object should be configured with once this sensor replaces the IMX477 assumption currently hardcoded in \texttt{config/camera\_config.py} and \texttt{camera/stereo\_camera.py} (a separate, still-pending software adaptation task).
+
+\begin{table}[!ht]
+\centering
+\small
+\caption{Chosen camera intrinsics, Arducam/Raspberry Pi 12MP IMX708 Standard, fixed focus (SKU B0308).}
+\label{tab:chosen-camera-intrinsics}
+\begin{tabular}{ll}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Sensor & Sony IMX708 \\
+Sensor size & 6.45 $\times$ 3.63 mm \\
+Max resolution & 4608 $\times$ 2592 px (11.9 MP) \\
+Pixel size & 1.4 $\mu$m $\times$ 1.4 $\mu$m \\
+Lens focal length & 4.74 mm \\
+Lens aperture & f/1.8, fixed \\
+Field of view & 66\textdegree{} (H) / 75\textdegree{} (D) / 41\textdegree{} (V) \\
+Focus & Fixed, manufacturer-stated 1.5 m to infinity \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\todo[inline]{The 1.5 m minimum object distance above is taken from the fixed-focus B0308 product page directly; it was not independently bench-verified. Confirm once the physical unit is in hand, since this affects whether the near-field dark-enclosure captures (well under 1.5 m) will be in focus.}
+
 \subsection{Blender's own configuration reference for the Sun light}
 
 Blender's own documentation, rather than a third-party tutorial, confirms two of the settings already used in the project's scene file. The Sun light object exposes an \texttt{energy} property described directly in the Blender Python API reference as ``Sunlight strength in watts per meter squared (W/m\textsuperscript{2})'', unbounded range, default 10.0 \cite{blender_sunlight_api}, which is the same irradiance unit discussed in Chapter \ref{chap:background} and confirms the value can be set directly with no conversion. The same object exposes an \texttt{angle} property, described as the ``Angular diameter of the Sun as seen from the Earth'', range 0 to $\pi$ radians, default 0.00918043 rad ($\approx$0.526\textdegree) \cite{blender_sunlight_api}. This matches, to three significant figures, the real solar angular diameter ($\approx$0.53\textdegree) already set on the Sun object in \texttt{SIMULATION/Simulation\_DarkBox.blend}, which is therefore confirmed correct against Blender's own default rather than only against the external astronomical figure used when it was first set.
