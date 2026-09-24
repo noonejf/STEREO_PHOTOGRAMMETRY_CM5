@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QProgressBar, QTextEdit, QGroupBox,
     QGridLayout, QMessageBox, QSpinBox,
-    QDoubleSpinBox, QFrame, QSplitter,
+    QDoubleSpinBox, QFrame, QSplitter, QScrollArea,
 )
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
 from PyQt5.QtGui import QFont
@@ -156,7 +156,17 @@ class CalibrationPage(QWidget):
         splitter.setStyleSheet(f"background-color: {BG_DEEP};")
 
         splitter.addWidget(self._build_preview_panel())
-        splitter.addWidget(self._build_controls_panel())
+
+        # Envuelto en QScrollArea: red de seguridad para que en pantallas
+        # pequenas los botones de abajo (Start/Cancel) siempre sean
+        # alcanzables con scroll, en vez de quedar cortados fuera de la
+        # ventana si el contenido no entra verticalmente.
+        controls_scroll = QScrollArea()
+        controls_scroll.setWidgetResizable(True)
+        controls_scroll.setFrameShape(QFrame.NoFrame)
+        controls_scroll.setStyleSheet(f"background-color: {BG_DEEP};")
+        controls_scroll.setWidget(self._build_controls_panel())
+        splitter.addWidget(controls_scroll)
         splitter.setSizes([480, 520])
 
         root.addWidget(splitter, 1)

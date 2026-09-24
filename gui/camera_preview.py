@@ -189,7 +189,12 @@ class CameraPreviewWidget(QWidget):
         
         # Label para mostrar video
         self.video_label = QLabel()
-        self.video_label.setMinimumSize(300, 300)  # Más cuadrado
+        # Minimo bajo para que en pantallas chicas (con dos previews apilados,
+        # left+right) el layout pueda encoger el label en vez de forzar la
+        # ventana mas alta que la pantalla. El maximo sigue limitando el
+        # tamano de despliegue; el frame capturado real no cambia, solo el
+        # QPixmap escalado que se muestra (ver on_frame_ready).
+        self.video_label.setMinimumSize(160, 120)
         self.video_label.setMaximumSize(500, 400)  # Mejor proporción
         self.video_label.setScaledContents(False)  # ← NO ESTIRAR
         self.video_label.setAlignment(Qt.AlignCenter)
