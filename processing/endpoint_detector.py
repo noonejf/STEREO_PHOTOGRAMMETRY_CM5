@@ -70,8 +70,15 @@ class EndpointDetector:
         """
         # Crear skeleton (sin dilatar — la dilatación creaba falsos endpoints en bordes DT=1)
         skeleton = self._create_skeleton()
-        skeleton_raw    = (skeleton > 0).astype(np.uint8)
-        skeleton_binary = skeleton_raw   # alias para el resto del código
+        skeleton_raw = (skeleton > 0).astype(np.uint8)
+        # Podar ramas espurias cortas (artefactos de thinning, tipicos en la
+        # punta redondeada de una curva, ej. el pico de un cable en arco)
+        # antes de buscar endpoints. _prune_short_branches ya existia en el
+        # codigo pero nunca se llamaba, asi que estos artefactos podian
+        # ganar la comparacion de distancia geodesica frente al extremo real
+        # cuando ese extremo caia cerca del borde de la imagen y quedaba
+        # filtrado (ver filtro de borde mas abajo).
+        skeleton_binary = self._prune_short_branches(skeleton_raw, min_length=40)
 
         if save_debug:
             self._save_debug_skeleton_pair(skeleton_raw, skeleton_binary)

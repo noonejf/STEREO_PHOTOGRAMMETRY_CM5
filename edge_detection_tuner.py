@@ -11,7 +11,7 @@ import numpy as np
 from pathlib import Path
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QDialog, QWidget, QVBoxLayout,
                              QHBoxLayout, QLabel, QSlider, QPushButton, QComboBox,
-                             QGroupBox, QGridLayout, QFileDialog, QScrollArea, QFrame)
+                             QGroupBox, QGridLayout, QFileDialog, QSizePolicy)
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QImage, QPixmap
 
@@ -22,22 +22,22 @@ QDialog, QWidget {
     background-color: #0F172A;
     color: #E2E8F0;
     font-family: "Segoe UI", "Roboto", sans-serif;
-    font-size: 13px;
+    font-size: 12px;
 }
 QGroupBox {
     background-color: #1E293B;
     border: 1px solid #334155;
     border-radius: 8px;
-    margin-top: 14px;
-    padding: 14px 10px 10px 10px;
+    margin-top: 10px;
+    padding: 10px 8px 6px 8px;
 }
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    padding: 2px 12px;
+    padding: 1px 10px;
     color: #22D3EE;
     font-weight: bold;
-    font-size: 13px;
+    font-size: 12px;
 }
 QLabel { color: #E2E8F0; background-color: transparent; }
 QPushButton {
@@ -45,7 +45,7 @@ QPushButton {
     color: white;
     border: none;
     border-radius: 6px;
-    padding: 8px 16px;
+    padding: 5px 14px;
     font-weight: 600;
 }
 QPushButton:hover    { background-color: #60A5FA; }
@@ -56,7 +56,7 @@ QComboBox {
     color: #E2E8F0;
     border: 1px solid #334155;
     border-radius: 6px;
-    padding: 5px 10px;
+    padding: 3px 8px;
 }
 QComboBox QAbstractItemView {
     background-color: #1E293B;
@@ -160,14 +160,9 @@ class EdgeDetectionTuner(QDialog):
         """Configurar interfaz de usuario"""
         main_layout = QHBoxLayout(self)
 
-        # Panel izquierdo - Controles, envuelto en QScrollArea como red de
-        # seguridad para que los botones de abajo siempre sean alcanzables
-        # con scroll si el contenido no entra verticalmente.
-        controls_scroll = QScrollArea()
-        controls_scroll.setWidgetResizable(True)
-        controls_scroll.setFrameShape(QFrame.NoFrame)
-        controls_scroll.setWidget(self.create_controls_panel())
-        main_layout.addWidget(controls_scroll, stretch=1)
+        # Panel izquierdo - Controles
+        controls_panel = self.create_controls_panel()
+        main_layout.addWidget(controls_panel, stretch=1)
 
         # Panel derecho - Visualización
         viz_panel = self.create_visualization_panel()
@@ -177,6 +172,8 @@ class EdgeDetectionTuner(QDialog):
         """Crear panel de controles"""
         panel = QWidget()
         layout = QVBoxLayout(panel)
+        layout.setSpacing(4)
+        layout.setContentsMargins(8, 8, 8, 8)
 
         # Botón para cargar imagen
         btn_load = QPushButton("Load Image")
@@ -500,31 +497,50 @@ class EdgeDetectionTuner(QDialog):
         """Crear panel de visualización"""
         panel = QWidget()
         layout = QVBoxLayout(panel)
+        layout.setSpacing(3)
+
+        title_style = "font-size: 10px; color: #94A3B8; font-weight: 600; padding: 0px; margin: 0px;"
 
         # Imagen original
-        layout.addWidget(QLabel("Original Image:"))
+        original_title = QLabel("Original Image:")
+        original_title.setStyleSheet(title_style)
+        original_title.setMaximumHeight(12)
+        original_title.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        layout.addWidget(original_title, 0)
+
         self.original_label = QLabel()
         # Antes solo tenia un minimo (600x400) y ningun maximo, asi que sin
         # importar la resolucion cargada el label crecia hasta el tamano de
         # la imagen mostrada (via _preview_img, reducida a max_dim=1280 en
         # el lado mayor). Para imagenes altas (ej. 4056x3040 -> preview
         # ~1280x959), dos labels apilados superan la altura de pantallas
-        # normales y tapan los botones de abajo. Ahora el minimo y el
-        # maximo de alto acotan el rango de despliegue; la imagen real
-        # usada para procesar (self.original_img / self._preview_img) no
-        # cambia, solo el tamano en el que se ve aqui.
-        self.original_label.setMinimumSize(600, 250)
-        self.original_label.setMaximumHeight(350)
-        self.original_label.setScaledContents(True)
-        layout.addWidget(self.original_label)
+        # normales y tapan los botones de abajo. El minimo y el maximo de
+        # alto acotan el rango de despliegue; la imagen real usada para
+        # procesar (self.original_img / self._preview_img) no cambia, solo
+        # el tamano en el que se ve aqui.
+        # setScaledContents(True) estiraba el pixmap para llenar el label
+        # exacto, sin respetar la relacion de aspecto (la imagen se veia
+        # aplastada). Ahora se escala manualmente en display_results() con
+        # KeepAspectRatio, y el label solo actua como caja contenedora.
+        self.original_label.setMinimumSize(400, 200)
+        self.original_label.setMaximumHeight(420)
+        self.original_label.setAlignment(Qt.AlignCenter)
+        self.original_label.setScaledContents(False)
+        layout.addWidget(self.original_label, 1)
 
         # Imagen con detección
-        layout.addWidget(QLabel("Detected Edges:"))
+        detection_title = QLabel("Detected Edges:")
+        detection_title.setStyleSheet(title_style)
+        detection_title.setMaximumHeight(12)
+        detection_title.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        layout.addWidget(detection_title, 0)
+
         self.detection_label = QLabel()
-        self.detection_label.setMinimumSize(600, 250)
-        self.detection_label.setMaximumHeight(350)
-        self.detection_label.setScaledContents(True)
-        layout.addWidget(self.detection_label)
+        self.detection_label.setMinimumSize(400, 200)
+        self.detection_label.setMaximumHeight(420)
+        self.detection_label.setAlignment(Qt.AlignCenter)
+        self.detection_label.setScaledContents(False)
+        layout.addWidget(self.detection_label, 1)
 
         return panel
 
@@ -836,12 +852,16 @@ class EdgeDetectionTuner(QDialog):
         """Mostrar resultados usando imagen de preview para mayor velocidad"""
         disp_img = self._preview_img if self._preview_img is not None else self.original_img
 
-        # Mostrar imagen original (preview)
+        # Mostrar imagen original (preview), escalada manteniendo la
+        # relacion de aspecto para no deformarla (el label ya no usa
+        # setScaledContents, ver create_visualization_panel).
         original_rgb = cv2.cvtColor(disp_img, cv2.COLOR_BGR2RGB)
         h, w = original_rgb.shape[:2]
         bytes_per_line = 3 * w
         qimg_original = QImage(bytes(original_rgb.data), w, h, bytes_per_line, QImage.Format_RGB888)
-        self.original_label.setPixmap(QPixmap.fromImage(qimg_original))
+        pixmap_original = QPixmap.fromImage(qimg_original).scaled(
+            self.original_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.original_label.setPixmap(pixmap_original)
 
         # Crear overlay con bordes detectados
         overlay = disp_img.copy()
@@ -850,7 +870,9 @@ class EdgeDetectionTuner(QDialog):
         result_rgb = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
 
         qimg_detection = QImage(bytes(result_rgb.data), w, h, bytes_per_line, QImage.Format_RGB888)
-        self.detection_label.setPixmap(QPixmap.fromImage(qimg_detection))
+        pixmap_detection = QPixmap.fromImage(qimg_detection).scaled(
+            self.detection_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.detection_label.setPixmap(pixmap_detection)
 
     def save_config(self):
         """Guardar configuración actual"""

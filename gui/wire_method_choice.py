@@ -115,24 +115,45 @@ class WireMethodChoiceDialog(QDialog):
         root = QHBoxLayout(self)
         root.setSpacing(10)
 
-        # ── Panel izquierdo: preview ──────────────────────────────────
+        # ── Panel izquierdo: preview izq + der lado a lado ──────────────
         left = QVBoxLayout()
 
-        lbl_title = QLabel("Vista previa — imagen izquierda + máscara")
+        lbl_title = QLabel("Vista previa — inicio (verde) / fin (rojo) detectados")
         lbl_title.setStyleSheet("color:#22D3EE; font-weight:bold; font-size:13px;")
         left.addWidget(lbl_title)
 
-        self.preview_label = QLabel()
-        self.preview_label.setAlignment(Qt.AlignCenter)
-        self.preview_label.setStyleSheet(
-            "background:#0B1120; border:1px solid #334155; border-radius:6px;"
-        )
-        self.preview_label.setMinimumSize(460, 340)
-        self.preview_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        preview_img = _make_preview(self.left_img, self.mask_left,
-                                    self.start_left, self.end_left)
-        self.preview_label.setPixmap(_to_pixmap(preview_img, 460))
-        left.addWidget(self.preview_label, stretch=1)
+        previews_row = QHBoxLayout()
+        previews_row.setSpacing(8)
+
+        # Sub-panel con titulo + imagen, reusado para izquierda y derecha.
+        def _build_side(title_text, img, mask, start_pt, end_pt):
+            col = QVBoxLayout()
+            col.setSpacing(2)
+            t = QLabel(title_text)
+            t.setStyleSheet("color:#94A3B8; font-size:11px; font-weight:600;")
+            t.setMaximumHeight(14)
+            col.addWidget(t, 0)
+
+            lbl = QLabel()
+            lbl.setAlignment(Qt.AlignCenter)
+            lbl.setStyleSheet(
+                "background:#0B1120; border:1px solid #334155; border-radius:6px;"
+            )
+            lbl.setMinimumSize(220, 220)
+            lbl.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            preview_img = _make_preview(img, mask, start_pt, end_pt)
+            lbl.setPixmap(_to_pixmap(preview_img, 460))
+            col.addWidget(lbl, 1)
+            return col, lbl
+
+        left_col, self.preview_label = _build_side(
+            "Izquierda", self.left_img, self.mask_left, self.start_left, self.end_left)
+        right_col, self.preview_label_right = _build_side(
+            "Derecha", self.right_img, self.mask_right, self.start_right, self.end_right)
+
+        previews_row.addLayout(left_col, 1)
+        previews_row.addLayout(right_col, 1)
+        left.addLayout(previews_row, stretch=1)
 
         self.status_label = QLabel("Sin método elegido")
         self.status_label.setAlignment(Qt.AlignCenter)
