@@ -11,7 +11,7 @@ import numpy as np
 from pathlib import Path
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QDialog, QWidget, QVBoxLayout,
                              QHBoxLayout, QLabel, QSlider, QPushButton, QComboBox,
-                             QGroupBox, QGridLayout, QFileDialog)
+                             QGroupBox, QGridLayout, QFileDialog, QScrollArea, QFrame)
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QImage, QPixmap
 
@@ -160,9 +160,14 @@ class EdgeDetectionTuner(QDialog):
         """Configurar interfaz de usuario"""
         main_layout = QHBoxLayout(self)
 
-        # Panel izquierdo - Controles
-        controls_panel = self.create_controls_panel()
-        main_layout.addWidget(controls_panel, stretch=1)
+        # Panel izquierdo - Controles, envuelto en QScrollArea como red de
+        # seguridad para que los botones de abajo siempre sean alcanzables
+        # con scroll si el contenido no entra verticalmente.
+        controls_scroll = QScrollArea()
+        controls_scroll.setWidgetResizable(True)
+        controls_scroll.setFrameShape(QFrame.NoFrame)
+        controls_scroll.setWidget(self.create_controls_panel())
+        main_layout.addWidget(controls_scroll, stretch=1)
 
         # Panel derecho - Visualización
         viz_panel = self.create_visualization_panel()
@@ -499,14 +504,25 @@ class EdgeDetectionTuner(QDialog):
         # Imagen original
         layout.addWidget(QLabel("Original Image:"))
         self.original_label = QLabel()
-        self.original_label.setMinimumSize(600, 400)
+        # Antes solo tenia un minimo (600x400) y ningun maximo, asi que sin
+        # importar la resolucion cargada el label crecia hasta el tamano de
+        # la imagen mostrada (via _preview_img, reducida a max_dim=1280 en
+        # el lado mayor). Para imagenes altas (ej. 4056x3040 -> preview
+        # ~1280x959), dos labels apilados superan la altura de pantallas
+        # normales y tapan los botones de abajo. Ahora el minimo y el
+        # maximo de alto acotan el rango de despliegue; la imagen real
+        # usada para procesar (self.original_img / self._preview_img) no
+        # cambia, solo el tamano en el que se ve aqui.
+        self.original_label.setMinimumSize(600, 250)
+        self.original_label.setMaximumHeight(350)
         self.original_label.setScaledContents(True)
         layout.addWidget(self.original_label)
 
         # Imagen con detección
         layout.addWidget(QLabel("Detected Edges:"))
         self.detection_label = QLabel()
-        self.detection_label.setMinimumSize(600, 400)
+        self.detection_label.setMinimumSize(600, 250)
+        self.detection_label.setMaximumHeight(350)
         self.detection_label.setScaledContents(True)
         layout.addWidget(self.detection_label)
 
