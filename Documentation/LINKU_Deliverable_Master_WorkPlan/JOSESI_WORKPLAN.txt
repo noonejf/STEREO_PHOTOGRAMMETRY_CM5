@@ -2,7 +2,7 @@ project: JOSESI WORKPLAN
 type: free
 
 phase: Fase 1 - Decision y desbloqueo fisico #164
-  description: 22 sep al 23 oct, 4.5 semanas. Supuesto de capacidad para todo el plan, 10 horas semanales para LINKU (las horas de cada paquete son estimados de planificacion sobre esa base). Un solo frente critico a la vez (sensor, luego montaje) mas 2 frentes de software en paralelo que no necesitan hardware (minado de dataset, bug de Blender). La semana del 5 oct tiene el feriado del jueves 8.
+  description: 22 sep al 23 oct, 4.5 semanas. Supuesto de capacidad para todo el plan, 10 horas semanales para LINKU (las horas de cada paquete son estimados de planificacion sobre esa base). Orden pedido explicitamente: primero el bug de Blender solo, despues minado de dataset y montaje fisico en paralelo. La semana del 5 oct tiene el feriado del jueves 8.
   color: #3ecf74
   deliverable: Sensor de vuelo decidido #306
     description: Primer eslabon de la ruta critica. Define resolucion, consumo del sensor, tolerancia de rolling shutter y que va a calibrarse.
@@ -13,7 +13,7 @@ Done when: Se sabe si el sensor candidato esta en laboratorio o hay que comprarl
       priority: critical
       status: done
       hours: 1
-      progress: 50%
+      progress: 100%
       start: 2026-09-22
       due: 2026-09-23
     package: Reuniones de avance fase 1 #1522
@@ -28,7 +28,7 @@ Done when: Se sabe si el sensor candidato esta en laboratorio o hay que comprarl
         end: 2026-09-25
         due: 2026-09-25 10:00
       task: Reunion de avance 9 oct #817
-        description: Montaje fisico en curso. Bug del tether en Blender resuelto. Mitad del dataset minado.
+        description: Bug del tether en Blender resuelto. Arrancan minado de dataset y montaje fisico en paralelo.
         type: approval
         start: 2026-10-08
         end: 2026-10-09
@@ -60,87 +60,98 @@ Done when: Se sabe si el sensor candidato esta en laboratorio o hay que comprarl
         end: 2026-09-25
         due: 2026-09-25 10:00
     package: Adaptacion del software al sensor elegido #1524
-      description: Solo si el sensor elegido no es el IMX477. Si se mantiene el IMX477 este paquete queda en 0 horas.
+      description: El B0308 todavia no se compra (ver Compra del sensor B0308 en Fase 4), asi que el default de config sigue en IMX477, el hardware fisicamente disponible hoy. Lo que se dejo listo: sensor_type y sensor_mode_bits parametrizados en CameraSettings, y el comando libcamera generado correctamente para IMX477 (mode 4056:3040:12:P). Cambiar a IMX708 cuando llegue es cuestion de cambiar esos dos campos, sin tocar la logica.
 
-Done when: Captura a resolucion completa funcionando con el sensor nuevo
+Done when: Comando libcamera correcto para el hardware actual (IMX477), y el codigo listo para aceptar IMX708 sin reescritura cuando se compre
       priority: high
       hours: 6
       start: 2026-09-26
       due: 2026-10-02
       depends-on: Decision de sensor de vuelo
       task: Actualizar config/camera_config.py y camera/stereo_camera.py, y verificar el comando libcamera generado #821
+        status: done
+        progress: 100%
         start: 2026-09-26
         end: 2026-09-29
         due: 2026-10-02
   deliverable: Hardware montado y listo para calibrar #321
     description: Unico bloqueo fisico del plan. Lo esperan la calibracion, la validacion del prototipo y (en la extension) Blender 3D y rolling shutter fisico.
     package: Montaje fisico en la caja oscura #1525
-      description: Done when: Par estereo fijo de forma rigida en la caja y capturando a resolucion completa
-      priority: critical
-      hours: 5
-      start: 2026-10-03
-      due: 2026-10-16
-      depends-on: Decision de sensor de vuelo
-      task: Montar las camaras segun los renders CAD del informe APSCO #822
-        start: 2026-10-03
-        end: 2026-10-06
-        due: 2026-10-16
+      description: Empieza despues del bug de Blender, no en paralelo (el usuario quiere probar Blender primero). Con el IMX477 ya disponible, no con el B0308 (ese llega recien el proximo ano, ver Compra del sensor B0308 en Fase 4). Se reusa el montaje que ya existia de capturas anteriores como stereo_20260213_140535, no los renders CAD del informe APSCO, que estan dimensionados para la placa del B0308 y no aplican todavia.
+
+Done when: Par estereo IMX477 fijo de forma rigida en la caja y capturando a resolucion completa
+      priority: high
+      hours: 3
+      start: 2026-10-12
+      due: 2026-10-23
+      depends-on: Depuracion del tether oscuro en Blender
+      task: Reinstalar y verificar el montaje existente de las camaras IMX477 en la caja oscura #822
+        start: 2026-10-12
+        end: 2026-10-16
+        due: 2026-10-23
       task: Fijar el par de forma rigida para que la geometria estereo no cambie despues de calibrar #823
-        start: 2026-10-03
-        end: 2026-10-06
-        due: 2026-10-16
+        start: 2026-10-12
+        end: 2026-10-16
+        due: 2026-10-23
     package: Preparacion de la sesion de calibracion #1526
       description: Hay 23 intentos previos sin buena calidad a la resolucion actual. Conviene entender el patron antes de repetir, no solo repetir con mas cuidado.
 
 Done when: Causa probable de las fallas anteriores identificada y tablero de calibracion verificado
       priority: high
       hours: 4
-      start: 2026-10-03
+      start: 2026-10-12
       due: 2026-10-23
       task: Revisar los metadatos de los 23 intentos en data/calibration/ buscando un patron comun de falla #824
-        start: 2026-10-03
-        end: 2026-10-06
+        start: 2026-10-12
+        end: 2026-10-16
         due: 2026-10-23
       task: Verificar el tablero (9x6 esquinas internas, 24 mm de lado, plano y rigido) y preparar iluminacion uniforme sin reflejos #825
-        start: 2026-10-03
-        end: 2026-10-06
+        start: 2026-10-12
+        end: 2026-10-16
         due: 2026-10-23
   deliverable: Dataset de tether ampliado #322
     description: Solo software, sin bloqueos de hardware. Es lo mas grande y mas seguro de avanzar del plan completo.
     package: Minado de las 59 sesiones restantes #1527
-      description: Hoy solo se usan 6 de 65 sesiones (mask_dataset con 6 entradas, path_dataset con 1). Trabajo de fondo, no exige dedicacion diaria, se reparte a lo largo de toda la fase 1.
+      description: Empieza despues del bug de Blender, no en paralelo. Hoy solo se usan 6 de 65 sesiones (mask_dataset con 6 entradas, path_dataset con 1).
 
 Done when: Las 65 sesiones revisadas y minadas en mask_dataset y path_dataset, priorizando las que tienen cruces o nudos
       priority: high
       hours: 10
-      start: 2026-09-22
+      start: 2026-10-12
       due: 2026-10-23
+      depends-on: Depuracion del tether oscuro en Blender
       execution: serial
       task: Clasificar las sesiones por tipo (hebra simple / curva / cruce / nudo) #826
-        start: 2026-09-22
-        end: 2026-09-25
+        start: 2026-10-12
+        end: 2026-10-14
         due: 2026-10-23
       task: Minar todas las sesiones en mask_dataset y path_dataset #827
-        start: 2026-09-26
-        end: 2026-10-20
+        start: 2026-10-15
+        end: 2026-10-22
         due: 2026-10-23
   deliverable: Simulacion Blender desbloqueada #323
     package: Depuracion del tether oscuro en Blender #1528
-      description: El tether sale oscuro y sin iluminar con cualquier potencia entre 50W y 1000W. Horas inciertas, es debug, puede estirarse.
+      description: Causa encontrada y arreglada. El objeto de la curva tenia scale.z=0 (aplanado intencional para meterlo dentro de la caja), pero una escala con un componente en cero es una transformacion singular y rompe el calculo de normales, por eso el material nunca respondia a la luz sin importar los vatios. Arreglo: aplicar (hornear) esa escala en los puntos de la curva en vez de dejarla como transform del objeto (Object > Apply > Scale), dejando object.scale en (1,1,1) con la misma forma final. Verificado con las dos camaras, pixeles hasta 200/255 en el hilo en vez de negro puro. Guardado en el archivo real.
 
 Done when: El tether responde visiblemente a la luz de la escena
-      priority: high
+      status: done
+      priority: critical
       hours: 6
-      start: 2026-09-22
+      progress: 100%
+      start: 2026-09-24
       due: 2026-10-09
       execution: serial
       task: Probar la hipotesis de auto-sombreado y angulo de vision, ocultando temporalmente los paneles de la caja para descartar que tapen la luz #828
-        start: 2026-09-22
-        end: 2026-09-25
+        status: done
+        progress: 100%
+        start: 2026-09-24
+        end: 2026-09-27
         due: 2026-10-09
       task: Revisar normales, bevel y material de la curva del tether #829
-        start: 2026-09-26
-        end: 2026-10-02
+        status: done
+        progress: 100%
+        start: 2026-09-28
+        end: 2026-10-04
         due: 2026-10-09
 
 phase: Fase 2 - Calibracion y validaciones nucleo #168
@@ -148,7 +159,9 @@ phase: Fase 2 - Calibracion y validaciones nucleo #168
   color: #f39c12
   deliverable: Calibracion estereo de buena calidad #324
     package: Sesion de calibracion a resolucion completa #1529
-      description: Done when: calibration_data.json nuevo evaluado, is_good_quality true o motivo de falla identificado
+      description: Con el IMX477 (4056x3040), no el B0308. Esta calibracion se repite con el B0308 cuando se compre, ver Migrar montaje y calibracion al sensor B0308 en Fase 4.
+
+Done when: calibration_data.json nuevo evaluado, is_good_quality true o motivo de falla identificado
       priority: critical
       hours: 5
       start: 2026-10-26
@@ -315,7 +328,9 @@ phase: Fase 3 - Cierre del nucleo #169
   color: #3498db
   deliverable: Prototipo validado de extremo a extremo #329
     package: Validacion end-to-end con el hardware final #1542
-      description: Done when: El pipeline de reconstruccion corre sobre un par estereo nuevo, capturado con el hardware final, sin modificar codigo
+      description: "Hardware final" aqui es el IMX477 ya disponible, no el B0308 (compra pendiente para el proximo ano). Se repite con el B0308 en Fase 4 cuando llegue.
+
+Done when: El pipeline de reconstruccion corre sobre un par estereo nuevo, capturado con el IMX477, sin modificar codigo
       priority: critical
       hours: 4
       start: 2026-12-01
@@ -354,6 +369,24 @@ phase: Fase 3 - Cierre del nucleo #169
 phase: Fase 4 - Extension, fechas tentativas #172
   description: Continua despues del cierre de nucleo (18 dic). Las fechas de esta fase son tentativas, no comprometidas, para tener una referencia de orden y ritmo; se ajustan segun como termine avanzando el nucleo. Arranca el 5 de enero para dar espacio a las fiestas de fin de ano.
   color: #95a5a6
+  deliverable: Prototipo de camara con el sensor B0308 #343
+    description: Todo lo que sigue de aqui necesita el B0308 fisico, que no se compra hasta el proximo ano. Hasta entonces el nucleo avanza con el IMX477 ya disponible.
+    package: Compra del sensor B0308 y accesorios de montaje #1581
+      description: Realisticamente el proximo ano segun disponibilidad de presupuesto, no es un plazo que se controle del todo. Bloquea todo lo demas de este deliverable.
+
+Done when: Sensor B0308 en laboratorio
+      priority: high
+      start: 2027-01-05
+      due: 2027-01-15
+    package: Migrar montaje, calibracion y software al sensor B0308 #1582
+      description: Agrupa todo lo que quedo calculado con el IMX477 como provisional y necesita repetirse con datos reales del B0308: montaje segun los renders CAD del informe APSCO, nueva calibracion a 4608x2592, cambiar sensor_type y sensor_mode_bits en config a IMX708, y actualizar consumo de potencia y tamano de imagen con las cifras reales del datasheet del B0308.
+
+Done when: Par B0308 montado, calibrado, config actualizada, y potencia/tamano de imagen documentados con datos reales del B0308
+      priority: high
+      hours: 10
+      start: 2027-01-18
+      due: 2027-01-29
+      depends-on: Compra del sensor B0308 y accesorios de montaje
   deliverable: Model 2 entrenado y comparado #339
     package: Interfaz de scoring aprendido en smart_wire_tracker.py #1569
       description: Se conserva el DFS con backtracking existente y solo se reemplaza la regla local de scoring de ramas. El scoring clasico queda como opcion por defecto mientras tanto.

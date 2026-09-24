@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 """
-Configuración específica para cámaras Arducam HQ 477 (IMX477 12MP)
-en Raspberry Pi CM5 para aplicaciones de fotogrametría estéreo
+Configuración de cámaras para Raspberry Pi CM5, fotogrametría estéreo.
+
+Hardware fisicamente disponible hoy: Arducam HQ 477 (IMX477), por eso sigue
+siendo el default. Sensor de vuelo elegido para el futuro: Arducam/RPi 12MP
+IMX708 Standard, foco fijo (SKU B0308), pendiente de compra (ver workplan,
+Fase 4). Los campos por sensor viven en CameraSettings (sensor_type,
+resolución, sensor_mode_bits), asi que cambiar a IMX708 en cuanto llegue es
+cuestion de cambiar esos campos, no de tocar la logica del comando libcamera.
 """
 
 import os
@@ -19,9 +25,17 @@ class CameraSettings:
     camera_id: int
     name: str
     sensor_type: str = "IMX477"
-    max_resolution: Tuple[int, int] = (4056, 3040)  # 12.3MP máximo
-    preview_resolution: Tuple[int, int] = (1920, 1440)  # Para vista previa (~2.8MP)
-    capture_resolution: Tuple[int, int] = (4056, 3040)  # Captura de foto a resolución completa (12.3MP). Requiere --mode explícito, ver get_libcamera_cmd
+    max_resolution: Tuple[int, int] = (4056, 3040)  # 12.3MP máximo (IMX477, hardware disponible hoy)
+    preview_resolution: Tuple[int, int] = (1920, 1440)  # Vista previa, mismo aspecto 4:3 que el sensor
+    capture_resolution: Tuple[int, int] = (4056, 3040)  # Captura de foto a resolución completa. Requiere --mode explícito, ver get_libcamera_cmd
+    # Profundidad de bit del modo de sensor usado en --mode W:H:bits:P.
+    # 12-bit es el modo full-res del IMX477 actual. Si se cambia sensor_type a
+    # IMX708 (SKU B0308, cuando se compre), este valor debe pasar a 10-bit:
+    # documentado como 10-bit en modo full-res segun la documentacion general de
+    # sensor modes de Raspberry Pi Camera Module 3, pero no verificado
+    # localmente todavia, confirmar contra `libcamera-hello --list-cameras` en
+    # cuanto esa cámara física esté disponible.
+    sensor_mode_bits: int = 12
     framerate: int = 15
     exposure_mode: str = "auto"
     awb_mode: str = "auto"
@@ -65,15 +79,15 @@ class CameraConfig:
         self.config_file = config_file or "config/camera_settings.json"
         self.config_dir = Path("data/calibration")
         
-        # Configuraciones por defecto para Arducam HQ 477
+        # Configuraciones por defecto para el hardware fisicamente disponible hoy (IMX477)
         self.left_camera = CameraSettings(
             camera_id=0,
             name="Left Camera (CAM0)",
             sensor_type="IMX477"
         )
-        
+
         self.right_camera = CameraSettings(
-            camera_id=1, 
+            camera_id=1,
             name="Right Camera (CAM1)",
             sensor_type="IMX477"
         )
@@ -120,8 +134,11 @@ class CameraConfig:
                 logger.warning("No se detectaron cámaras con libcamera (modo de solo procesamiento)")
                 return False
 
-            # Verificar que hay al menos 2 cámaras
-            camera_count = result.count(": imx477") + result.count(": IMX477")
+            # Verificar que hay al menos 2 cámaras, buscando el sensor configurado
+            # (sensor-agnostico: usa self.left_camera.sensor_type en vez de un
+            # nombre de sensor fijo, para no repetir el hardcodeo a IMX477).
+            sensor_name = self.left_camera.sensor_type.lower()
+            camera_count = result.lower().count(f": {sensor_name}")
             if camera_count < 2:
                 logger.warning(f"Solo se detectaron {camera_count} cámaras. Se necesitan 2 para captura estéreo.")
                 return False
@@ -180,7 +197,7 @@ class CameraConfig:
             if not output_file:
                 output_file = f"capture_cam{camera_id}.jpg"
             cmd = f"libcamera-jpeg --camera {camera_id} -o {output_file}"
-            cmd += f" --mode {camera_settings.max_resolution[0]}:{camera_settings.max_resolution[1]}:12:P"
+            cmd += f" --mode {camera_settings.max_resolution[0]}:{camera_settings.max_resolution[1]}:{camera_settings.sensor_mode_bits}:P"
             cmd += f" --width {camera_settings.capture_resolution[0]}"
             cmd += f" --height {camera_settings.capture_resolution[1]}"
             cmd += f" -t {duration_ms}"
@@ -220,6 +237,7 @@ class CameraConfig:
                 "max_resolution": self.left_camera.max_resolution,
                 "preview_resolution": self.left_camera.preview_resolution,
                 "capture_resolution": self.left_camera.capture_resolution,
+                "sensor_mode_bits": self.left_camera.sensor_mode_bits,
                 "framerate": self.left_camera.framerate,
                 "exposure_mode": self.left_camera.exposure_mode,
                 "awb_mode": self.left_camera.awb_mode,
@@ -236,6 +254,7 @@ class CameraConfig:
                 "max_resolution": self.right_camera.max_resolution,
                 "preview_resolution": self.right_camera.preview_resolution,
                 "capture_resolution": self.right_camera.capture_resolution,
+                "sensor_mode_bits": self.right_camera.sensor_mode_bits,
                 "framerate": self.right_camera.framerate,
                 "exposure_mode": self.right_camera.exposure_mode,
                 "awb_mode": self.right_camera.awb_mode,
@@ -420,14 +439,14 @@ class CameraConfig:
 
 # Función de conveniencia para crear configuración por defecto
 def create_default_config() -> CameraConfig:
-    """Crear configuración por defecto para Arducam HQ 477"""
+    """Crear configuración por defecto para el hardware disponible hoy (IMX477)"""
     config = CameraConfig()
     config.save_config()
     return config
 
 if __name__ == "__main__":
     # Test de configuración
-    print("Probando configuración de cámaras Arducam HQ 477...")
+    print("Probando configuración de cámaras (IMX477)...")
     
     try:
         config = create_default_config()

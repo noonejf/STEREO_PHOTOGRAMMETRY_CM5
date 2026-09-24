@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
-Sistema de cámaras estéreo para Arducam HQ 477 (IMX477)
-Maneja captura sincronizada y operaciones estéreo en Raspberry Pi CM5
+Sistema de cámaras estéreo para Raspberry Pi CM5.
+Hardware fisicamente disponible hoy: Arducam HQ 477 (IMX477). Sensor de vuelo
+elegido para el futuro: Arducam/RPi 12MP IMX708 Standard, foco fijo (SKU
+B0308), pendiente de compra (ver workplan, Fase 4). El sensor a verificar se
+lee de camera_config (sensor_type), no esta fijo aqui.
 """
 
 import os
@@ -67,11 +70,14 @@ class StereoCamera:
             if "No cameras available" in output:
                 raise RuntimeError("No se detectaron cámaras")
             
-            # Verificar cámaras específicas
+            # Verificar cámaras específicas, usando el sensor configurado
+            # (sensor-agnostico: lee sensor_type de camera_config en vez de un
+            # nombre de sensor fijo, para no repetir el hardcodeo a IMX477).
+            sensor_name = self.config.left_camera.sensor_type.lower()
             cameras_found = []
             lines = output.split('\n')
             for line in lines:
-                if f": imx477" in line.lower() or f": IMX477" in line.lower():
+                if f": {sensor_name}" in line.lower():
                     # Extraer ID de cámara
                     if line.strip().startswith(str(self.left_camera_id)):
                         cameras_found.append(self.left_camera_id)

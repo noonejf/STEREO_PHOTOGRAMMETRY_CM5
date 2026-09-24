@@ -14,7 +14,7 @@ The flight camera sensor was decided during the master work plan's sensor-decisi
 
 The result: the IMX708 module with its standard 66\textdegree{} horizontal field-of-view lens, fixed-focus variant, SKU B0308, was chosen. At every tested distance it matched the current IMX477 baseline's tether pixel resolution within a few percent (for example, 6.8~px versus 7.8~px at 0.5~m, both crossing below 1~px per thread around 4 to 5~m), while the two wider IMX708 lens options (102\textdegree{} and 120\textdegree{} horizontal FOV) lost resolvable pixels on the thread noticeably earlier, around 2~m. The Hawk-eye OV64A40 resolved the thread furthest (to roughly 8 to 10~m) but was not selected, since its 64~MP output is difficult to reconcile with the mission's downlink budget (Section \ref{chap:physical-solar}, and the communications link budget in the APSCO deliverable), and it is a non-standard sensor not covered by the mechanical mounting CAD already produced for the IMX708 module. The fixed-focus B0308 variant was preferred over its autofocus siblings (B0306, B0312, same optics) because a fixed lens has no moving focus mechanism to survive launch vibration or vacuum operation.
 
-Table \ref{tab:chosen-camera-intrinsics} lists the resulting camera intrinsics. These are the values the Blender camera object should be configured with once this sensor replaces the IMX477 assumption currently hardcoded in \texttt{config/camera\_config.py} and \texttt{camera/stereo\_camera.py} (a separate, still-pending software adaptation task).
+The B0308 unit itself has not been purchased yet; procurement is realistically expected next year, tracked as its own item in the master work plan. Until then, near-term physical work, including the laboratory-condition renders and real photographs this chapter defines, continues with the IMX477 hardware already available, which Section \ref{sec:chosen-camera-intrinsics-caveat} below addresses directly. Table \ref{tab:chosen-camera-intrinsics} lists the B0308's intrinsics regardless, since they are the values the Blender camera object should be configured with once the sensor is purchased and this validation is repeated against it.
 
 \begin{table}[!ht]
 \centering
@@ -37,7 +37,14 @@ Focus & Fixed, manufacturer-stated 1.5 m to infinity \\
 \end{tabular}
 \end{table}
 
-\todo[inline]{The 1.5 m minimum object distance above is taken from the fixed-focus B0308 product page directly; it was not independently bench-verified. Confirm once the physical unit is in hand, since this affects whether the near-field dark-enclosure captures (well under 1.5 m) will be in focus.}
+\todo[inline]{The 1.5 m minimum object distance above is taken from the fixed-focus B0308 product page directly; it was not independently bench-verified. Confirm once the physical unit is in hand, before relying on it for the eventual B0308 laboratory-condition capture.}
+
+\subsection{Near-term substitution: laboratory work proceeds with the IMX477}
+\label{sec:chosen-camera-intrinsics-caveat}
+
+Since the B0308 is not yet in hand, the laboratory photograph capture and matched-pair generation described later in this chapter use the IMX477 hardware already installed and previously exercised (for example, the reference pair \texttt{data/captures/stereo\_20260213\_140535} used in Section \ref{sec:experimental-setup-reference-pair}). This is a reasonable substitution for this validation's purpose: Section \ref{sec:chosen-camera-intrinsics} already established that the B0308 and the IMX477 resolve the reference thread to within a few percent of each other at the same distance, so agreement (or disagreement) found between a Blender render and a real IMX477 photograph is expected to transfer to the B0308 case once it is available, rather than being an artifact of one specific sensor.
+
+This substitution also removes the practical risk noted above: the IMX477's minimum focus distance is on the order of tens of centimeters, comfortably inside the dark enclosure's working distance, unlike the B0308's stated 1.5~m. The Blender camera object for the laboratory-condition render should therefore use the IMX477 intrinsics (matching the real calibrated camera, as already required earlier in this section) for now, and be reconfigured to the B0308 intrinsics in Table \ref{tab:chosen-camera-intrinsics} once that sensor is purchased and this validation is repeated against it.
 
 \subsection{Blender's own configuration reference for the Sun light}
 
@@ -46,6 +53,7 @@ Blender's own documentation, rather than a third-party tutorial, confirms two of
 Blender's manual is explicit that scene-linear light values in Cycles are unbounded (0 to infinity) and only compressed to a displayable image by the View Transform chosen in Color Management, not by the light values themselves \cite{blender_color_management}. The default View Transform in Blender 5.x, AgX, is described in the manual as offering approximately 16.5 stops of dynamic range and deliberately desaturating strongly overexposed colors rather than clipping them, so that bright regions roll off toward white the way a real camera's sensor does instead of producing flat, saturated color blocks \cite{blender_color_management}. This is the mechanism, native to Blender and not a custom workaround, that directly satisfies the requirement that the rendered light must not appear saturated: keeping View Transform set to AgX (the default) rather than Standard is the concrete action to take when the scene is rendered, and the Exposure slider (output equals the rendered value multiplied by $2^{\text{exposure}}$) is the correct control to fine-tune brightness afterward without reintroducing clipping.
 
 \section{Laboratory photograph capture}
+\label{sec:experimental-setup-reference-pair}
 
 A reference stereo pair has been selected from the existing capture archive: the tether enters the frame from above the camera and falls toward the background, chosen because this configuration is simple to reproduce and reason about (no self-crossing, no ambiguous topology) for a first matched-pair test.
 
