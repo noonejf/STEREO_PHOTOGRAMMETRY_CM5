@@ -1,0 +1,19 @@
+{
+    "capture_name": "stereo_sim_20260924_164820",
+    "source": "blender_simulation",
+    "blend_file": "SIMULATION/Simulation_DarkBox.blend",
+    "timestamp": "2026-09-24T16:48:20",
+    "note": "Second synthetic stereo pair rendered in Blender (Cycles), different tether pose than stereo_sim_20260924_150014 (hook/curl shape, one endpoint now visible in-frame instead of both exiting at the borders). Not a real camera capture.",
+    "left_camera": {
+        "blender_object": "Camera.001",
+        "source_file": "SIMULATION/imagen_4.png",
+        "file": "data/captures/stereo_sim_20260924_164820/left.jpg",
+        "resolution": [3040, 4056, 3]
+    },
+    "right_camera": {
+        "blender_object": "Camera",
+        "source_file": "SIMULATION/imagen_3.png",
+        "file": "data/captures/stereo_sim_20260924_164820/right.jpg",
+        "resolution": [3040, 4056, 3]
+    }
+}
