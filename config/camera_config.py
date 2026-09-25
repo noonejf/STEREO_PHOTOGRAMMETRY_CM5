@@ -14,7 +14,7 @@ import os
 import json
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, List
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -111,6 +111,12 @@ class CameraConfig:
 
         # Cargar configuración si existe
         self.load_config()
+
+        # Nombre del archivo de calibración actualmente cargado (dentro de
+        # config_dir). Por defecto la calibración real; se puede cambiar en
+        # tiempo de ejecución con switch_calibration_file() para procesar
+        # sesiones sintéticas de Blender con su propia calibración exacta.
+        self.active_calibration_filename = "calibration_data.json"
 
         # NUEVO: Cargar calibración automáticamente si existe
         calibration_loaded = self.load_calibration()
@@ -320,7 +326,8 @@ class CameraConfig:
         """Guardar datos de calibración"""
         self.calibration_data.update(calibration_data)
         self.calibration_data["is_calibrated"] = True
-        
+        self.active_calibration_filename = "calibration_data.json"
+
         calibration_file = self.config_dir / "calibration_data.json"
         calibration_file.parent.mkdir(parents=True, exist_ok=True)
         
@@ -335,13 +342,14 @@ class CameraConfig:
         with open(calibration_file, 'w') as f:
             json.dump(json_data, f, indent=4)
     
-    def load_calibration(self) -> bool:
-        """Cargar datos de calibración. Retorna True si se cargó exitosamente"""
-        calibration_file = self.config_dir / "calibration_data.json"
-        
+    def load_calibration(self, filename: str = "calibration_data.json") -> bool:
+        """Cargar datos de calibración desde `filename` (dentro de config_dir).
+        Retorna True si se cargó exitosamente"""
+        calibration_file = self.config_dir / filename
+
         if not calibration_file.exists():
             return False
-        
+
         try:
             with open(calibration_file, 'r') as f:
                 json_data = json.load(f)
@@ -366,12 +374,46 @@ class CameraConfig:
                     json_data[key] = np.array(value)
 
             self.calibration_data.update(json_data)
+            if self.calibration_data.get("is_calibrated", False):
+                self.active_calibration_filename = filename
             return self.calibration_data.get("is_calibrated", False)
-            
+
         except Exception as e:
             print(f"Error cargando calibración: {e}")
             return False
-    
+
+    def list_calibration_files(self) -> List[Dict[str, Any]]:
+        """Listar los archivos de calibración disponibles en config_dir
+        (p.ej. calibration_data.json y calibration_data_blender_sim.json),
+        con metadata resumida para mostrarlos en un selector de la GUI."""
+        results = []
+        if not self.config_dir.exists():
+            return results
+
+        for path in sorted(self.config_dir.glob("*.json")):
+            try:
+                with open(path, 'r') as f:
+                    data = json.load(f)
+            except Exception:
+                continue
+            if "is_calibrated" not in data:
+                continue  # no es un archivo de calibración
+            results.append({
+                "filename": path.name,
+                "is_active": path.name == self.active_calibration_filename,
+                "source": data.get("source", "real_camera"),
+                "calibration_date": data.get("calibration_date"),
+                "calibration_error": data.get("calibration_error"),
+                "is_good_quality": data.get("is_good_quality", False),
+                "image_shape": data.get("image_shape"),
+            })
+        return results
+
+    def switch_calibration_file(self, filename: str) -> bool:
+        """Cambiar la calibración activa a `filename`. Retorna True si se
+        cargó correctamente."""
+        return self.load_calibration(filename)
+
     def is_calibrated(self) -> bool:
         """Verificar si el sistema está calibrado"""
         return self.calibration_data.get("is_calibrated", False)
@@ -424,7 +466,9 @@ class CameraConfig:
             "quality": quality,
             "baseline_mm": baseline_m * 1000 if baseline_m else None,
             "is_good_quality": is_good_quality,
-            "issues": quality_issues if quality_issues else []
+            "issues": quality_issues if quality_issues else [],
+            "source": self.calibration_data.get("source", "real_camera"),
+            "filename": self.active_calibration_filename,
         }
 
     def get_capture_settings(self) -> Dict[str, Any]:

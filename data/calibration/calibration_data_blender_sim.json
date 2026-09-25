@@ -1,0 +1,255 @@
+{
+    "left_camera_matrix": [
+        [
+            3870.8444895806115,
+            0.0,
+            2028.0
+        ],
+        [
+            0.0,
+            3870.8444895806115,
+            1520.0
+        ],
+        [
+            0.0,
+            0.0,
+            1.0
+        ]
+    ],
+    "left_distortion": [
+        [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+        ]
+    ],
+    "right_camera_matrix": [
+        [
+            3870.8444895806115,
+            0.0,
+            2028.0
+        ],
+        [
+            0.0,
+            3870.8444895806115,
+            1520.0
+        ],
+        [
+            0.0,
+            0.0,
+            1.0
+        ]
+    ],
+    "right_distortion": [
+        [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+        ]
+    ],
+    "rotation_matrix": [
+        [
+            1.0,
+            3.5268211912612795e-24,
+            0.0
+        ],
+        [
+            0.0,
+            0.9999999999999999,
+            0.0
+        ],
+        [
+            0.0,
+            0.0,
+            1.0
+        ]
+    ],
+    "translation_vector": [
+        [
+            -100.00000149011592
+        ],
+        [
+            -4.371138893808829e-06
+        ],
+        [
+            0.0
+        ]
+    ],
+    "essential_matrix": [
+        [
+            0.0,
+            0.0,
+            -4.371138893808829e-09
+        ],
+        [
+            0.0,
+            0.0,
+            0.10000000149011593
+        ],
+        [
+            4.371138893808829e-09,
+            -0.10000000149011591,
+            0.0
+        ]
+    ],
+    "fundamental_matrix": [
+        [
+            0.0,
+            0.0,
+            -1.1292468363363318e-12
+        ],
+        [
+            0.0,
+            0.0,
+            2.583415628276776e-05
+        ],
+        [
+            1.1292468363363318e-12,
+            -2.5834156282767757e-05,
+            -6.938893903907228e-18
+        ]
+    ],
+    "calibration_date": "2026-09-25T12:11:55.744454",
+    "calibration_error": 0.0,
+    "is_calibrated": true,
+    "success": true,
+    "rectification_left": [
+        [
+            0.999999999999999,
+            4.4703483581542956e-08,
+            0.0
+        ],
+        [
+            -4.4703483581542956e-08,
+            0.999999999999999,
+            0.0
+        ],
+        [
+            0.0,
+            0.0,
+            1.0
+        ]
+    ],
+    "rectification_right": [
+        [
+            0.999999999999999,
+            4.4703483581542956e-08,
+            0.0
+        ],
+        [
+            -4.4703483581542956e-08,
+            0.999999999999999,
+            0.0
+        ],
+        [
+            0.0,
+            0.0,
+            1.0
+        ]
+    ],
+    "projection_left": [
+        [
+            3870.844798258285,
+            0.0,
+            2028.0,
+            0.0
+        ],
+        [
+            0.0,
+            3870.844798258285,
+            1519.9999694824219,
+            0.0
+        ],
+        [
+            0.0,
+            0.0,
+            1.0,
+            0.0
+        ]
+    ],
+    "projection_right": [
+        [
+            3870.844798258285,
+            0.0,
+            2028.0,
+            -387.08448559383635
+        ],
+        [
+            0.0,
+            3870.844798258285,
+            1519.9999694824219,
+            0.0
+        ],
+        [
+            0.0,
+            0.0,
+            1.0,
+            0.0
+        ]
+    ],
+    "disparity_to_depth_matrix": [
+        [
+            1.0,
+            0.0,
+            0.0,
+            -2028.0
+        ],
+        [
+            0.0,
+            1.0,
+            0.0,
+            -1519.9999694824219
+        ],
+        [
+            0.0,
+            0.0,
+            0.0,
+            3870.844798258285
+        ],
+        [
+            0.0,
+            0.0,
+            9.9999998509884,
+            -0.0
+        ]
+    ],
+    "roi_left": [
+        0,
+        0,
+        4055,
+        3039
+    ],
+    "roi_right": [
+        0,
+        0,
+        4055,
+        3039
+    ],
+    "baseline_meters": 0.10000000149011602,
+    "tvecs_left": [],
+    "tvecs_right": [],
+    "average_distance_meters": null,
+    "images_used": 0,
+    "valid_image_pairs": [],
+    "quality_reports": [],
+    "image_shape": [
+        4056,
+        3040
+    ],
+    "is_good_quality": true,
+    "quality_issues": [],
+    "quality_metrics": {
+        "reprojection_error": 0.0,
+        "baseline_meters": 0.10000000149011602,
+        "baseline_error_percent": 0.0,
+        "rotation_determinant": 0.9999999999999999,
+        "left_matrix_condition": 5530.219935260652,
+        "right_matrix_condition": 5530.219935260652
+    },
+    "source": "blender_ground_truth",
+    "source_note": "Extracted directly from SIMULATION/Simulation_DarkBox.blend camera objects (Camera=right, Camera.001=left), not from checkerboard calibration. calibration_error=0.0 reflects exact synthetic ground truth, not an empirically measured reprojection error. Only valid for processing Blender-rendered stereo pairs (stereo_sim_* capture sessions), not real IMX477 photos."
+}

@@ -454,8 +454,10 @@ class PhotogrammetryDashboard(QMainWindow):
         self.calib_images_label   = QLabel("Images: --")
         self.calib_date_label     = QLabel("Date: --")
         self.calib_baseline_label = QLabel("Baseline: --")
+        self.calib_source_label   = QLabel("Source: --")
         for lbl in [self.calib_error_label, self.calib_images_label,
-                    self.calib_date_label,  self.calib_baseline_label]:
+                    self.calib_date_label,  self.calib_baseline_label,
+                    self.calib_source_label]:
             lbl.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px; background: transparent;")
             df.addWidget(lbl)
         cg.addWidget(self.calibration_details_frame)
@@ -472,6 +474,16 @@ class PhotogrammetryDashboard(QMainWindow):
             lambda: self.navigate_to(self.PAGE_CALIBRATION)
         )
         cg.addWidget(self.btn_calibrate)
+
+        self.btn_switch_calibration = QPushButton("⇄  Switch Calibration File")
+        self.btn_switch_calibration.setFixedHeight(30)
+        self.btn_switch_calibration.setStyleSheet(
+            f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY};"
+            f"border-radius: 6px; font-size: 12px; }}"
+            f"QPushButton:hover {{ background-color: #3B4B60; }}"
+        )
+        self.btn_switch_calibration.clicked.connect(self.select_calibration_file)
+        cg.addWidget(self.btn_switch_calibration)
         v.addWidget(calib_group)
 
         # Operations
@@ -682,6 +694,43 @@ class PhotogrammetryDashboard(QMainWindow):
             f"Images: {calib_info['num_images']}"
         )
 
+    def select_calibration_file(self):
+        """Permite elegir qué archivo de calibración usar (calibración real
+        de las cámaras físicas, o una calibración exacta derivada de Blender
+        para procesar sesiones stereo_sim_*)."""
+        files = self.camera_config.list_calibration_files()
+        if not files:
+            QMessageBox.information(
+                self, "Switch Calibration File",
+                "No calibration files found in data/calibration/."
+            )
+            return
+
+        labels = []
+        for f in files:
+            source_label = "Blender simulation" if f["source"] == "blender_ground_truth" else "Real camera"
+            active_mark = " (active)" if f["is_active"] else ""
+            labels.append(f"{f['filename']} — {source_label}{active_mark}")
+
+        from PyQt5.QtWidgets import QInputDialog
+        choice, ok = QInputDialog.getItem(
+            self, "Switch Calibration File",
+            "Choose which calibration to use:",
+            labels, 0, False
+        )
+        if not ok or not choice:
+            return
+
+        chosen_filename = files[labels.index(choice)]["filename"]
+        if self.camera_config.switch_calibration_file(chosen_filename):
+            self.update_calibration_status()
+            self.log_message(f"Switched active calibration to: {chosen_filename}")
+        else:
+            QMessageBox.warning(
+                self, "Switch Calibration File",
+                f"Failed to load calibration from {chosen_filename}."
+            )
+
     def update_calibration_status(self):
         calib_info = self.camera_config.get_calibration_info()
 
@@ -708,8 +757,14 @@ class PhotogrammetryDashboard(QMainWindow):
                 self.calib_baseline_label.setText(
                     f"Baseline: {calib_info['baseline_mm']:.1f} mm"
                 )
+            source = calib_info.get('source', 'real_camera')
+            source_label = "Blender simulation" if source == "blender_ground_truth" else "Real camera"
+            self.calib_source_label.setText(
+                f"Source: {source_label} ({calib_info.get('filename', '--')})"
+            )
             for lbl in [self.calib_error_label, self.calib_images_label,
-                        self.calib_date_label,  self.calib_baseline_label]:
+                        self.calib_date_label,  self.calib_baseline_label,
+                        self.calib_source_label]:
                 lbl.setStyleSheet(
                     f"color: {quality_color}; font-size: 12px; background: transparent;"
                 )
