@@ -70,15 +70,8 @@ class EndpointDetector:
         """
         # Crear skeleton (sin dilatar — la dilatación creaba falsos endpoints en bordes DT=1)
         skeleton = self._create_skeleton()
-        skeleton_raw = (skeleton > 0).astype(np.uint8)
-        # Podar ramas espurias cortas (artefactos de thinning, tipicos en la
-        # punta redondeada de una curva, ej. el pico de un cable en arco)
-        # antes de buscar endpoints. _prune_short_branches ya existia en el
-        # codigo pero nunca se llamaba, asi que estos artefactos podian
-        # ganar la comparacion de distancia geodesica frente al extremo real
-        # cuando ese extremo caia cerca del borde de la imagen y quedaba
-        # filtrado (ver filtro de borde mas abajo).
-        skeleton_binary = self._prune_short_branches(skeleton_raw, min_length=40)
+        skeleton_raw    = (skeleton > 0).astype(np.uint8)
+        skeleton_binary = skeleton_raw   # alias para el resto del código
 
         if save_debug:
             self._save_debug_skeleton_pair(skeleton_raw, skeleton_binary)
@@ -97,65 +90,47 @@ class EndpointDetector:
             print("⚠️ No se encontraron endpoints con skeleton, usando método de contornos...")
             return self._detect_endpoints_contour()
 
-        # Filtrar endpoints muy cerca del borde de la imagen: son ramas espurias
-        # creadas por artefactos en los bordes de la máscara, no extremos reales.
-        h_sk, w_sk = skeleton_binary.shape
-        border_margin = 50
-        in_bounds = (
-            (endpoint_coords[:, 0] >= border_margin) &
-            (endpoint_coords[:, 0] < h_sk - border_margin) &
-            (endpoint_coords[:, 1] >= border_margin) &
-            (endpoint_coords[:, 1] < w_sk - border_margin)
-        )
-        if in_bounds.sum() >= 2:
-            n_removed = int((~in_bounds).sum())
-            if n_removed > 0:
-                print(f"DEBUG: Filtrados {n_removed} endpoint(s) en borde (<{border_margin}px) "
-                      f"→ quedan {int(in_bounds.sum())} candidatos")
-            endpoint_coords = endpoint_coords[in_bounds]
-
-        # Filtrar endpoints donde la cuerda continúa en ambos lados (crossings >= 4):
-        # son falsos endpoints creados por la dilatación+re-thinning en zonas de DT bajo.
-        dt_map = cv2.distanceTransform(self.mask_binary, cv2.DIST_L2, 5)
-        # Filtro conservador: eliminar SOLO endpoints en el borde fino del cable
-        # (DT<=2) donde la cuerda claramente continúa en ambos lados (crossings>=4).
-        # Con el skeleton raw (sin dilatación) este filtro casi nunca aplica,
-        # pero atrapa los raros casos de endpoints espurios en bordes de máscara.
-        valid_eps = []
-        for ep in endpoint_coords:
-            cy, cx = int(ep[0]), int(ep[1])
-            dt_val = float(dt_map[cy, cx])
-            # Endpoints con DT>2 (dentro del cuerpo del cable) → siempre válidos
-            if dt_val > 2.0:
-                valid_eps.append(ep)
-                continue
-            # Endpoints en el borde fino (DT<=2): verificar si la cuerda continúa
-            radius = max(15, int(dt_val) + 8)
-            crossings = self._count_circle_crossings(cx, cy, radius)
-            if crossings < 4:
-                valid_eps.append(ep)
-        if len(valid_eps) >= 2:
-            n_removed = len(endpoint_coords) - len(valid_eps)
-            if n_removed > 0:
-                print(f"DEBUG: Filtrados {n_removed} endpoint(s) thin-edge "
-                      f"(DT≤2 + crossings≥4) → quedan {len(valid_eps)}")
-            endpoint_coords = np.array(valid_eps)
-
-        print(f"DEBUG: {len(endpoint_coords)} endpoints tras todos los filtros")
+        # Agrupar candidatos muy cercanos entre si en un solo punto
+        # representativo. Es comun que la punta real de un cable produzca
+        # 2 candidatos casi identicos (un pequeno "tenedor" de pocos pixeles
+        # por como el thinning termina ahi), y tratarlos como extremos
+        # separados confundia el filtro de borde de mas abajo. Se usa un
+        # punto real del grupo (no un promedio) para que siga estando sobre
+        # el skeleton.
+        endpoint_coords = self._cluster_nearby_endpoints(endpoint_coords, radius=80)
+        print(f"DEBUG: {len(endpoint_coords)} candidatos tras agrupar duplicados cercanos")
 
         if save_debug:
             self._save_debug_candidates_detailed(
                 skeleton_raw, skeleton_binary, neighbors_raw, neighbors, endpoint_coords)
 
-        # Buscar el par con MAYOR DISTANCIA GEODÉSICA a lo largo del skeleton.
-        # Para cuerdas enredadas el skeleton puede fragmentarse en los cruces,
-        # haciendo que los extremos reales queden en componentes desconectadas
-        # (geodésica = 0). En ese caso se reintenta con skeleton ligeramente
-        # dilatado para puentear las brechas en los cruces.
+        # Buscar el par con MAYOR DISTANCIA GEODÉSICA a lo largo del skeleton,
+        # sobre TODOS los candidatos agrupados, ANTES de aplicar el filtro de
+        # borde o de grosor. Un candidato espurio a mitad del cable (p.ej.
+        # una rama de thinning en el apice de una curva) nunca deberia tener
+        # la geodesica mas larga frente a los dos extremos reales, que
+        # abarcan el cable completo — asi que dejar competir a todos los
+        # candidatos primero rechaza los espurios por construccion. Filtrar
+        # por borde ANTES de esta comparacion era el bug original: cuando el
+        # extremo real caia cerca del borde de la imagen (legitimo en
+        # renders donde el cable sale del cuadro) se descartaba antes de
+        # competir, y el punto espurio ganaba por default al quedar como el
+        # unico candidato "lejano" restante.
         skeleton_for_geodesic = skeleton_binary
         best_pair, max_geodesic_dist, all_pair_scores = self._find_best_geodesic_pair(
             skeleton_for_geodesic, endpoint_coords
         )
+
+        if max_geodesic_dist == 0 and len(endpoint_coords) > 2:
+            # Mas de 2 candidatos y ninguno conectado entre si: probablemente
+            # hay verdadero ruido en la mascara. Como red de seguridad,
+            # aplicar los filtros de borde y grosor para reducir candidatos
+            # antes de reintentar.
+            print("DEBUG: Geodesica=0 con >2 candidatos. Aplicando filtros de borde/grosor como red de seguridad...")
+            endpoint_coords = self._filter_border_and_thin_endpoints(endpoint_coords, skeleton_binary.shape)
+            best_pair, max_geodesic_dist, all_pair_scores = self._find_best_geodesic_pair(
+                skeleton_for_geodesic, endpoint_coords
+            )
 
         if max_geodesic_dist == 0:
             # Skeleton fragmentado: puentear brechas con dilatación mínima
@@ -217,6 +192,70 @@ class EndpointDetector:
             pruned[to_remove] = 0
 
         return pruned
+
+    def _cluster_nearby_endpoints(self, endpoint_coords: np.ndarray, radius: float = 80) -> np.ndarray:
+        """
+        Agrupa candidatos a endpoint que estan a `radius` px o menos entre si
+        en un solo representante (el primero de cada grupo, que por
+        construccion sigue siendo un pixel real del skeleton). Sirve para
+        colapsar el "tenedor" de 2-3 pixeles que suele aparecer justo en la
+        punta real de un cable, sin necesidad de podar el skeleton (podar
+        con un largo fijo resulto ser fragil: mucho y se come puntas
+        reales muy cerradas, poco y no limpia nada).
+        """
+        pts = [tuple(c) for c in endpoint_coords]
+        used = [False] * len(pts)
+        representatives = []
+        for i in range(len(pts)):
+            if used[i]:
+                continue
+            used[i] = True
+            for j in range(i + 1, len(pts)):
+                if used[j]:
+                    continue
+                if np.linalg.norm(np.array(pts[i]) - np.array(pts[j])) <= radius:
+                    used[j] = True
+            representatives.append(pts[i])
+        return np.array(representatives)
+
+    def _filter_border_and_thin_endpoints(self, endpoint_coords: np.ndarray,
+                                          skeleton_shape: Tuple[int, int]) -> np.ndarray:
+        """
+        Filtros de respaldo (no se aplican en el camino normal, ver nota en
+        _detect_endpoints_skeleton): descarta candidatos muy cerca del borde
+        de la imagen o en el borde fino del cable donde la cuerda claramente
+        continua en ambos lados. Solo se usan cuando la comparacion
+        geodesica sobre los candidatos agrupados no encuentra ningun par
+        conectado, como ultimo intento de limpiar el conjunto antes de
+        rendirse.
+        """
+        h_sk, w_sk = skeleton_shape
+        border_margin = 50
+        in_bounds = (
+            (endpoint_coords[:, 0] >= border_margin) &
+            (endpoint_coords[:, 0] < h_sk - border_margin) &
+            (endpoint_coords[:, 1] >= border_margin) &
+            (endpoint_coords[:, 1] < w_sk - border_margin)
+        )
+        if in_bounds.sum() >= 2:
+            endpoint_coords = endpoint_coords[in_bounds]
+
+        dt_map = cv2.distanceTransform(self.mask_binary, cv2.DIST_L2, 5)
+        valid_eps = []
+        for ep in endpoint_coords:
+            cy, cx = int(ep[0]), int(ep[1])
+            dt_val = float(dt_map[cy, cx])
+            if dt_val > 2.0:
+                valid_eps.append(ep)
+                continue
+            radius = max(15, int(dt_val) + 8)
+            crossings = self._count_circle_crossings(cx, cy, radius)
+            if crossings < 4:
+                valid_eps.append(ep)
+        if len(valid_eps) >= 2:
+            endpoint_coords = np.array(valid_eps)
+
+        return endpoint_coords
 
     def _find_best_geodesic_pair(self, skeleton: np.ndarray,
                                   endpoint_coords: np.ndarray,
