@@ -1,0 +1,19 @@
+{
+    "capture_name": "stereo_sim_20260925_100254",
+    "source": "blender_simulation",
+    "blend_file": "SIMULATION/Simulation_DarkBox.blend o Simulation_DarkBox_2.blend (no verificado cual)",
+    "timestamp": "2026-09-25T10:02:54",
+    "note": "Fourth synthetic stereo pair (imagen_7/imagen_8). Tighter curl than the third pair; the tether visually crosses the panel-seam line near the top, closer to a self-crossing-like configuration. Not a real camera capture.",
+    "left_camera": {
+        "blender_object": "Camera.001",
+        "source_file": "SIMULATION/imagen_8.png",
+        "file": "data/captures/stereo_sim_20260925_100254/left.jpg",
+        "resolution": [3040, 4056, 3]
+    },
+    "right_camera": {
+        "blender_object": "Camera",
+        "source_file": "SIMULATION/imagen_7.png",
+        "file": "data/captures/stereo_sim_20260925_100254/right.jpg",
+        "resolution": [3040, 4056, 3]
+    }
+}
