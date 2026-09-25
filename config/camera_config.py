@@ -159,10 +159,16 @@ class CameraConfig:
     def get_capture_settings_for_op(self, operation: str) -> Dict[str, Any]:
         """Obtener resolución y framerate según la operación"""
         if operation == "calibration":
-            # Usar la resolución de PREVIEW para calibración
-            resolution = self.left_camera.preview_resolution # Asume que ambas cámaras usan la misma para preview
-            framerate = self.left_camera.framerate # O la que uses para preview
-            # Ahora 'logger' está definido gracias a la línea añadida al principio del archivo
+            # CRÍTICO: debe ser la MISMA resolución que "capture" (captura de
+            # hilos para el modelo 3D). Las matrices de cámara (fx, fy, cx,
+            # cy) son válidas solo a la resolución con la que se calibró; si
+            # la calibración se hace a preview_resolution y luego se procesan
+            # capturas a capture_resolution, la reconstrucción 3D sale con
+            # profundidad y encuadre incorrectos (StereoProcessor reescala
+            # esto automáticamente como salvaguarda, pero lo correcto es
+            # calibrar ya a la resolución real de trabajo).
+            resolution = self.left_camera.capture_resolution
+            framerate = self.left_camera.framerate
             logger.debug(f"get_capture_settings_for_op: Calibration -> Res: {resolution}, FPS: {framerate}")
         elif operation == "capture":
             # Usar la resolución de CAPTURA para el modelo 3D
@@ -209,12 +215,16 @@ class CameraConfig:
             cmd += f" -t {duration_ms}"
 
         elif operation == "calibration":
-            # --- LÓGICA DE CALIBRACIÓN ---
+            # --- LÓGICA DE CALIBRACIÓN (MISMA RESOLUCIÓN QUE "capture") ---
+            # Debe capturar a capture_resolution, no preview_resolution: la
+            # calibración solo es válida a la resolución con la que se hizo.
+            # --mode fuerza lectura de sensor completo, igual que en "capture".
             if not output_file:
                 output_file = f"calibration_cam{camera_id}.jpg"
             cmd = f"libcamera-jpeg --camera {camera_id} -o {output_file}"
-            cmd += f" --width {camera_settings.preview_resolution[0]}"
-            cmd += f" --height {camera_settings.preview_resolution[1]}"
+            cmd += f" --mode {camera_settings.max_resolution[0]}:{camera_settings.max_resolution[1]}:{camera_settings.sensor_mode_bits}:P"
+            cmd += f" --width {camera_settings.capture_resolution[0]}"
+            cmd += f" --height {camera_settings.capture_resolution[1]}"
             cmd += f" -t {duration_ms}"
         else:
             raise ValueError(f"Operación desconocida: {operation}")

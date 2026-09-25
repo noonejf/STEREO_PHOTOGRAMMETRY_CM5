@@ -31,10 +31,13 @@ class StereoProcessor:
         # Configurar algoritmos de matching estéreo
         self.setup_stereo_algorithms()
 
-        # Cargar mapas de rectificación
-        self.rectification_maps = self.calibration_data.get('rectification_maps')
-        if not self.rectification_maps:
-            logger.warning("Mapas de rectificación no disponibles, se calcularán dinámicamente")
+        # Cache de parámetros de rectificación, calculados on-demand por
+        # resolución real de imagen (ver _get_rectification_for_shape). Esto
+        # reemplaza la idea original de mapas de rectificación precalculados
+        # guardados en el JSON de calibración (esa clave nunca se llegó a
+        # poblar en la práctica, así que este cache siempre se calcula en
+        # frío la primera vez que se usa cada resolución).
+        self._rectification_cache: Dict[Tuple[int, int], Dict[str, Any]] = {}
 
         # Máscara de región válida (se calcula en rectificación)
         self.valid_roi_mask = None
@@ -315,78 +318,111 @@ class StereoProcessor:
 
         return left_gray, right_gray
     
+    def _get_rectification_for_shape(self, image_shape_hw: Tuple[int, int]) -> Dict[str, Any]:
+        """Obtener (y cachear) los parámetros de rectificación para la
+        resolución REAL de las imágenes que se están procesando.
+
+        La calibración se guarda a la resolución con la que se capturó el
+        tablero (calibration_data['image_shape']). fx/fy/cx/cy solo son
+        válidos a esa resolución exacta. Si las imágenes que se procesan
+        ahora tienen otra resolución (p.ej. calibración hecha a preview
+        1920x1440 y captura de hilos a resolución completa 4056x3040), la
+        matriz K se reescala aquí antes de usarla — si no, la profundidad y
+        el encuadre de toda la reconstrucción 3D salen sistemáticamente mal.
+        Los coeficientes de distorsión y R/T no dependen de la resolución
+        (son normalizados / geometría extrínseca pura), no se tocan.
+        """
+        height, width = int(image_shape_hw[0]), int(image_shape_hw[1])
+        cache_key = (width, height)
+        if cache_key in self._rectification_cache:
+            return self._rectification_cache[cache_key]
+
+        mtx_left = np.array(self.calibration_data['left_camera_matrix'], dtype=np.float64).copy()
+        mtx_right = np.array(self.calibration_data['right_camera_matrix'], dtype=np.float64).copy()
+        dist_left = np.array(self.calibration_data['left_distortion'], dtype=np.float64)
+        dist_right = np.array(self.calibration_data['right_distortion'], dtype=np.float64)
+        R = np.array(self.calibration_data['rotation_matrix'], dtype=np.float64)
+        # CRÍTICO: translation_vector se guarda en milímetros (convención de
+        # este proyecto), pero stereoRectify debe recibir T en METROS para
+        # que Q produzca profundidad directamente en metros (igual que hace
+        # camera_calibration.py al calibrar, ver T_meters = T / 1000.0 ahí).
+        T = np.array(self.calibration_data['translation_vector'], dtype=np.float64) / 1000.0
+
+        calib_shape = self.calibration_data.get('image_shape')  # [width, height]
+        if calib_shape and (int(calib_shape[0]) != width or int(calib_shape[1]) != height):
+            scale_x = width / calib_shape[0]
+            scale_y = height / calib_shape[1]
+            if abs(scale_x - scale_y) > 0.01:
+                logger.warning(
+                    f"⚠️ Relación de aspecto de calibración ({calib_shape[0]}x{calib_shape[1]}) "
+                    f"no coincide con la imagen procesada ({width}x{height}); "
+                    f"el reescalado de K puede no ser exacto."
+                )
+            logger.warning(
+                f"⚠️ Calibración guardada a {calib_shape[0]}x{calib_shape[1]} pero se está "
+                f"procesando a {width}x{height}. Reescalando fx/fy/cx/cy por "
+                f"({scale_x:.4f}, {scale_y:.4f})."
+            )
+            for mtx in (mtx_left, mtx_right):
+                mtx[0, 0] *= scale_x  # fx
+                mtx[1, 1] *= scale_y  # fy
+                mtx[0, 2] *= scale_x  # cx
+                mtx[1, 2] *= scale_y  # cy
+
+        img_shape_wh = (width, height)
+        R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
+            mtx_left, dist_left, mtx_right, dist_right,
+            img_shape_wh, R, T,
+            flags=cv2.CALIB_ZERO_DISPARITY, alpha=0.0
+        )
+        left_map1, left_map2 = cv2.initUndistortRectifyMap(
+            mtx_left, dist_left, R1, P1, img_shape_wh, cv2.CV_16SC2
+        )
+        right_map1, right_map2 = cv2.initUndistortRectifyMap(
+            mtx_right, dist_right, R2, P2, img_shape_wh, cv2.CV_16SC2
+        )
+
+        result = {
+            'left_camera_matrix': mtx_left, 'right_camera_matrix': mtx_right,
+            'left_distortion': dist_left, 'right_distortion': dist_right,
+            'R1': R1, 'R2': R2, 'P1': P1, 'P2': P2, 'Q': Q,
+            'roi_left': roi1, 'roi_right': roi2,
+            'left_map1': left_map1, 'left_map2': left_map2,
+            'right_map1': right_map1, 'right_map2': right_map2,
+        }
+        self._rectification_cache[cache_key] = result
+        return result
+
+    def get_disparity_to_depth_matrix(self, image_shape_hw: Tuple[int, int]) -> np.ndarray:
+        """Matriz Q (4x4) de calibración, correctamente escalada a la
+        resolución real `image_shape_hw` (height, width). Usar esto en vez
+        de leer calibration_data['disparity_to_depth_matrix'] directamente,
+        que solo es válido a la resolución con la que se calibró."""
+        return self._get_rectification_for_shape(image_shape_hw)['Q']
+
     def rectify_images(self, left_img: np.ndarray, right_img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        """Rectificar imágenes usando calibración estéreo"""
-        
-        if self.rectification_maps:
-            # Usar mapas precalculados
-            left_rectified = cv2.remap(
-                left_img,
-                self.rectification_maps['left_map1'],
-                self.rectification_maps['left_map2'],
-                cv2.INTER_LINEAR
-            )
-            right_rectified = cv2.remap(
-                right_img,
-                self.rectification_maps['right_map1'],
-                self.rectification_maps['right_map2'],
-                cv2.INTER_LINEAR
-            )
-        else:
-            # Calcular rectificación dinámicamente
-            logger.info("Calculando rectificación dinámica...")
-            
-            # Obtener parámetros de calibración
-            mtx_left = self.calibration_data['left_camera_matrix']
-            dist_left = self.calibration_data['left_distortion']
-            mtx_right = self.calibration_data['right_camera_matrix']
-            dist_right = self.calibration_data['right_distortion']
-            R = self.calibration_data['rotation_matrix']
-            T = self.calibration_data['translation_vector']
-            
-            img_shape = left_img.shape[:2][::-1]  # (width, height)
-            
-            R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
-                mtx_left, dist_left,
-                mtx_right, dist_right,
-                img_shape, R, T,
-                flags=cv2.CALIB_ZERO_DISPARITY,
-                alpha=0.0  
-            )
+        """Rectificar imágenes usando calibración estéreo (reescalada si es
+        necesario a la resolución real de left_img/right_img)."""
 
-            logger.info(f"🔍 DEBUG ROI válido izquierdo: {roi1}")
-            logger.info(f"🔍 DEBUG ROI válido derecho: {roi2}")
+        height, width = left_img.shape[:2]
+        rect = self._get_rectification_for_shape((height, width))
 
-            # NO usar máscara ROI restrictiva - las cámaras NO tienen fisheye
-            # Solo crear una máscara básica para excluir bordes mínimos (1% máximo)
-            height, width = img_shape[::-1]
-            self.valid_roi_mask = np.ones((height, width), dtype=bool)
+        left_rectified = cv2.remap(left_img, rect['left_map1'], rect['left_map2'], cv2.INTER_LINEAR)
+        right_rectified = cv2.remap(right_img, rect['right_map1'], rect['right_map2'], cv2.INTER_LINEAR)
 
-            # Excluir solo un margen MÍNIMO de bordes (1% en cada lado)
-            # Esto es suficiente para eliminar artefactos de rectificación sin perder datos útiles
-            margin_y = int(height * 0.01)  # REDUCIDO: 5% → 1%
-            margin_x = int(width * 0.01)   # REDUCIDO: 5% → 1%
+        logger.info(f"🔍 DEBUG ROI válido izquierdo: {rect['roi_left']}")
+        logger.info(f"🔍 DEBUG ROI válido derecho: {rect['roi_right']}")
 
-            # Mantener casi toda la imagen
-            self.valid_roi_mask[:margin_y, :] = False  # Top
-            self.valid_roi_mask[-margin_y:, :] = False  # Bottom
-            self.valid_roi_mask[:, :margin_x] = False  # Left
-            self.valid_roi_mask[:, -margin_x:] = False  # Right
+        # NO usar máscara ROI restrictiva - las cámaras NO tienen fisheye
+        # Solo crear una máscara básica para excluir bordes mínimos (1% máximo)
+        self.valid_roi_mask = np.ones((height, width), dtype=bool)
+        margin_y = int(height * 0.01)
+        margin_x = int(width * 0.01)
+        self.valid_roi_mask[:margin_y, :] = False
+        self.valid_roi_mask[-margin_y:, :] = False
+        self.valid_roi_mask[:, :margin_x] = False
+        self.valid_roi_mask[:, -margin_x:] = False
 
-            logger.info(f"🔍 DEBUG Máscara ROI creada - Píxeles válidos: {np.sum(self.valid_roi_mask)}/{self.valid_roi_mask.size} ({100*np.sum(self.valid_roi_mask)/self.valid_roi_mask.size:.1f}%)")
-
-            # Crear mapas
-            left_map1, left_map2 = cv2.initUndistortRectifyMap(
-                mtx_left, dist_left, R1, P1, img_shape, cv2.CV_16SC2
-            )
-            right_map1, right_map2 = cv2.initUndistortRectifyMap(
-                mtx_right, dist_right, R2, P2, img_shape, cv2.CV_16SC2
-            )
-
-            # Aplicar rectificación
-            left_rectified = cv2.remap(left_img, left_map1, left_map2, cv2.INTER_LINEAR)
-            right_rectified = cv2.remap(right_img, right_map1, right_map2, cv2.INTER_LINEAR)
-        
         return left_rectified, right_rectified
     
     def compute_disparity(self, left_img: np.ndarray, right_img: np.ndarray,
@@ -1415,19 +1451,14 @@ class StereoProcessor:
                 'num_points': 0
             }
 
-        # Obtener parámetros de calibración
-        Q = self.calibration_data.get('disparity_to_depth_matrix')
-        if Q is None:
-            # Calcular Q desde parámetros básicos
-            focal_length = self.calibration_data.get('focal_length', 2600)
-            baseline = self.calibration_data.get('baseline', 0.1)
-            cx = left_img.shape[1] / 2
-            cy = left_img.shape[0] / 2
-        else:
-            focal_length = Q[2, 3]
-            baseline = 1.0 / Q[3, 2] if Q[3, 2] != 0 else 0.1
-            cx = -Q[0, 3]
-            cy = -Q[1, 3]
+        # Obtener parámetros de calibración, reescalados a la resolución
+        # real de left_img si hace falta (ver _get_rectification_for_shape)
+        rect = self._get_rectification_for_shape(left_img.shape[:2])
+        Q = rect['Q']
+        focal_length = Q[2, 3]
+        baseline = abs(1.0 / Q[3, 2]) if Q[3, 2] != 0 else 0.1
+        cx = -Q[0, 3]
+        cy = -Q[1, 3]
 
         logger.info(f"   Parámetros: focal={focal_length:.1f}, baseline={baseline:.4f}m, cx={cx:.1f}, cy={cy:.1f}")
 
@@ -1733,19 +1764,10 @@ class StereoProcessor:
 
         with PerformanceLogger("Conversión disparidad a profundidad", logger):
 
-            # Obtener matriz Q de calibración
-            Q = self.calibration_data.get('disparity_to_depth_matrix')
-            if Q is None:
-                raise RuntimeError("Matriz Q no disponible en calibración")
-
-            # CRÍTICO: Asegurar que Q es un numpy array
-            if not isinstance(Q, np.ndarray):
-                logger.warning(f"Matriz Q es tipo {type(Q)}, convirtiendo a numpy array...")
-                Q = np.array(Q)
-
-            # Validar forma de Q
-            if Q.shape != (4, 4):
-                raise RuntimeError(f"Matriz Q tiene forma incorrecta: {Q.shape}, se esperaba (4, 4)")
+            # Obtener matriz Q, reescalada a la resolución real de `disparity`
+            # si hace falta (ver _get_rectification_for_shape)
+            rect = self._get_rectification_for_shape(disparity.shape[:2])
+            Q = rect['Q']
 
             # DEBUG: Mostrar matriz Q
             logger.info(f"🔍 DEBUG Matriz Q:")
@@ -1823,10 +1845,10 @@ class StereoProcessor:
 
         with PerformanceLogger("Generación de nube de puntos", logger):
 
-            # Obtener matriz Q
-            Q = self.calibration_data.get('disparity_to_depth_matrix')
-            if Q is None:
-                raise RuntimeError("Matriz Q no disponible")
+            # Obtener matriz Q, reescalada a la resolución real de `disparity`
+            # si hace falta (ver _get_rectification_for_shape)
+            rect = self._get_rectification_for_shape(disparity.shape[:2])
+            Q = rect['Q']
 
             # CRÍTICO: Asegurar que Q es un numpy array
             if not isinstance(Q, np.ndarray):

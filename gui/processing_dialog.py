@@ -126,10 +126,13 @@ class ProcessingWorkerThread(QThread):
                 wire_metrics_summary = None
                 try:
                     from processing.wire_metrics import compute_wire_metrics
+                    # Q escalada a la resolución real de left_rect (no la de
+                    # calibración si difieren) — ver StereoProcessor.get_disparity_to_depth_matrix
+                    Q_scaled = processor.get_disparity_to_depth_matrix(image_shape)
                     wm = compute_wire_metrics(
                         matches          = disparity_result.get('matches', []),
                         disparities      = disparity_result.get('disparities', []),
-                        calibration_data = processor.calibration_data,
+                        calibration_data = {'disparity_to_depth_matrix': Q_scaled},
                         dt_profile_left  = self.wire_paths.get('dt_profile_left'),
                     )
                     if wm is not None:
