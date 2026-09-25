@@ -29,6 +29,14 @@ from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+try:
+    import pyqtgraph.opengl as gl
+    PYQTGRAPH_GL_AVAILABLE = True
+except Exception as _gl_import_err:
+    gl = None
+    PYQTGRAPH_GL_AVAILABLE = False
+    logger.warning(f"3D viewer disabled, pyqtgraph.opengl unavailable: {_gl_import_err}")
+
 # ── Color palette ─────────────────────────────────────────────────────────────
 BG_DEEP        = "#0F172A"
 BG_PANEL       = "#1E293B"
@@ -220,17 +228,19 @@ class ResultsVisualizationWidget(QWidget):
         self.tabs = QTabWidget()
         layout.addWidget(self.tabs)
 
-        self.disparity_tab  = self._make_image_tab("Disparity Map")
-        self.depth_tab      = self._make_image_tab("Depth Map")
-        self.confidence_tab = self._make_image_tab("Confidence Map")
+        self.disparity_tab  = self._make_image_tab("Disparity Map", unit="px", cmap=cv2.COLORMAP_JET)
+        self.depth_tab       = self._make_image_tab("Depth Map", unit="m", cmap=cv2.COLORMAP_JET)
+        self.confidence_tab = self._make_image_tab("Confidence Map", unit="", cmap=cv2.COLORMAP_VIRIDIS)
         self.stats_tab      = self._make_stats_tab()
+        self.model3d_tab    = self._make_3d_tab()
 
         self.tabs.addTab(self.disparity_tab,  "Disparity")
         self.tabs.addTab(self.depth_tab,      "Depth")
         self.tabs.addTab(self.confidence_tab, "Confidence")
         self.tabs.addTab(self.stats_tab,      "Statistics")
+        self.tabs.addTab(self.model3d_tab,    "3D Model")
 
-    def _make_image_tab(self, title):
+    def _make_image_tab(self, title, unit="", cmap=cv2.COLORMAP_JET):
         widget = QWidget()
         v = QVBoxLayout(widget)
 
@@ -239,6 +249,8 @@ class ResultsVisualizationWidget(QWidget):
         title_lbl.setAlignment(Qt.AlignCenter)
         title_lbl.setStyleSheet(f"color: {ACCENT_CYAN}; background: transparent;")
         v.addWidget(title_lbl)
+
+        content = QHBoxLayout()
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -252,9 +264,50 @@ class ResultsVisualizationWidget(QWidget):
             f"background-color: {BG_CARD}; color: {TEXT_DIM}; }}"
         )
         scroll.setWidget(img_label)
-        v.addWidget(scroll)
-        widget.image_label = img_label
+        content.addWidget(scroll, 1)
+
+        legend_label = QLabel()
+        legend_label.setAlignment(Qt.AlignCenter | Qt.AlignTop)
+        legend_label.setFixedWidth(120)
+        legend_label.setStyleSheet(f"background-color: {BG_CARD}; border: none;")
+        content.addWidget(legend_label)
+
+        v.addLayout(content)
+        widget.image_label   = img_label
+        widget.legend_label  = legend_label
+        widget.legend_unit   = unit
+        widget.legend_cmap   = cmap
         return widget
+
+    def _make_colorbar_pixmap(self, cmap, vmin, vmax, unit="", height=420, bar_width=26, n_ticks=6):
+        """Genera una leyenda de escala de colores vertical (estilo ANSYS):
+        arriba = valor máximo, abajo = valor mínimo, con marcas numéricas."""
+        label_w = 62
+        total_w = bar_width + label_w + 14
+        canvas = np.full((height, total_w, 3), 30, dtype=np.uint8)
+
+        ramp = np.linspace(255, 0, height).astype(np.uint8).reshape(-1, 1)
+        ramp = np.repeat(ramp, bar_width, axis=1)
+        bar = cv2.applyColorMap(ramp, cmap)
+        canvas[:, :bar_width] = bar
+        cv2.rectangle(canvas, (0, 0), (bar_width - 1, height - 1), (90, 90, 90), 1)
+
+        if vmax <= vmin:
+            vmax = vmin + 1e-6
+        for i in range(n_ticks):
+            frac = i / (n_ticks - 1)
+            y = int(frac * (height - 1))
+            value = vmax - frac * (vmax - vmin)
+            cv2.line(canvas, (bar_width, y), (bar_width + 5, y), (180, 180, 180), 1)
+            text = f"{value:.2f}{unit}" if abs(value) < 1000 else f"{value:.0f}{unit}"
+            ty = min(max(y + 4, 10), height - 3)
+            cv2.putText(canvas, text, (bar_width + 8, ty),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.38, (220, 220, 220), 1, cv2.LINE_AA)
+
+        rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb.shape
+        q_img = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888)
+        return QPixmap.fromImage(q_img.copy())
 
     def _make_stats_tab(self):
         widget = QWidget()
@@ -273,6 +326,10 @@ class ResultsVisualizationWidget(QWidget):
 
     def update_disparity(self, disparity_map):
         try:
+            valid = disparity_map > 0
+            d_min = float(disparity_map[valid].min()) if np.any(valid) else 0.0
+            d_max = float(disparity_map[valid].max()) if np.any(valid) else 1.0
+
             vis = cv2.normalize(disparity_map, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
             vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
             h, w, ch = vis.shape
@@ -281,27 +338,44 @@ class ResultsVisualizationWidget(QWidget):
             if px.width() > 800 or px.height() > 600:
                 px = px.scaled(800, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.disparity_tab.image_label.setPixmap(px)
+            legend_px = self._make_colorbar_pixmap(
+                cv2.COLORMAP_JET, d_min, d_max, unit=" px",
+                height=max(px.height(), 200),
+            )
+            self.disparity_tab.legend_label.setPixmap(legend_px)
         except Exception as e:
             logger.error(f"Error updating disparity view: {e}")
 
     def update_depth(self, depth_map):
         try:
-            dv = depth_map.copy()
+            dv = depth_map.copy().astype(np.float32)
             dv[dv == 0] = np.nan
             valid = ~np.isnan(dv)
             if np.any(valid):
-                d_min, d_max = np.nanmin(dv), np.nanmax(dv)
-                norm = ((dv - d_min) / (d_max - d_min))
-                norm = np.nan_to_num(norm, 0) * 255
-                norm = norm.astype(np.uint8)
-                colored = cv2.applyColorMap(255 - norm, cv2.COLORMAP_HOT)
-                colored[~valid] = [0, 0, 0]
+                d_min, d_max = float(np.nanmin(dv)), float(np.nanmax(dv))
+                if d_max <= d_min:
+                    d_max = d_min + 1e-6
+                norm = (dv - d_min) / (d_max - d_min)
+                norm = np.nan_to_num(norm, nan=0.0)
+                norm_u8 = (norm * 255).astype(np.uint8)
+                # JET: azul oscuro = cerca (min), rojo oscuro = lejos (max) —
+                # ninguno de los dos extremos es negro, así que los píxeles
+                # inválidos (sin profundidad) se distinguen con un gris
+                # neutro en vez del negro que antes se confundía con rojo
+                # oscuro/negro del colormap anterior (HOT).
+                colored = cv2.applyColorMap(norm_u8, cv2.COLORMAP_JET)
+                colored[~valid] = (56, 48, 44)  # BGR, gris neutro (fondo del tema)
                 h, w, ch = colored.shape
                 q_img = QImage(colored.data, w, h, 3 * w, QImage.Format_RGB888).rgbSwapped()
                 px = QPixmap.fromImage(q_img)
                 if px.width() > 800 or px.height() > 600:
                     px = px.scaled(800, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 self.depth_tab.image_label.setPixmap(px)
+                legend_px = self._make_colorbar_pixmap(
+                    cv2.COLORMAP_JET, d_min, d_max, unit=" m",
+                    height=max(px.height(), 200),
+                )
+                self.depth_tab.legend_label.setPixmap(legend_px)
             else:
                 self.depth_tab.image_label.setText("No valid depth data")
         except Exception as e:
@@ -317,8 +391,203 @@ class ResultsVisualizationWidget(QWidget):
             if px.width() > 800 or px.height() > 600:
                 px = px.scaled(800, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.confidence_tab.image_label.setPixmap(px)
+            legend_px = self._make_colorbar_pixmap(
+                cv2.COLORMAP_VIRIDIS, 0.0, 1.0, unit="",
+                height=max(px.height(), 200),
+            )
+            self.confidence_tab.legend_label.setPixmap(legend_px)
         except Exception as e:
             logger.error(f"Error updating confidence view: {e}")
+
+    # ── 3D model viewer (GLViewWidget) ────────────────────────────────────────
+
+    def _make_3d_tab(self):
+        widget = QWidget()
+        v = QVBoxLayout(widget)
+
+        title_lbl = QLabel("3D Model Viewer")
+        title_lbl.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        title_lbl.setAlignment(Qt.AlignCenter)
+        title_lbl.setStyleSheet(f"color: {ACCENT_CYAN}; background: transparent;")
+        v.addWidget(title_lbl)
+
+        toolbar = QHBoxLayout()
+        btn_load = QPushButton("📂  Load Point Cloud (.ply)")
+        btn_load.setStyleSheet(
+            f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY};"
+            f"border-radius: 4px; padding: 5px 10px; }}"
+            f"QPushButton:hover {{ background-color: #3B4B60; }}"
+        )
+        btn_load.clicked.connect(self._on_load_point_cloud_clicked)
+        toolbar.addWidget(btn_load)
+
+        self.model3d_info_label = QLabel("No point cloud loaded")
+        self.model3d_info_label.setStyleSheet(f"color: {TEXT_SECONDARY}; background: transparent;")
+        toolbar.addWidget(self.model3d_info_label)
+        toolbar.addStretch()
+
+        btn_reset = QPushButton("⟲  Reset View")
+        btn_reset.setStyleSheet(
+            f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY};"
+            f"border-radius: 4px; padding: 5px 10px; }}"
+            f"QPushButton:hover {{ background-color: #3B4B60; }}"
+        )
+        btn_reset.clicked.connect(self._reset_3d_view)
+        toolbar.addWidget(btn_reset)
+        v.addLayout(toolbar)
+
+        self.gl_view = None
+        self.gl_scatter = None
+        self._last_camera_distance = 2.0
+
+        if PYQTGRAPH_GL_AVAILABLE:
+            try:
+                self.gl_view = gl.GLViewWidget()
+                self.gl_view.setBackgroundColor(BG_DEEP)
+                self.gl_view.setCameraPosition(distance=self._last_camera_distance, elevation=30, azimuth=45)
+                grid = gl.GLGridItem()
+                grid.setSize(2, 2)
+                grid.setSpacing(0.1, 0.1)
+                self.gl_view.addItem(grid)
+                v.addWidget(self.gl_view, 1)
+            except Exception as e:
+                logger.error(f"Could not create GLViewWidget: {e}")
+                self.gl_view = None
+
+        if self.gl_view is None:
+            placeholder = QLabel(
+                "3D viewer unavailable.\nInstall PyOpenGL: pip install PyOpenGL"
+            )
+            placeholder.setAlignment(Qt.AlignCenter)
+            placeholder.setStyleSheet(
+                f"QLabel {{ color: {TEXT_DIM}; background-color: {BG_CARD};"
+                f"border: 2px dashed {BORDER_SUBTLE}; }}"
+            )
+            placeholder.setMinimumHeight(300)
+            v.addWidget(placeholder, 1)
+
+        return widget
+
+    def update_point_cloud(self, points, colors=None, source_label=""):
+        """Cargar/reemplazar la nube de puntos mostrada en el visor 3D."""
+        if self.gl_view is None:
+            return
+        try:
+            points = np.asarray(points, dtype=np.float32)
+            if points.size == 0:
+                self.model3d_info_label.setText("No points to display")
+                return
+
+            if colors is not None:
+                colors = np.asarray(colors, dtype=np.float32)
+                if colors.size > 0 and colors.max() > 1.5:
+                    colors = colors / 255.0
+                if colors.shape[1] == 3:
+                    alpha = np.ones((colors.shape[0], 1), dtype=np.float32)
+                    colors = np.hstack([colors, alpha])
+            else:
+                colors = np.tile(
+                    np.array([[0.13, 0.83, 0.93, 1.0]], dtype=np.float32),
+                    (points.shape[0], 1),
+                )
+
+            # Los puntos vienen en coordenadas de cámara real (metros, pueden
+            # estar lejos del origen); se centran para que la vista inicial
+            # del GLViewWidget los encuadre.
+            center = points.mean(axis=0)
+            points_centered = points - center
+
+            max_points = 300_000
+            if points_centered.shape[0] > max_points:
+                idx = np.random.choice(points_centered.shape[0], max_points, replace=False)
+                points_centered = points_centered[idx]
+                colors = colors[idx]
+
+            if self.gl_scatter is not None:
+                self.gl_view.removeItem(self.gl_scatter)
+
+            self.gl_scatter = gl.GLScatterPlotItem(
+                pos=points_centered, color=colors, size=2.5, pxMode=True
+            )
+            self.gl_view.addItem(self.gl_scatter)
+
+            extent = float(np.linalg.norm(
+                points_centered.max(axis=0) - points_centered.min(axis=0)
+            ))
+            self._last_camera_distance = max(extent, 0.1) * 1.5
+            self.gl_view.setCameraPosition(
+                distance=self._last_camera_distance, elevation=30, azimuth=45
+            )
+
+            label = f" — {source_label}" if source_label else ""
+            self.model3d_info_label.setText(f"{points.shape[0]:,} points{label}")
+        except Exception as e:
+            logger.error(f"Error updating 3D point cloud view: {e}")
+
+    def _reset_3d_view(self):
+        if self.gl_view is not None:
+            self.gl_view.setCameraPosition(
+                distance=self._last_camera_distance, elevation=30, azimuth=45
+            )
+
+    def _on_load_point_cloud_clicked(self):
+        results_dir = Path("data/results")
+        start_dir = str(results_dir) if results_dir.exists() else "."
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Load Point Cloud", start_dir, "PLY Point Cloud (*.ply)"
+        )
+        if not path:
+            return
+        try:
+            points, colors = self._read_ply_ascii(path)
+            self.update_point_cloud(points, colors, source_label=Path(path).name)
+        except Exception as e:
+            logger.error(f"Error loading point cloud {path}: {e}")
+            QMessageBox.critical(self, "Error", f"Could not load point cloud:\n{e}")
+
+    @staticmethod
+    def _read_ply_ascii(path):
+        """Lector mínimo de PLY ASCII (formato exacto exportado por
+        PointCloudExporter._export_ply: x y z [nx ny nz] red green blue)."""
+        with open(path, 'r') as f:
+            header = f.readline().strip()
+            if header != 'ply':
+                raise ValueError("Not a valid PLY file")
+
+            num_vertices = 0
+            properties = []
+            while True:
+                line = f.readline().strip()
+                if not line:
+                    continue
+                if line.startswith('format') and 'ascii' not in line:
+                    raise ValueError("Only ASCII PLY files are supported")
+                if line.startswith('element vertex'):
+                    num_vertices = int(line.split()[-1])
+                elif line.startswith('property'):
+                    properties.append(line.split()[-1])
+                elif line == 'end_header':
+                    break
+
+            has_color = all(c in properties for c in ('red', 'green', 'blue'))
+            xi, yi, zi = properties.index('x'), properties.index('y'), properties.index('z')
+            if has_color:
+                ri = properties.index('red')
+                gi = properties.index('green')
+                bi = properties.index('blue')
+
+            points = np.zeros((num_vertices, 3), dtype=np.float32)
+            colors = np.zeros((num_vertices, 3), dtype=np.float32) if has_color else None
+
+            for i in range(num_vertices):
+                vals = f.readline().split()
+                points[i] = [float(vals[xi]), float(vals[yi]), float(vals[zi])]
+                if has_color:
+                    colors[i] = [float(vals[ri]), float(vals[gi]), float(vals[bi])]
+
+            if has_color:
+                colors = colors / 255.0
+            return points, colors
 
     def update_statistics(self, result):
         try:
@@ -1210,6 +1479,11 @@ class ProcessingPage(QWidget):
             if success:
                 self.add_log_message("3D processing completed successfully!", "INFO")
                 self.results_widget.update_statistics(result)
+                pc = result.get('point_cloud', {})
+                if pc.get('points') is not None and len(pc['points']) > 0:
+                    self.results_widget.update_point_cloud(
+                        pc['points'], pc.get('colors'), source_label="latest processing"
+                    )
                 export_files = result.get('export_files', [])
                 files_info   = "\n".join([f"• {Path(f).name}" for f in export_files])
                 QMessageBox.information(

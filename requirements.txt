@@ -21,6 +21,11 @@ pandas
 
 # Para nubes de puntos 3D
 open3d-python
+
+# Visor 3D embebido en la GUI (GLViewWidget), GPU-accelerated vía OpenGL
+pyqtgraph
+PyOpenGL
+
 # Para manipulación de archivos de configuración
 PyYAML
 
