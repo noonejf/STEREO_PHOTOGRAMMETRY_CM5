@@ -77,6 +77,27 @@ CAMERAS = {
         "description":      "11.9 MP — same IMX708 sensor as B0310 — integrated 66 deg HFOV lens (RPi Camera Module 3 standard)",
         "lenses": ["Integrated Lens 4.74mm F1.8 66deg (B0306/B0308/B0312)"],
     },
+    "Global Shutter Sony IMX296 (C-mount)": {
+        # Candidato propuesto por Alvaro (sep 2026) para la config de vuelo.
+        # Specs verificadas via datasheet publico Sony IMX296 (Framos/Arducam):
+        # https://framos.com/products/sensors/area-sensors/imx296lqr-c-22545/
+        # https://docs.arducam.com/Raspberry-Pi-Camera/Native-camera/Global-Shutter/1.58MP-IMX296/
+        "sensor_width_mm":  4.97,
+        "sensor_height_mm": 3.73,
+        "resolution_h":     1456,
+        "resolution_v":     1088,
+        "pixel_size_um":    3.45,
+        "optical_size":     '1/2.9"',
+        "description":      "1.58 MP (~2MP) — GLOBAL SHUTTER — sensor 4.97x3.73 mm — pixel 3.45 um — 60.3 fps — sin rolling shutter",
+        # Dos casos a comparar: el teleobjetivo que llego con la cotizacion de
+        # Alvaro, y el mismo lente 6mm F1.2 que ya se usa con el IMX477 (mount
+        # C/CS compatible via adaptador), para ver FOV mas ancho sobre el
+        # mismo sensor global shutter.
+        "lenses": [
+            "Telephoto Lens 16mm F1.4-16 (C-Mount, PT3611614M10MP/SEN-16761)",
+            "Lens 6mm F1.2 (CS-Mount)",
+        ],
+    },
 }
 
 LENSES = {
@@ -147,6 +168,26 @@ LENSES = {
         "fov_h_deg":       66.0,      # 75(D) x 66(H) x 41(V) segun ficha de producto
         "mount":           "integrated",
         "description":     "4.74 mm F1.8 · FOV 66 H / 75 D / 41 V deg · MOD 1.5 m (de B0308, verificar en B0306/B0312 AF)",
+    },
+    "Telephoto Lens 16mm F1.4-16 (C-Mount, PT3611614M10MP/SEN-16761)": {
+        # Lente propuesto junto con el IMX296 (mismo lente vendido bajo dos SKU
+        # distintos: PT3611614M10MP y SparkFun SEN-16761, mismo fabricante OEM,
+        # el "16mm Telephoto Lens" oficial para la Raspberry Pi HQ Camera).
+        # FOV del fabricante esta dado para sensores 1", 2/3", 1/1.8" y 1/2" —
+        # ninguno coincide con el 1/2.9" del IMX296, asi que fov_h_deg aqui se
+        # calculo con la formula estandar (2*atan(sensor_w/2/focal)) para el
+        # sensor real, no se tomo directo de la ficha.
+        # IMPORTANTE: requiere adaptador C-CS para montar en camaras con rosca
+        # CS (ver nota de compatibilidad del fabricante) — agregar a la lista
+        # de compras si no se tiene ya.
+        "focal_length_mm": 16.0,
+        "f_number_min":    1.4,
+        "f_number_max":    16.0,
+        "adjustable_f":   True,
+        "mod_mm":          200.0,     # MOD 0.2 m segun ficha de producto
+        "fov_h_deg":       17.7,      # calculado para sensor IMX296 4.97x3.73mm, no de la ficha
+        "mount":           "C",
+        "description":     "16 mm F1.4-16 · FOV ~17.7 H / ~13.3 V deg (en IMX296) · MOD 0.2 m · requiere adaptador C-CS",
     },
     "Varifocal Lens 2.8-12mm F1.6 (C-Mount)": {
         "focal_length_mm":     2.8,
