@@ -1,8 +1,8 @@
-project: JOSESI WORKPLAN
+project: LINKU CAMERA SISTEM
 type: free
 
 phase: Fase 1 - Decision y desbloqueo fisico #164
-  description: 22 sep al 23 oct, 4.5 semanas. Supuesto de capacidad para todo el plan, 10 horas semanales para LINKU (las horas de cada paquete son estimados de planificacion sobre esa base). Orden pedido explicitamente: primero el bug de Blender solo, despues minado de dataset y montaje fisico en paralelo. La semana del 5 oct tiene el feriado del jueves 8.
+  description: 22 sep al 9 oct (replanificado el 2 oct, antes cerraba el 23 oct; solo las reuniones de avance quedan en su fecha original). Capacidad 10h/semana hasta el 25 sep. Reunion de avance del 25 sep: feedback del profesor pide organizarse mejor porque hubo mucho avance de caja oscura/dataset/software y poco avance fisico de configuracion de vuelo, y pide que ambos avancen EN PARALELO de ahi en adelante (revierte la decision anterior de este archivo de secuenciar montaje fisico despues del bug de Blender). Capacidad sube a 20h/semana desde el 28 sep para poder sostener ambos tracks a la vez. Fecha limite del profesor: instrumento (camaras + interfaz de montaje) integrado en la estructura LINKU, dentro del cuarto oscuro de los profesores, y el experimento de caja negra corrido, para finales de noviembre. La semana del 5 oct tiene el feriado del jueves 8. Replanificacion del 2 oct: el experimento se adelanta a la semana de examenes (12 al 17 oct), en un espacio que se gestiona con la Facultad de Comunicaciones, asi que todo lo que el experimento necesita (montaje, soporte, preparacion de calibracion, coordinacion de interfaz) cierra a mas tardar el 9 oct. El minado del dataset no bloquea el experimento y pasa a despues (19 al 28 oct).
   color: #3ecf74
   deliverable: Sensor de vuelo decidido #306
     description: Primer eslabon de la ruta critica. Define resolucion, consumo del sensor, tolerancia de rolling shutter y que va a calibrarse.
@@ -14,148 +14,290 @@ Done when: Se sabe si el sensor candidato esta en laboratorio o hay que comprarl
       status: done
       hours: 1
       progress: 100%
-      start: 2026-09-22
-      due: 2026-09-23
+      start: 2026-09-21 19:00
+      due: 2026-09-22 19:00
     package: Reuniones de avance fase 1 #1522
       description: Antes de cada reunion actualizar estados en este archivo.
+      assigned: 1
       execution: serial
       task: Reunion de avance 25 sep #816
         description: Presentar este plan a los profesores. Sensor de vuelo decidido.
-        status: in-progress
-        progress: 50%
+        status: done
+        progress: 100%
         type: approval
-        start: 2026-09-24
-        end: 2026-09-25
-        due: 2026-09-25 10:00
+        start: 2026-09-23 19:00
+        end: 2026-09-24 19:00
+        due: 2026-09-25 05:00
+        assigned: 1
       task: Reunion de avance 9 oct #817
         description: Bug del tether en Blender resuelto. Arrancan minado de dataset y montaje fisico en paralelo.
         type: approval
-        start: 2026-10-08
-        end: 2026-10-09
-        due: 2026-10-09 10:00
+        start: 2026-10-07 19:00
+        end: 2026-10-08 19:00
+        due: 2026-10-09 05:00
+        assigned: 1
       task: Reunion de avance 23 oct #818
         description: Cierre de fase 1. Camaras montadas y listas para calibrar. Dataset minado al 100%. Preparacion de calibracion lista.
         type: approval
-        start: 2026-10-22
-        end: 2026-10-23
-        due: 2026-10-23 10:00
+        start: 2026-10-21 19:00
+        end: 2026-10-22 19:00
+        due: 2026-10-23 05:00
+        assigned: 1
     package: Decision de sensor de vuelo #1523
       description: Done when: Sensor elegido y justificado, listo para presentar en la reunion del 25 sep
       priority: critical
       hours: 3
       type: decision
-      start: 2026-09-22
-      due: 2026-09-25 10:00
+      start: 2026-09-21 19:00
+      due: 2026-09-25 05:00
+      assigned: 1
       depends-on: Confirmar disponibilidad del sensor candidato
       task: Revisar la comparacion DOF/FOV de camera_dof_visualizer.py (IMX477 / OV64A40 Hawk-eye / IMX708 Wide) a la distancia de observacion del tether #819
         status: done
         progress: 100%
-        start: 2026-09-22
-        end: 2026-09-25
-        due: 2026-09-25 10:00
+        start: 2026-09-21 19:00
+        end: 2026-09-24 19:00
+        due: 2026-09-25 05:00
+        assigned: 1
       task: Decidir y registrar la justificacion en el Camera System Report #820
         status: done
         progress: 100%
-        start: 2026-09-22
-        end: 2026-09-25
-        due: 2026-09-25 10:00
+        start: 2026-09-21 19:00
+        end: 2026-09-24 19:00
+        due: 2026-09-25 05:00
+        assigned: 1
     package: Adaptacion del software al sensor elegido #1524
       description: El B0308 todavia no se compra (ver Compra del sensor B0308 en Fase 4), asi que el default de config sigue en IMX477, el hardware fisicamente disponible hoy. Lo que se dejo listo: sensor_type y sensor_mode_bits parametrizados en CameraSettings, y el comando libcamera generado correctamente para IMX477 (mode 4056:3040:12:P). Cambiar a IMX708 cuando llegue es cuestion de cambiar esos dos campos, sin tocar la logica.
 
 Done when: Comando libcamera correcto para el hardware actual (IMX477), y el codigo listo para aceptar IMX708 sin reescritura cuando se compre
       priority: high
       hours: 6
-      start: 2026-09-26
-      due: 2026-10-02
+      start: 2026-09-25 19:00
+      due: 2026-10-01 19:00
+      assigned: 1
       depends-on: Decision de sensor de vuelo
       task: Actualizar config/camera_config.py y camera/stereo_camera.py, y verificar el comando libcamera generado #821
         status: done
         progress: 100%
-        start: 2026-09-26
-        end: 2026-09-29
-        due: 2026-10-02
+        start: 2026-09-25 19:00
+        end: 2026-09-28 19:00
+        due: 2026-10-01 19:00
+        assigned: 1
   deliverable: Hardware montado y listo para calibrar #321
     description: Unico bloqueo fisico del plan. Lo esperan la calibracion, la validacion del prototipo y (en la extension) Blender 3D y rolling shutter fisico.
     package: Montaje fisico en la caja oscura #1525
-      description: Empieza despues del bug de Blender, no en paralelo (el usuario quiere probar Blender primero). Con el IMX477 ya disponible, no con el B0308 (ese llega recien el proximo ano, ver Compra del sensor B0308 en Fase 4). Se reusa el montaje que ya existia de capturas anteriores como stereo_20260213_140535, no los renders CAD del informe APSCO, que estan dimensionados para la placa del B0308 y no aplican todavia.
+      description: La caja oscura ya esta bien encaminada -el profesor lo confirmo el 25 sep-, corre en PARALELO al resto como prioridad secundaria (high, no critical): lo principal ahora son las pruebas reales de Camaras en configuracion de vuelo / Integracion en la estructura LINKU. El "no en paralelo" de versiones anteriores de este archivo ya no aplica -esa restriccion era solo mientras el bug de Blender seguia abierto, y ya esta resuelto-. Con el IMX477 ya disponible, no con el B0308 (ese llega recien el proximo ano, ver Compra del sensor B0308 en Fase 4). Se reusa el montaje que ya existia de capturas anteriores como stereo_20260213_140535, no los renders CAD del informe APSCO, que estan dimensionados para la placa del B0308 y no aplican todavia.
 
 Done when: Par estereo IMX477 fijo de forma rigida en la caja y capturando a resolucion completa
       priority: high
       hours: 3
-      start: 2026-10-12
-      due: 2026-10-23
+      start: 2026-10-05
+      due: 2026-10-07
+      assigned: 1
       depends-on: Depuracion del tether oscuro en Blender
       task: Reinstalar y verificar el montaje existente de las camaras IMX477 en la caja oscura #822
-        start: 2026-10-12
-        end: 2026-10-16
-        due: 2026-10-23
+        start: 2026-10-05
+        end: 2026-10-06
+        due: 2026-10-07
+        assigned: 1
       task: Fijar el par de forma rigida para que la geometria estereo no cambie despues de calibrar #823
-        start: 2026-10-12
-        end: 2026-10-16
-        due: 2026-10-23
+        start: 2026-10-05
+        end: 2026-10-06
+        due: 2026-10-07
+        assigned: 1
     package: Preparacion de la sesion de calibracion #1526
       description: Hay 23 intentos previos sin buena calidad a la resolucion actual. Conviene entender el patron antes de repetir, no solo repetir con mas cuidado.
 
 Done when: Causa probable de las fallas anteriores identificada y tablero de calibracion verificado
       priority: high
       hours: 4
-      start: 2026-10-12
-      due: 2026-10-23
+      start: 2026-10-03
+      due: 2026-10-07
+      assigned: 1
       task: Revisar los metadatos de los 23 intentos en data/calibration/ buscando un patron comun de falla #824
-        start: 2026-10-12
-        end: 2026-10-16
-        due: 2026-10-23
+        start: 2026-10-03
+        end: 2026-10-04
+        due: 2026-10-07
+        assigned: 1
       task: Verificar el tablero (9x6 esquinas internas, 24 mm de lado, plano y rigido) y preparar iluminacion uniforme sin reflejos #825
-        start: 2026-10-12
-        end: 2026-10-16
-        due: 2026-10-23
+        start: 2026-10-05
+        end: 2026-10-06
+        due: 2026-10-07
+        assigned: 1
   deliverable: Dataset de tether ampliado #322
     description: Solo software, sin bloqueos de hardware. Es lo mas grande y mas seguro de avanzar del plan completo.
     package: Minado de las 59 sesiones restantes #1527
-      description: Empieza despues del bug de Blender, no en paralelo. Hoy solo se usan 6 de 65 sesiones (mask_dataset con 6 entradas, path_dataset con 1).
+      description: Corre en PARALELO al resto como prioridad secundaria (high, no critical): lo principal ahora son las pruebas reales. El "no en paralelo" de versiones anteriores ya no aplica -esa restriccion era solo mientras el bug de Blender seguia abierto, y ya esta resuelto-. Hoy solo se usan 6 de 65 sesiones (mask_dataset con 6 entradas, path_dataset con 1).
 
 Done when: Las 65 sesiones revisadas y minadas en mask_dataset y path_dataset, priorizando las que tienen cruces o nudos
       priority: high
       hours: 10
-      start: 2026-10-12
-      due: 2026-10-23
-      depends-on: Depuracion del tether oscuro en Blender
+      start: 2026-10-19
+      due: 2026-10-28
+      assigned: 1
       execution: serial
+      depends-on: Depuracion del tether oscuro en Blender
       task: Clasificar las sesiones por tipo (hebra simple / curva / cruce / nudo) #826
-        start: 2026-10-12
-        end: 2026-10-14
-        due: 2026-10-23
+        start: 2026-10-19
+        end: 2026-10-20
+        due: 2026-10-28
+        assigned: 1
       task: Minar todas las sesiones en mask_dataset y path_dataset #827
-        start: 2026-10-15
-        end: 2026-10-22
-        due: 2026-10-23
+        start: 2026-10-21
+        end: 2026-10-27
+        due: 2026-10-28
+        assigned: 1
   deliverable: Simulacion Blender desbloqueada #323
     package: Depuracion del tether oscuro en Blender #1528
       description: Causa encontrada y arreglada. El objeto de la curva tenia scale.z=0 (aplanado intencional para meterlo dentro de la caja), pero una escala con un componente en cero es una transformacion singular y rompe el calculo de normales, por eso el material nunca respondia a la luz sin importar los vatios. Arreglo: aplicar (hornear) esa escala en los puntos de la curva en vez de dejarla como transform del objeto (Object > Apply > Scale), dejando object.scale en (1,1,1) con la misma forma final. Verificado con las dos camaras, pixeles hasta 200/255 en el hilo en vez de negro puro. Guardado en el archivo real.
 
 Done when: El tether responde visiblemente a la luz de la escena
-      status: done
       priority: critical
       hours: 6
-      progress: 100%
-      start: 2026-09-24
-      due: 2026-10-09
+      start: 2026-09-23 19:00
+      due: 2026-10-08 19:00
+      assigned: 1
       execution: serial
       task: Probar la hipotesis de auto-sombreado y angulo de vision, ocultando temporalmente los paneles de la caja para descartar que tapen la luz #828
         status: done
         progress: 100%
-        start: 2026-09-24
-        end: 2026-09-27
-        due: 2026-10-09
+        start: 2026-09-23 19:00
+        end: 2026-09-26 19:00
+        due: 2026-10-08 19:00
+        assigned: 1
       task: Revisar normales, bevel y material de la curva del tether #829
         status: done
         progress: 100%
+        start: 2026-09-27 19:00
+        end: 2026-10-03 19:00
+        due: 2026-10-08 19:00
+        assigned: 1
+  deliverable: Camaras en configuracion de vuelo #344
+    description: NUEVO, agregado tras el feedback del profesor del 25 sep. Alcance propio (no de todo LINKU): camaras, interfaz de montaje, y software. La estructura LINKU la disena un companero de equipo; el cuarto oscuro donde se hace el experimento lo gestiona el equipo de profesores (consiguen el lugar). Correr el experimento ahi -estar presente, asegurar que todo funcione- si es responsabilidad propia. Corre EN PARALELO al resto de Fase 1 y Fase 2, no despues.
+    package: Inventario, lista de compras y propuesta de montaje #1583
+      description: Entregable pedido explicitamente por el profesor para la semana del 29 sep.
+
+Done when: inventario fisico documentado, lista de compras con specs, y propuesta conceptual de como se ancla la unidad camaras+CM5 a la estructura del companero
+      priority: critical
+      hours: 6
+      start: 2026-09-27 19:00
+      due: 2026-10-01 19:00
+      assigned: 1
+      execution: serial
+      task: Inventariar hardware fisico disponible hoy (pares IMX477, CM5, cables, fuentes, soportes existentes) #858
+        status: done
+        progress: 100%
+        start: 2026-09-27 19:00
+        end: 2026-09-28 19:00
+        due: 2026-10-01 19:00
+        assigned: 1
+      task: Armar lista de compras con specs documentadas (B0308 66 grados, IMX296 + lente 16mm PT3611614M10MP/SEN-16761, adaptador C-CS) #859
+        status: done
+        progress: 100%
+        start: 2026-09-24 19:00
+        end: 2026-09-24 19:00
+        due: 2026-10-01 19:00
+        assigned: 1
+      task: Proponer conceptualmente la interfaz de montaje camaras+CM5 (unidad integrada, sujetable a mano, solo cable de alimentacion colgando) para coordinar con el companero de estructuras #860
+        status: done
+        progress: 100%
+        start: 2026-09-29 19:00
+        end: 2026-10-01 19:00
+        due: 2026-10-01 19:00
+        assigned: 1
+    package: Evaluacion de camara global shutter IMX296 #1584
+      description: No reemplaza al B0308, que se mantiene como sensor de vuelo ya decidido en este mismo archivo (ver Decision de sensor de vuelo, Fase 1). Es evaluacion de capacidades del global shutter (sin distorsion por movimiento) como dato para el experimento de hilo en movimiento. IMX296 (1.58MP, 4.97x3.73mm, pixel 3.45um, 60fps) comparado en calculate_cam/camera_dof_visualizer.py con dos lentes: teleobjetivo 16mm F1.4-16 C-mount (PT3611614M10MP/SEN-16761, requiere adaptador C-CS, FOV ~17.7x13.3 deg en este sensor) y el mismo 6mm F1.2 CS-mount que ya usa el IMX477 (FOV ~45x34.5 deg en este sensor, pero pierde resolucion sobre el hilo frente al IMX477 por tener muchos menos megapixeles).
+
+Done when: IMX296 documentado y comparado en camera_dof_visualizer.py contra IMX477 y B0308, con ambos lentes
+      status: done
+      hours: 2
+      progress: 100%
+      start: 2026-09-24 19:00
+      end: 2026-09-24 19:00
+      due: 2026-09-24 19:00
+      assigned: 1
+    package: Replica de la estructura LINKU en Blender y validacion cuantitativa de precision #1585
+      description: Hecho antes de lo planeado, no estaba en el plan original -era solo comparacion visual render-vs-foto en fase 2/4, esto es mas fuerte-. Estructura LINKU replicada en Blender (no solo la caja oscura), renderizada con las dos camaras, procesada con el pipeline real (calibration_data_blender_sim.json de este mismo repo) y validada con ground-truth conocido: hilo a 40cm de las camaras en un caso (profundidad reconstruida 0.39-0.40m, verificado en la GUI con el Depth Map), y en un segundo caso bajando un extremo 10cm (profundidad reconstruida 0.40-0.51m, spread de ~11cm consistente con el desplazamiento real). Sirve ademas como preview de diseno para coordinar con el companero de estructuras antes de que la maqueta fisica exista.
+
+Done when: Reconstruccion 3D en Blender validada contra al menos dos configuraciones geometricas con ground-truth conocido
+      status: done
+      hours: 3
+      progress: 100%
+      start: 2026-09-24 19:00
+      end: 2026-09-24 19:00
+      due: 2026-09-24 19:00
+      assigned: 1
+    package: Coordinacion de interfaz mecanica con el companero de estructuras #1586
+      description: Bloqueo externo -depende del avance del companero en el diseno de la estructura LINKU, no controlado 100% por este plan.
+
+Done when: Puntos de anclaje, peso maximo, y dimensiones de la interfaz camaras+CM5 acordados con el companero
+      priority: high
+      hours: 4
+      start: 2026-10-05
+      due: 2026-10-09
+      assigned: 1
+      depends-on: Inventario, lista de compras y propuesta de montaje
+    package: Construccion del soporte integrado camaras+CM5 #1822
+      description: Movido antes en el plan -no tiene sentido esperar a fase 2 si el CAD va a estar listo tan pronto-. Diseno del CAD a cargo de Rodrigo (companero, gestionado dentro de este plan aunque el diseno en si no lo hago yo). Rigido, para no perder la geometria de calibracion estereo al moverlo a mano; solo el cable de alimentacion del CM5 queda colgando.
+
+Done when: Unidad camaras+CM5 armada, geometria estereo fija, y sujetable a mano para el experimento de movimiento erratico
+      priority: critical
+      hours: 6
+      start: 2026-09-28
+      due: 2026-10-09
+      assigned: 1
+      task: Reunion con Rodrigo para cerrar diseno del CAD #3167
+        description: Lunes 28 sep, 4:30pm-5:30pm. Incluye un experimento para verificar un detalle de las camaras; se cierran los parametros del diseno ahi mismo.
+        status: done
+        progress: 100%
+        start: 2026-09-28 16:30
+        end: 2026-09-28 17:30
+        due: 2026-09-28 17:30
+        assigned: 1, 2
+      task: Diseno del CAD de pruebas (Rodrigo) #3163
+        description: En progreso hasta que Rodrigo lo entregue. Estimado: mismo dia de la reunion en el mejor caso, hasta 2 dias despues en el peor caso -es rapido, "es un crack"-.
+        status: done
+        progress: 100%
         start: 2026-09-28
+        end: 2026-09-28
+        due: 2026-09-30
+        assigned: 1, 2
+        depends-on: Reunion con Rodrigo para cerrar diseno del CAD
+      task: Revision del CAD por David #3164
+        priority: critical
+        status: done
+        progress: 100%
+        start: 2026-09-30
+        end: 2026-10-01
+        due: 2026-10-03
+        assigned: 1
+        depends-on: Diseno del CAD de pruebas (Rodrigo)
+      task: Enviar el CAD a imprimir #3165
+        priority: critical
+        start: 2026-10-03
         end: 2026-10-04
+        due: 2026-10-04
+        assigned: 1
+        depends-on: Revision del CAD por David
+      task: Recibir la pieza impresa y ensamblar el soporte integrado camaras+CM5 #3166
+        start: 2026-10-07
+        end: 2026-10-08
         due: 2026-10-09
+        assigned: 1
+        depends-on: Enviar el CAD a imprimir
+    package: Compra efectiva de B0308 e IMX296 #1587
+      description: El tiempo de envio es el riesgo principal para la fecha de finales de noviembre. Pedir apenas se confirme la lista, no esperar a cerrar el diseno completo de la interfaz.
+
+Done when: B0308 e IMX296 (con lente y adaptador C-CS) pedidos, con fecha de llegada estimada registrada
+      priority: critical
+      hours: 2
+      start: 2026-09-29 19:00
+      due: 2026-10-08 19:00
+      assigned: 1
+      depends-on: Inventario, lista de compras y propuesta de montaje
 
 phase: Fase 2 - Calibracion y validaciones nucleo #168
-  description: 26 oct al 27 nov, 5 semanas. La calibracion es la ruta critica, con dos semanas de colchon para reintento (justificado por los 23 intentos previos fallidos). En paralelo, solo 2 a 3 frentes ligeros por semana, no todos a la vez.
+  description: 9 oct al 6 nov (replanificado el 2 oct, antes 26 oct al 27 nov; solo las reuniones de avance quedan en su fecha original). Capacidad 20h/semana desde el 28 sep (ver nota en Fase 1). La calibracion sigue siendo ruta critica, con solo 3 dias de colchon para reintento (12 al 14 oct, antes eran dos semanas; es el mayor riesgo de la replanificacion, dados los 23 intentos previos fallidos). Se agrega el deliverable Integracion y experimento en la estructura LINKU, que corre EN PARALELO a calibracion/dataset, no despues -es el pedido explicito del profesor de no dejar el track fisico para el final-. El experimento de caja negra se corre en la semana de examenes (12 al 17 oct), unas seis semanas antes de la fecha limite del profesor (finales de noviembre); lo que no bloquea el experimento (luz de la caja, render, Model 1, potencia, volumen de datos, modo de uso) va del 19 oct al 6 nov.
   color: #f39c12
   deliverable: Calibracion estereo de buena calidad #324
     package: Sesion de calibracion a resolucion completa #1529
@@ -164,93 +306,142 @@ phase: Fase 2 - Calibracion y validaciones nucleo #168
 Done when: calibration_data.json nuevo evaluado, is_good_quality true o motivo de falla identificado
       priority: critical
       hours: 5
-      start: 2026-10-26
-      due: 2026-11-06 10:00
+      start: 2026-10-09
+      due: 2026-10-11
+      assigned: 1
       execution: serial
       depends-on: Montaje fisico en la caja oscura
       task: Capturar entre 20 y 30 pares del tablero a resolucion completa, cubriendo todo el campo de vision, variando angulo y distancia #830
-        start: 2026-10-26
-        end: 2026-10-29
-        due: 2026-11-06 10:00
+        start: 2026-10-09
+        end: 2026-10-09
+        due: 2026-10-11
+        assigned: 1
       task: Validar con camera/camera_calibration.py #831
-        start: 2026-10-30
-        end: 2026-11-03
-        due: 2026-11-06 10:00
+        start: 2026-10-10
+        end: 2026-10-11
+        due: 2026-10-11
+        assigned: 1
     package: Reuniones de avance fase 2 #1530
+      assigned: 1
       execution: serial
       task: Reunion de avance 6 nov #832
         description: Sesion de calibracion hecha, en validacion. Luz de la caja caracterizada. F1 de Model 1 en validacion. Consumo del CM5 medido.
         type: approval
-        start: 2026-11-05
-        end: 2026-11-06
-        due: 2026-11-06 10:00
+        start: 2026-11-04 19:00
+        end: 2026-11-05 19:00
+        due: 2026-11-06 05:00
+        assigned: 1
       task: Reunion de avance 20 nov #833
         description: Calibracion con is_good_quality true, o reintento en curso. Render de laboratorio y comparacion 2D hechos. Modo de uso definido. Volumen de datos cuantificado.
         type: approval
-        start: 2026-11-19
-        end: 2026-11-20
-        due: 2026-11-20 10:00
+        start: 2026-11-18 19:00
+        end: 2026-11-19 19:00
+        due: 2026-11-20 05:00
+        assigned: 1
       task: Reunion de avance 27 nov #834
-        description: Cierre de fase 2. Calibracion cargada en el software. Dataset y Model 1 cerrados para el nucleo.
+        description: Cierre de fase 2. Calibracion cargada en el software. Dataset y Model 1 cerrados para el nucleo. Instrumento integrado en la estructura LINKU y experimento de caja negra corrido en el cuarto oscuro.
         type: approval
-        start: 2026-11-26
-        end: 2026-11-27
-        due: 2026-11-27 10:00
+        start: 2026-11-25 19:00
+        end: 2026-11-26 19:00
+        due: 2026-11-27 05:00
+        assigned: 1
     package: Reintento de calibracion #1531
-      description: Colchon de dos semanas, no una, dado el historial de 23 intentos fallidos. Puede no usarse completo, o puede necesitar mas de un intento; si pasa de aqui, es la primera senal de que el nucleo completo necesita correrse.
+      description: Colchon de 3 dias (12 al 14 oct), comprimido desde las dos semanas originales para llegar al experimento de la semana de examenes, pese al historial de 23 intentos fallidos. Puede no usarse completo, o puede necesitar mas de un intento; si pasa de aqui, es la primera senal de que el nucleo completo necesita correrse.
 
 Done when: calibration_data.json con is_good_quality true
       priority: critical
       hours: 5
-      start: 2026-11-09
-      due: 2026-11-20 10:00
+      start: 2026-10-12
+      due: 2026-10-14
+      assigned: 1
       depends-on: Sesion de calibracion a resolucion completa
     package: Carga de la nueva calibracion en el software #1532
       description: Done when: Procesamiento estereo y nube de puntos usan la calibracion nueva, y la de 1920x1440 queda marcada obsoleta
       priority: critical
       hours: 2
-      start: 2026-11-16
-      due: 2026-11-27 10:00
+      start: 2026-10-13
+      due: 2026-10-15
+      assigned: 1
       execution: serial
       depends-on: Reintento de calibracion
       task: Actualizar la referencia autocargada en config/camera_config.py y verificar que el procesamiento estereo la toma #835
-        start: 2026-11-16
-        end: 2026-11-19
-        due: 2026-11-27 10:00
+        start: 2026-10-13
+        end: 2026-10-14
+        due: 2026-10-15
+        assigned: 1
+  deliverable: Integracion y experimento en la estructura LINKU #345
+    description: NUEVO. Corre en paralelo al resto de fase 2, no al final. Depende de que el companero termine la estructura LINKU y los profesores confirmen el cuarto oscuro -dos bloqueos externos a marcar como riesgo, no controlados 100% por este plan-.
+    package: Montaje del instrumento sobre la estructura LINKU del companero #1589
+      description: Done when: Camaras + CM5 fijos sobre la estructura LINKU, geometria estereo verificada despues del montaje (recalibrar si se movio)
+      priority: critical
+      hours: 6
+      start: 2026-10-10
+      due: 2026-10-13
+      assigned: 1
+      depends-on: Construccion del soporte integrado camaras+CM5
+    package: Coordinacion de fecha del cuarto oscuro con los profesores #1590
+      description: Done when: Fecha y horario del cuarto oscuro confirmados antes de la semana de examenes (12 al 17 oct)
+      priority: high
+      hours: 2
+      start: 2026-10-05
+      due: 2026-10-09
+      assigned: 1
+      task: Reunion con Luis Domingues (servicios internos, Facultad de Comunicaciones) para pedir un espacio para el experimento
+        description: Probable, sin hora confirmada. Se pide prestado un espacio para correr el experimento en la semana de examenes (12 al 17 oct). De aqui sale el dia exacto del experimento.
+        priority: critical
+        status: pending
+        start: 2026-10-05
+        end: 2026-10-05
+        assigned: 1
+    package: Experimento de caja negra -hilo en movimiento #1591
+      description: Presencial, responsabilidad propia estar ahi y asegurar que todo funcione. Se mueve tanto el hilo como el rig de camaras a mano, de forma erratica (no hay servo/motor ni banco de rotacion, eso es un experimento distinto en fase 4 para rolling shutter con velocidad angular conocida). Correr el pipeline de reconstruccion sobre las capturas resultantes.
+
+Done when: Capturas del experimento de movimiento tomadas en el cuarto oscuro sobre la estructura LINKU, y el pipeline de reconstruccion corrido sobre al menos un par
+      priority: critical
+      hours: 6
+      start: 2026-10-14
+      due: 2026-10-17
+      assigned: 1
   deliverable: Simulacion Blender comparada en laboratorio #325
     package: Caracterizacion de la luz real de la caja oscura #1533
       description: Done when: Irradiancia, no uniformidad espacial e inestabilidad temporal registradas con un luxometro como minimo
       priority: high
       hours: 5
-      start: 2026-10-26
-      due: 2026-11-06 10:00
+      start: 2026-10-19
+      due: 2026-10-23
+      assigned: 1
       execution: serial
       task: Medir irradiancia en la posicion del tether, no uniformidad en una grilla de puntos e inestabilidad de corto plazo #836
-        start: 2026-10-26
-        end: 2026-10-29
-        due: 2026-11-06 10:00
+        start: 2026-10-19
+        end: 2026-10-21
+        due: 2026-10-23
+        assigned: 1
       task: Convertir lux a W/m2 segun el espectro de la fuente #837
-        start: 2026-10-30
-        end: 2026-11-03
-        due: 2026-11-06 10:00
+        start: 2026-10-22
+        end: 2026-10-23
+        due: 2026-10-23
+        assigned: 1
     package: Render de laboratorio y comparacion 2D #1534
       description: Requiere tambien el bug del tether resuelto (fase 1).
 
 Done when: Concordancia entre el render y la foto real de data/captures/stereo_20260213_140535 evaluada contra un criterio fijado de antemano
       priority: high
       hours: 8
-      start: 2026-11-09
-      due: 2026-11-20 10:00
+      start: 2026-10-26
+      due: 2026-11-04
+      assigned: 1
       execution: serial
       depends-on: Caracterizacion de la luz real de la caja oscura
       task: Cargar la irradiancia medida en la luz de la escena y renderizar replicando la foto real #838
-        start: 2026-11-09
-        end: 2026-11-12
-        due: 2026-11-20 10:00
+        start: 2026-10-26
+        end: 2026-10-28
+        due: 2026-11-04
+        assigned: 1
       task: Correr el pipeline de reconstruccion en foto y render, comparar, y decidir si la concordancia es satisfactoria #839
-        start: 2026-11-13
-        end: 2026-11-18
-        due: 2026-11-20 10:00
+        start: 2026-10-29
+        end: 2026-11-03
+        due: 2026-11-04
+        assigned: 1
   deliverable: Model 1 validado y dataset de Model 2 en marcha #326
     package: Validacion de Model 1 con datos no vistos #1535
       description: El F1 de 0.97 es solo de entrenamiento (6 pares aumentados a 60 imagenes). Separar por sesion de captura, no por imagen aumentada, para no filtrar datos entre entrenamiento y validacion.
@@ -258,8 +449,9 @@ Done when: Concordancia entre el render y la foto real de data/captures/stereo_2
 Done when: F1 de validacion reportado junto al 0.97 de entrenamiento
       priority: high
       hours: 5
-      start: 2026-10-26
-      due: 2026-11-06 10:00
+      start: 2026-10-29
+      due: 2026-11-04
+      assigned: 1
       execution: serial
       depends-on: Minado de las 59 sesiones restantes
     package: Crecimiento del path_dataset con cruces y nudos #1536
@@ -267,8 +459,9 @@ Done when: F1 de validacion reportado junto al 0.97 de entrenamiento
 
 Done when: Al menos 15 a 20 ejemplos con cruces o nudos etiquetados, tantos como se pueda dentro de las horas asignadas
       hours: 6
-      start: 2026-10-26
-      due: 2026-11-27 10:00
+      start: 2026-10-29
+      due: 2026-11-06
+      assigned: 1
       execution: serial
       depends-on: Minado de las 59 sesiones restantes
   deliverable: Consumo de potencia y volumen de datos #327
@@ -278,96 +471,111 @@ Done when: Al menos 15 a 20 ejemplos con cruces o nudos etiquetados, tantos como
 Done when: Consumo medido en reposo, preview, captura a resolucion completa y procesamiento IA
       priority: high
       hours: 5
-      start: 2026-10-26
-      due: 2026-11-06 10:00
+      start: 2026-10-19
+      due: 2026-10-23
+      assigned: 1
       execution: serial
       task: Medir las cuatro etapas con un medidor USB-C o fuente de laboratorio, con y sin camaras conectadas para separar CM5 de sensores #840
-        start: 2026-10-26
-        end: 2026-10-29
-        due: 2026-11-06 10:00
+        start: 2026-10-19
+        end: 2026-10-22
+        due: 2026-10-23
+        assigned: 1
     package: Tabla de potencia por etapa #1538
       description: Done when: Una tabla unica con el total por etapa, combinando CM5 medido y los 269 a 382 mW por camara del datasheet del sensor elegido
       hours: 3
-      start: 2026-11-09
-      due: 2026-11-13
+      start: 2026-10-26
+      due: 2026-10-28
+      assigned: 1
       depends-on: Banco de pruebas de potencia del CM5
     package: Medicion del tamano JPEG y volumen de datos #1539
       description: Done when: Tamano JPEG medido a resolucion completa, e imagenes por pase y por dia calculadas contra el cuello de botella de almacenamiento o downlink (referencia S-band 200 kbps, unos 15 MB por pase de 10 min)
       priority: high
       hours: 4
-      start: 2026-11-09
-      due: 2026-11-20 10:00
+      start: 2026-10-26
+      due: 2026-11-04
+      assigned: 1
       execution: serial
       depends-on: Decision de sensor de vuelo
       task: Capturar imagenes representativas y registrar tamano medio y maximo por nivel de calidad JPEG #841
-        start: 2026-11-09
-        end: 2026-11-12
-        due: 2026-11-20 10:00
+        start: 2026-10-26
+        end: 2026-10-28
+        due: 2026-11-04
+        assigned: 1
       task: Calcular imagenes almacenables en la SD y limitadas por downlink, e identificar cual limita #842
-        start: 2026-11-13
-        end: 2026-11-18
-        due: 2026-11-20 10:00
+        start: 2026-10-29
+        end: 2026-11-03
+        due: 2026-11-04
+        assigned: 1
   deliverable: Modo de uso definido #328
     package: Revision de INTEGRACION_EPS_OBC #1540
       description: Done when: Interfaz de comandos del OBC y asignacion de potencia del EPS para la camara identificadas
       hours: 3
-      start: 2026-10-26
-      due: 2026-11-06 10:00
+      start: 2026-10-19
+      due: 2026-10-23
+      assigned: 1
       execution: serial
     package: Disparo y cadencia de captura #1541
       description: Done when: Mecanismo de disparo (autonomo o comandado) y cadencia numerica por fase de mision decididos, y verificados contra el cuello de botella de datos
       priority: high
       hours: 3
       type: decision
-      start: 2026-11-16
-      due: 2026-11-27 10:00
+      start: 2026-11-02
+      due: 2026-11-06
+      assigned: 1
       execution: serial
 
 phase: Fase 3 - Cierre del nucleo #169
-  description: 1 al 18 dic, 2.5 semanas, deliberadamente liviana porque suele coincidir con examenes finales. Es la validacion de que todo lo anterior funciona junto, mas la actualizacion de los informes.
+  description: 9 al 20 nov (replanificado el 2 oct, antes 1 al 18 dic), deliberadamente liviana. La reunion de cierre del 18 dic queda en su fecha original. Ya no es la primera validacion end-to-end -esa se corre en fase 2 con el experimento de caja negra en la estructura LINKU, en la semana del 12 al 17 oct-, es colchon de repeticion si algo salio mal ahi, mas la actualizacion de los informes.
   color: #3498db
   deliverable: Prototipo validado de extremo a extremo #329
     package: Validacion end-to-end con el hardware final #1542
-      description: "Hardware final" aqui es el IMX477 ya disponible, no el B0308 (compra pendiente para el proximo ano). Se repite con el B0308 en Fase 4 cuando llegue.
+      description: "Hardware final" aqui es el IMX477 ya disponible, no el B0308 (compra pendiente para el proximo ano). Se repite con el B0308 en Fase 4 cuando llegue. Contingencia: si el experimento de caja negra de fase 2 (semana del 12 al 17 oct) salio bien, esta tarea se reduce a confirmar con los datos ya capturados ahi en vez de repetir la captura.
 
-Done when: El pipeline de reconstruccion corre sobre un par estereo nuevo, capturado con el IMX477, sin modificar codigo
+Done when: El pipeline de reconstruccion corre sobre un par estereo del experimento de caja negra (o uno nuevo si hace falta repetir), sin modificar codigo
       priority: critical
       hours: 4
-      start: 2026-12-01
-      due: 2026-12-04
+      start: 2026-11-09
+      due: 2026-11-11
+      assigned: 1
       execution: serial
-      depends-on: Carga de la nueva calibracion en el software
-      task: Capturar un par de validacion con el tether en la caja y correr segmentacion, tracking y reconstruccion #843
-        start: 2026-12-01
-        end: 2026-12-04
-        due: 2026-12-04
+      depends-on: Experimento de caja negra -hilo en movimiento
+      task: Confirmar con los datos del experimento de caja negra, o repetir la captura si hizo falta, y correr segmentacion, tracking y reconstruccion #843
+        start: 2026-11-09
+        end: 2026-11-11
+        due: 2026-11-11
+        assigned: 1
     package: Reunion de cierre de nucleo #1543
+      assigned: 1
       task: Reunion de cierre 18 dic #844
         description: Nucleo cerrado. Prototipo validado extremo a extremo. Informes actualizados. Lista de lo que sigue en la fase de extension.
         type: approval
-        start: 2026-12-17
-        end: 2026-12-18
-        due: 2026-12-18 10:00
+        start: 2026-12-16 19:00
+        end: 2026-12-17 19:00
+        due: 2026-12-18 05:00
+        assigned: 1
   deliverable: Documentacion nucleo actualizada #330
     package: Actualizacion de informes #1544
       description: Done when: Camera System Report y Master Work Plan reflejan la decision de sensor, la calibracion nueva, el estado de Model 1, potencia y volumen de datos
       priority: high
       hours: 10
       type: document
-      start: 2026-12-07
-      due: 2026-12-18 10:00
+      start: 2026-11-12
+      due: 2026-11-20
+      assigned: 1
       depends-on: Validacion end-to-end con el hardware final
       task: Actualizar el Camera System Report (decision de sensor, potencia, volumen de datos, estado de Model 1) #845
-        start: 2026-12-07
-        end: 2026-12-10
-        due: 2026-12-18 10:00
+        start: 2026-11-12
+        end: 2026-11-15
+        due: 2026-11-20
+        assigned: 1
       task: Actualizar el checklist maestro del Master Work Plan y listar lo pendiente de la fase de extension con su bloqueo #846
-        start: 2026-12-11
-        end: 2026-12-15
-        due: 2026-12-18 10:00
+        start: 2026-11-16
+        end: 2026-11-19
+        due: 2026-11-20
+        assigned: 1
 
 phase: Fase 4 - Extension, fechas tentativas #172
-  description: Continua despues del cierre de nucleo (18 dic). Las fechas de esta fase son tentativas, no comprometidas, para tener una referencia de orden y ritmo; se ajustan segun como termine avanzando el nucleo. Arranca el 5 de enero para dar espacio a las fiestas de fin de ano.
+  description: Continua despues del cierre de nucleo (20 nov tras la replanificacion del 2 oct). Las fechas de esta fase son tentativas, no comprometidas, para tener una referencia de orden y ritmo; se ajustan segun como termine avanzando el nucleo. Lo que es solo software y no espera hardware (comparacion 3D, render orbital, rolling shutter sintetico, contraste con el EPS, prefiltro) se adelanta al 23 nov - 4 dic; el resto arranca en enero para dar espacio a examenes finales y fiestas de fin de ano.
   color: #95a5a6
   deliverable: Prototipo de camara con el sensor B0308 #343
     description: Todo lo que sigue de aqui necesita el B0308 fisico, que no se compra hasta el proximo ano. Hasta entonces el nucleo avanza con el IMX477 ya disponible.
@@ -376,16 +584,18 @@ phase: Fase 4 - Extension, fechas tentativas #172
 
 Done when: Sensor B0308 en laboratorio
       priority: high
-      start: 2027-01-05
-      due: 2027-01-15
+      start: 2027-01-04 19:00
+      due: 2027-01-14 19:00
+      assigned: 1
     package: Migrar montaje, calibracion y software al sensor B0308 #1582
       description: Agrupa todo lo que quedo calculado con el IMX477 como provisional y necesita repetirse con datos reales del B0308: montaje segun los renders CAD del informe APSCO, nueva calibracion a 4608x2592, cambiar sensor_type y sensor_mode_bits en config a IMX708, y actualizar consumo de potencia y tamano de imagen con las cifras reales del datasheet del B0308.
 
 Done when: Par B0308 montado, calibrado, config actualizada, y potencia/tamano de imagen documentados con datos reales del B0308
       priority: high
       hours: 10
-      start: 2027-01-18
-      due: 2027-01-29
+      start: 2027-01-17 19:00
+      due: 2027-01-28 19:00
+      assigned: 1
       depends-on: Compra del sensor B0308 y accesorios de montaje
   deliverable: Model 2 entrenado y comparado #339
     package: Interfaz de scoring aprendido en smart_wire_tracker.py #1569
@@ -393,32 +603,38 @@ Done when: Par B0308 montado, calibrado, config actualizada, y potencia/tamano d
 
 Done when: El tracker acepta scoring clasico o aprendido sin otros cambios
       hours: 9
-      start: 2027-01-15
-      due: 2027-01-27
+      start: 2027-01-14 19:00
+      due: 2027-01-26 19:00
+      assigned: 1
       depends-on: Crecimiento del path_dataset con cruces y nudos
     package: Entrenamiento y benchmark de Model 2 #1570
       description: Necesita el path_dataset creciendo hacia 30 a 50 ejemplos, mas alla de los 15 a 20 del nucleo.
 
 Done when: Model 2 entrenado, evaluado con split por sesion, y comparado contra el tracker clasico en casos simples y con cruces
       hours: 10
-      start: 2027-01-28
-      due: 2027-02-10
+      start: 2027-01-27 19:00
+      due: 2027-02-09 19:00
+      assigned: 1
       depends-on: Interfaz de scoring aprendido en smart_wire_tracker.py
     package: Adopcion de Model 2 #1571
       description: Criterio: en cruces y nudos, Model 2 debe ser al menos tan fiable como el tracker clasico en casos simples.
 
 Done when: Decidido si el scoring aprendido pasa a ser la opcion por defecto
       type: decision
-      start: 2027-02-11
-      due: 2027-02-13
+      start: 2027-02-10 19:00
+      due: 2027-02-12 19:00
+      assigned: 1
       depends-on: Entrenamiento y benchmark de Model 2
   deliverable: Simulacion Blender en 3D y condicion orbital #340
     package: Comparacion 3D con la calibracion nueva #1572
-      description: Done when: Reconstruccion 3D del render comparada con la del par real usando la calibracion nueva
+      description: La validacion cuantitativa con ground-truth conocido ya se hizo en fase 1 (ver Replica de la estructura LINKU en Blender y validacion cuantitativa de precision) con calibration_data_blender_sim.json. Lo que falta aqui es repetir esa comparacion usando la calibracion NUEVA de camara real (fase 2), no la derivada de Blender, para ver si concuerdan entre si.
+
+Done when: Reconstruccion 3D del render comparada con la del par real usando la calibracion nueva
       priority: low
       hours: 5
-      start: 2027-01-05
-      due: 2027-01-13
+      start: 2026-11-23
+      due: 2026-12-01
+      assigned: 1
       depends-on: Render de laboratorio y comparacion 2D
     package: Render en condiciones orbitales #1573
       description: Solo tiene sentido si la comparacion de laboratorio fue satisfactoria.
@@ -426,8 +642,9 @@ Done when: Decidido si el scoring aprendido pasa a ser la opcion por defecto
 Done when: Renders orbitales de geometrias de despliegue representativas procesados por el pipeline
       priority: low
       hours: 4
-      start: 2027-01-14
-      due: 2027-01-20
+      start: 2026-12-02
+      due: 2026-12-04
+      assigned: 1
       depends-on: Comparacion 3D con la calibracion nueva
   deliverable: Rolling shutter corregido y validado en fisico #341
     package: Casos sinteticos y correccion con giroscopio #1574
@@ -435,24 +652,28 @@ Done when: Renders orbitales de geometrias de despliegue representativas procesa
 
 Done when: Correccion aplicada a casos sinteticos con mejora medible frente a la imagen sin corregir
       hours: 8
-      start: 2027-01-05
-      due: 2027-01-14
+      start: 2026-11-23
+      due: 2026-12-02
+      assigned: 1
       task: Generar casos sinteticos de rotacion sobre fotos existentes en data/captures a distintas velocidades angulares #851
-        start: 2027-01-05
-        end: 2027-01-07
-        due: 2027-01-14
+        start: 2026-11-23
+        end: 2026-11-25
+        due: 2026-12-02
+        assigned: 1
       task: Implementar la correccion basada en giroscopio (Karpenko, Jacobs, Baek, Levoy) y medir la mejora #852
-        start: 2027-01-08
-        end: 2027-01-14
-        due: 2027-01-14
+        start: 2026-11-26
+        end: 2026-12-02
+        due: 2026-12-02
+        assigned: 1
     package: Tiempo de lectura por fila del sensor #1575
       description: Depende de una respuesta externa (fabricante o distribuidor), tiempo fuera de control propio.
 
 Done when: Tiempo de lectura por fila confirmado y tolerancia de rotacion recalculada
       priority: low
       hours: 3
-      start: 2027-01-15
-      due: 2027-01-27
+      start: 2027-01-14 19:00
+      due: 2027-01-26 19:00
+      assigned: 1
       depends-on: Decision de sensor de vuelo
     package: Construccion del banco de rotacion fisico #1576
       description: Es una construccion mecatronica real (etapa giratoria, encoder o giroscopio, sincronizacion de tiempos), el item de horas mas inciertas de todo el plan.
@@ -460,22 +681,25 @@ Done when: Tiempo de lectura por fila confirmado y tolerancia de rotacion recalc
 Done when: Etapa giratoria con velocidad angular conocida, controlable y registrada
       priority: low
       hours: 12
-      start: 2027-01-28
-      due: 2027-02-18
+      start: 2027-01-27 19:00
+      due: 2027-02-17 19:00
+      assigned: 1
     package: Captura y comparacion en el banco de rotacion #1577
       description: Done when: Mejora de la correccion cuantificada sobre capturas fisicas reales, comparado contra una referencia estatica
       priority: low
       hours: 5
-      start: 2027-02-19
-      due: 2027-02-25
+      start: 2027-02-18 19:00
+      due: 2027-02-24 19:00
+      assigned: 1
       depends-on: Construccion del banco de rotacion fisico
   deliverable: Consumo y modo de uso ampliados #342
     package: Contraste con la asignacion de potencia del EPS #1578
       description: Done when: Margen o exceso identificado por etapa frente a lo asignado por el EPS
       priority: low
       hours: 3
-      start: 2027-01-05
-      due: 2027-01-07
+      start: 2026-11-23
+      due: 2026-11-25
+      assigned: 1
       depends-on: Revision de INTEGRACION_EPS_OBC
     package: Prefiltro de calidad a bordo #1579
       description: Definir y probar el criterio de imagen saturada o no informativa que se descarta antes de gastar downlink.
@@ -483,13 +707,15 @@ Done when: Etapa giratoria con velocidad angular conocida, controlable y registr
 Done when: Criterios de descarte probados sobre las 65 sesiones existentes
       priority: low
       hours: 5
-      start: 2027-01-08
-      due: 2027-01-13
+      start: 2026-11-26
+      due: 2026-12-01
+      assigned: 1
     package: Documento de concepto de operaciones #1580
       description: Done when: Seccion de concepto de operaciones redactada y referenciada desde el informe APSCO
       priority: low
       hours: 4
       type: document
-      start: 2027-02-16
-      due: 2027-02-19
+      start: 2027-02-15 19:00
+      due: 2027-02-18 19:00
+      assigned: 1
       depends-on: Disparo y cadencia de captura
