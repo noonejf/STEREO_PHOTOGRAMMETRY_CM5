@@ -38,7 +38,7 @@ This working document establishes the methodology to evaluate how realistically 
 
 The validation strategy follows the precedent set by SISPO (Space Imaging Simulator for Proximity Operations), a peer-reviewed Blender-Cycles-based simulator validated by direct pixel-level comparison against real spacecraft camera imagery. The same principle is applied here at a smaller scale: a Blender scene replicating the laboratory dark enclosure and tether proxy is rendered and compared against real photographs taken in that same enclosure, using the project's own reconstruction pipeline (segmentation, endpoint detection, path tracking) as the comparison instrument rather than only visual inspection. Establishing agreement at this laboratory scale, where a real reference photograph exists, is the necessary first step before trusting a second Blender scene configured for orbital illumination, for which no real reference photograph can exist yet.
 
-This document is a working draft. The literature review and methodology are complete; the rendering, capture, and comparison experiments are pending and are marked accordingly throughout the text.
+This document is a working draft. The literature review and methodology are complete. A preliminary self-consistency check (Section \ref{sec:linku-structure-replica-and-selfcheck}) has been run within Blender alone, confirming the reconstruction pipeline recovers a known synthetic displacement to within 1~cm; the core experiment, the matched real-photograph-versus-render comparison, remains pending and is marked accordingly throughout the text.
 \end{abstract}
 
 \tableofcontents

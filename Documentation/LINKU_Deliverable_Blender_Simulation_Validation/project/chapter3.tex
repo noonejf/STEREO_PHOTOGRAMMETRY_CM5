@@ -1,7 +1,68 @@
 \chapter{Experimental Setup}
 \label{chap:experimental-setup}
 
-This chapter defines what needs to be built and captured to execute the methodology of Chapter \ref{chap:methodology}. All items in this chapter are pending; none have been executed yet.
+This chapter defines what needs to be built and captured to execute the methodology of Chapter \ref{chap:methodology}. Most items in this chapter are still pending, with one exception documented in Section \ref{sec:linku-structure-replica-and-selfcheck}: a preliminary self-consistency check, distinct from the real-vs-render matched-pair comparison that remains the core pending experiment.
+
+\section{LINKU structure replica and preliminary self-consistency check}
+\label{sec:linku-structure-replica-and-selfcheck}
+
+Ahead of the matched real/simulated pair comparison defined later in this chapter, the Blender scene (\texttt{SIMULATION/Simulation\_DarkBox\_2.blend}) was extended from a plain dark enclosure to a first replica of the LINKU deployment structure that the tether proxy is mounted on, with both stereo cameras (\texttt{Camera}, \texttt{Camera.001}) positioned inside it at a fixed 100~mm baseline. Figure \ref{fig:figure3.1} shows the scene from a general viewpoint, including the world background node setup; Figure \ref{fig:figure3.2} shows the tether as seen from each camera's own perspective inside the enclosure.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{Images/Figure 4.1.jpeg}
+    \caption[Blender replica of the LINKU deployment structure, general view]{Blender replica of the LINKU deployment structure (\texttt{Simulation\_DarkBox\_2.blend}), general view. The stereo camera pair (\texttt{Camera}, \texttt{Camera.001}) is mounted at a fixed 100~mm baseline inside the enclosure; the World node setup uses an equirectangular background image rather than a flat color, matching the project's established scene convention.}
+    \label{fig:figure3.1}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Images/Figure 4.2a.jpeg}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Images/Figure 4.2b.jpeg}
+    \end{minipage}
+    \caption[Tether proxy as seen from each stereo camera inside the Blender LINKU structure replica]{Tether proxy as seen from each stereo camera inside the Blender LINKU structure replica, \texttt{Camera} (left) and \texttt{Camera.001} (right), a 100~mm-baseline stereo pair at 3.5~m from the enclosure back wall.}
+    \label{fig:figure3.2}
+\end{figure}
+
+\FloatBarrier
+
+With this scene, a preliminary check was run to confirm that the reconstruction pipeline recovers known geometry correctly when fed Blender-rendered stereo pairs, before attempting the harder real-photograph comparison. This check is a self-consistency test internal to Blender (synthetic images compared against a known synthetic displacement, not against a real photograph), using the Blender-derived calibration \texttt{data/calibration/calibration\_data\_blender\_sim.json} produced directly from the scene's camera intrinsics and extrinsics rather than from checkerboard calibration. It should not be read as evidence toward the real-vs-render agreement question that Section \ref{sec:experimental-setup-reference-pair} and Chapter \ref{chap:results} address; it validates the reconstruction pipeline and the Blender-derived calibration together, on ground truth that is exact by construction.
+
+Two tether configurations were rendered and processed through the project's full pipeline (segmentation, endpoint detection, geometric path tracking, disparity, and depth), viewed in the application's Depth Map tab:
+
+\begin{itemize}
+    \item \textbf{Configuration A}: tether close to a uniform 40~cm distance from the cameras. Reconstructed depth range: 0.39--0.40~m (Figure \ref{fig:figure3.3}a).
+    \item \textbf{Configuration B}: one tether endpoint displaced approximately 10~cm farther from the cameras relative to Configuration A. Reconstructed depth range: 0.40--0.51~m, an 11~cm spread (Figure \ref{fig:figure3.3}b).
+\end{itemize}
+
+The reconstructed depth spread between the two configurations (11~cm) agrees with the known applied displacement (10~cm) to within 1~cm. This is a single preliminary case, not a systematic accuracy characterization across multiple poses and distances, but it supports proceeding to the matched real/simulated pair comparison with reasonable confidence that a disagreement found there would reflect a rendering or illumination realism gap rather than a defect in the pipeline or the Blender-derived calibration itself.
+
+\begin{figure}[!ht]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Images/Figure 4.3a.png}
+        \subcaption{Configuration A: 0.39--0.40~m}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Images/Figure 4.3b.png}
+        \subcaption{Configuration B: 0.40--0.51~m}
+    \end{minipage}
+    \caption[Depth Map tab output for the two known-displacement configurations]{Depth Map tab output (application GUI) for the two known-displacement configurations described in Section \ref{sec:linku-structure-replica-and-selfcheck}. The colorbar legend (blue = near, red = far) and the neutral-gray background for pixels without valid depth are the fix applied to this view earlier in the same development session.}
+    \label{fig:figure3.3}
+\end{figure}
+
+\FloatBarrier
+
+\todo[inline]{The underlying capture session and exported point cloud for this check were not yet pushed to the repository at the time of writing; only the GUI screenshots above were available. Push the \texttt{stereo\_sim\_*} session and \texttt{point\_cloud.ply} for both configurations for reproducibility, following the project's established synthetic-session convention.}
 
 \section{Blender scene construction}
 
@@ -10,9 +71,40 @@ This chapter defines what needs to be built and captured to execute the methodol
 \subsection{Chosen camera sensor and intrinsics}
 \label{sec:chosen-camera-intrinsics}
 
-The flight camera sensor was decided during the master work plan's sensor-decision task, using the depth-of-field and field-of-view comparison tool in \texttt{calculate\_cam/camera\_dof\_visualizer.py}. The tool was extended to cover five candidate optical configurations (the existing IMX477 baseline, an Arducam Hawk-eye OV64A40, and three IMX708-based Arducam/Raspberry~Pi modules with different lenses), evaluated by pixels occupied by a 1~mm-diameter thread at distances from 0.5 to 10~m.
+The flight camera sensor was decided during the master work plan's sensor-decision task, using the depth-of-field and field-of-view comparison tool in \texttt{calculate\_cam/camera\_dof\_visualizer.py}. The tool was extended to cover five candidate optical configurations (the existing IMX477 baseline, an Arducam Hawk-eye OV64A40, and three IMX708-based Arducam/Raspberry~Pi modules with different lenses), evaluated by pixels occupied by a 1~mm-diameter thread at distances from 0.5 to 10~m. A sixth candidate, a Sony IMX296 global-shutter sensor proposed later for evaluation (Section \ref{sec:global-shutter-candidate}), is included in the same comparison for completeness, with its two lens options.
+
+Table \ref{tab:optical-comparison} reports the full comparison: sensor resolution, lens focal length (the parameter that actually separates telephoto from wide-angle, not aperture, which only sets depth of field and light gathering), horizontal field of view, thread pixel occupancy at four representative distances, and the distance at which a 1~mm-diameter thread is reduced to exactly 1~px, the practical geometric resolution limit for this detection task. All values computed directly from \texttt{camera\_dof\_visualizer.py}'s own \texttt{thread\_pixels()} function, not re-derived by hand, so the table matches what the tool itself reports.
+
+\begin{table}[!ht]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption[Optical comparison of all candidate sensor/lens configurations]{Optical comparison of all candidate sensor/lens configurations for a 1~mm-diameter thread, computed with \texttt{calculate\_cam/camera\_dof\_visualizer.py}. ``1~px limit'' is the distance at which the thread is reduced to exactly 1 pixel, the practical geometric detection limit. Bold: chosen flight sensor. Italic: global-shutter candidate under evaluation (Section \ref{sec:global-shutter-candidate}), not a flight-sensor decision.}
+\label{tab:optical-comparison}
+\begin{tabular}{lrrrrrrrr}
+\toprule
+\textbf{Sensor} & \textbf{Lens} & \textbf{MP} & \textbf{FOV H} & \multicolumn{4}{c}{\textbf{Thread px (1~mm) at distance}} & \textbf{1~px limit} \\
+ & (f) & & (\textdegree) & 0.5~m & 2~m & 10~m & 100~m & (distance) \\
+\midrule
+IMX477 (current) & 6.0~mm & 12.3 & 65.0 & 7.84 & 1.94 & 0.39 & 0.0387 & 3.88~m \\
+Hawk-eye OV64A40 & 5.1~mm & 63.6 & 84.0 & 12.75 & 3.16 & 0.63 & 0.0631 & 6.31~m \\
+IMX708 Wide (B0310) & 2.87~mm & 11.9 & 120.0 & 4.12 & 1.03 & 0.21 & 0.0205 & 2.05~m \\
+IMX708 Wide 102\textdegree{} & 2.75~mm & 11.9 & 102.0 & 3.95 & 0.98 & 0.20 & 0.0196 & 1.97~m \\
+\textbf{IMX708 Standard (B0308)} & \textbf{4.74~mm} & \textbf{11.9} & \textbf{66.0} & \textbf{6.84} & \textbf{1.70} & \textbf{0.34} & \textbf{0.0339} & \textbf{3.39~m} \\
+\textit{IMX296 global shutter} & \textit{16.0~mm} & \textit{1.6} & \textit{17.7} & \textit{9.69} & \textit{2.36} & \textit{0.47} & \textit{0.0469} & \textit{4.70~m} \\
+\textit{IMX296 global shutter} & \textit{6.0~mm} & \textit{1.6} & \textit{65.0} & \textit{3.56} & \textit{0.88} & \textit{0.18} & \textit{0.0176} & \textit{1.76~m} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At 100~m, none of the seven configurations keeps the 1~mm thread above 1~px (values range from 0.018~px to 0.063~px per thread, roughly two orders of magnitude below the geometric detection limit); at that distance detection depends on the sub-pixel radiometric regime discussed in Chapter \ref{chap:physical-solar} (specular reflection against a dark background), not on geometric resolution. The 1~px-limit distance column is therefore the more directly useful number for comparing configurations at the scales relevant to this mission.
 
 The result: the IMX708 module with its standard 66\textdegree{} horizontal field-of-view lens, fixed-focus variant, SKU B0308, was chosen. At every tested distance it matched the current IMX477 baseline's tether pixel resolution within a few percent (for example, 6.8~px versus 7.8~px at 0.5~m, both crossing below 1~px per thread around 4 to 5~m), while the two wider IMX708 lens options (102\textdegree{} and 120\textdegree{} horizontal FOV) lost resolvable pixels on the thread noticeably earlier, around 2~m. The Hawk-eye OV64A40 resolved the thread furthest (to roughly 8 to 10~m) but was not selected, since its 64~MP output is difficult to reconcile with the mission's downlink budget (Section \ref{chap:physical-solar}, and the communications link budget in the APSCO deliverable), and it is a non-standard sensor not covered by the mechanical mounting CAD already produced for the IMX708 module. The fixed-focus B0308 variant was preferred over its autofocus siblings (B0306, B0312, same optics) because a fixed lens has no moving focus mechanism to survive launch vibration or vacuum operation.
+
+\subsubsection{Global-shutter candidate: where it actually stands}
+\label{sec:global-shutter-candidate}
+
+The IMX296 global-shutter sensor (proposed later, Section \ref{sec:linku-structure-replica-and-selfcheck} documents its own geometric validation separately) is not a replacement candidate for the B0308 flight-sensor decision above, which stands as made. It is being evaluated specifically for its freedom from rolling-shutter distortion during the moving-tether experiment. Table \ref{tab:optical-comparison} shows it is a stronger optical performer than its 1.6~MP figure alone suggests: paired with the 16~mm telephoto lens it comes with, it resolves the thread to a greater distance (4.70~m) than the chosen B0308 (3.39~m) or the IMX477 baseline (3.88~m), despite roughly a tenth of their pixel count, because the narrow 17.7\textdegree{} field of view concentrates more of the sensor's pixels per degree of scene. The trade-off is exactly that narrow field of view (a tenth of the B0308's coverage) and, at this lens's fast f/1.4 end, a correspondingly shallow depth of field, so a global-shutter design demands tighter aiming and distance control than the wide-FOV flight sensor. Paired instead with a 6~mm wide lens matching the IMX477's own, the IMX296 underperforms every other candidate (1.76~m), since a sixth of the pixel count is no longer compensated by a narrower field of view. The IMX296 is therefore only competitive in its telephoto configuration, and that configuration's narrow FOV is a real operational cost, not a free upgrade.
 
 The B0308 unit itself has not been purchased yet; procurement is realistically expected next year, tracked as its own item in the master work plan. Until then, near-term physical work, including the laboratory-condition renders and real photographs this chapter defines, continues with the IMX477 hardware already available, which Section \ref{sec:chosen-camera-intrinsics-caveat} below addresses directly. Table \ref{tab:chosen-camera-intrinsics} lists the B0308's intrinsics regardless, since they are the values the Blender camera object should be configured with once the sensor is purchased and this validation is repeated against it.
 
