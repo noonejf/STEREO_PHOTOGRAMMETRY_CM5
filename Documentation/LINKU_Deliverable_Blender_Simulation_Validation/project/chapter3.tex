@@ -73,7 +73,48 @@ The reconstructed depth spread between the two configurations (11~cm) agrees wit
 
 The flight camera sensor was decided during the master work plan's sensor-decision task, using the depth-of-field and field-of-view comparison tool in \texttt{calculate\_cam/camera\_dof\_visualizer.py}. The tool was extended to cover five candidate optical configurations (the existing IMX477 baseline, an Arducam Hawk-eye OV64A40, and three IMX708-based Arducam/Raspberry~Pi modules with different lenses), evaluated by pixels occupied by a 1~mm-diameter thread at distances from 0.5 to 10~m. A sixth candidate, a Sony IMX296 global-shutter sensor proposed later for evaluation (Section \ref{sec:global-shutter-candidate}), is included in the same comparison for completeness, with its two lens options.
 
-Table \ref{tab:optical-comparison} reports the full comparison: sensor resolution, lens focal length (the parameter that actually separates telephoto from wide-angle, not aperture, which only sets depth of field and light gathering), horizontal field of view, thread pixel occupancy at four representative distances, and the distance at which a 1~mm-diameter thread is reduced to exactly 1~px, the practical geometric resolution limit for this detection task. All values computed directly from \texttt{camera\_dof\_visualizer.py}'s own \texttt{thread\_pixels()} function, not re-derived by hand, so the table matches what the tool itself reports.
+\subsubsection{Governing equations}
+\label{sec:thread-pixel-equations}
+
+Every number in Table \ref{tab:optical-comparison} comes from the same three equations below. The tool implements them as two small functions in \texttt{camera\_dof\_\allowbreak visualizer.py}: \texttt{pixels\_per\_\allowbreak mm\_at\_\allowbreak distance()} computes Equation \ref{eq:pixel-density}, and \texttt{thread\_\allowbreak pixels()} applies Equation \ref{eq:thread-pixels} on top of it. All quantities are kept in millimetres internally; object distance $u$ is converted from metres.
+
+\textbf{Variables:}
+\begin{itemize}
+    \item $f$ : lens focal length (mm)
+    \item $u$ : object distance from the lens (mm)
+    \item $R_h$ : sensor horizontal resolution (px)
+    \item $W$ : sensor width (mm), so $R_h/W$ is the sensor's pixel density (px/mm), the inverse of pixel pitch
+    \item $d$ : thread diameter (mm), 1~mm throughout this table
+    \item $N_{px}$ : pixels occupied by the thread at distance $u$
+\end{itemize}
+
+\textbf{1. Thin-lens magnification.} Standard thin-lens relation $1/f = 1/v - 1/u$, solved for the magnification $m = v/u$:
+\begin{equation}
+m(u) = \frac{f}{u - f}
+\label{eq:magnification}
+\end{equation}
+
+\textbf{2. Object-space pixel density.} The sensor's own pixel density ($R_h/W$, px/mm on the sensor) scales by the magnification to give pixels per mm of the real-world object at distance $u$:
+\begin{equation}
+\rho_{obj}(u) = \frac{R_h}{W} \cdot m(u) = \frac{R_h}{W} \cdot \frac{f}{u - f}
+\label{eq:pixel-density}
+\end{equation}
+
+\textbf{3. Thread pixel occupancy.} The table's thread-pixel columns are $\rho_{obj}(u)$ scaled by the thread diameter:
+\begin{equation}
+N_{px}(u) = \rho_{obj}(u) \cdot d = \frac{R_h \, f \, d}{W \,(u - f)}
+\label{eq:thread-pixels}
+\end{equation}
+
+\textbf{4. 1~px-limit distance.} The table's last column solves Equation \ref{eq:thread-pixels} for $u$ at $N_{px} = 1$, $d = 1$~mm:
+\begin{equation}
+u_{1px} = f\left(1 + \frac{R_h}{W}\right)
+\label{eq:1px-limit}
+\end{equation}
+
+Equation \ref{eq:thread-pixels} is the one to read carefully before comparing sensors by eye: at $u \gg f$ (every distance in this table, since $u$ is 0.5 to 100~m and $f$ is a few mm to 16~mm), $u - f \approx u$ and $N_{px}$ reduces to $N_{px} \approx (R_h/W) \cdot f \cdot d / u$. Total resolution ($R_h \times R_v$, megapixels) does not appear on its own; only $R_h/W$ does, which is the sensor's pixel density (equivalently, $1/\text{pixel pitch}$), multiplied by focal length $f$. A sensor with far fewer total pixels can still win if its pixels are proportionally larger (higher $R_h/W$ is not guaranteed by more megapixels, since $W$ also varies between sensors) or its lens has longer focal length. Section \ref{sec:worked-example} below works this through numerically for the two rows of Table \ref{tab:optical-comparison} where this is least intuitive.
+
+Table \ref{tab:optical-comparison} reports the full comparison: sensor resolution, lens focal length (the parameter that actually separates telephoto from wide-angle, not aperture, which only sets depth of field and light gathering), horizontal field of view, thread pixel occupancy at four representative distances, and the distance at which a 1~mm-diameter thread is reduced to exactly 1~px, the practical geometric resolution limit for this detection task. All values computed directly from \texttt{camera\_dof\_visualizer.py}'s own \texttt{thread\_pixels()} function (Equations \ref{eq:magnification}--\ref{eq:thread-pixels}), not re-derived by hand, so the table matches what the tool itself reports.
 
 \begin{table}[!ht]
 \centering
@@ -98,6 +139,32 @@ IMX708 Wide 102\textdegree{} & 2.75~mm & 11.9 & 102.0 & 3.95 & 0.98 & 0.20 & 0.0
 \end{table}
 
 At 100~m, none of the seven configurations keeps the 1~mm thread above 1~px (values range from 0.018~px to 0.063~px per thread, roughly two orders of magnitude below the geometric detection limit); at that distance detection depends on the sub-pixel radiometric regime discussed in Chapter \ref{chap:physical-solar} (specular reflection against a dark background), not on geometric resolution. The 1~px-limit distance column is therefore the more directly useful number for comparing configurations at the scales relevant to this mission.
+
+\subsubsection{Worked example: why a 1.6~MP sensor is not simply outclassed by a 11.9~MP one}
+\label{sec:worked-example}
+
+The least intuitive pair in Table \ref{tab:optical-comparison} is the IMX296 with the 6~mm wide lens (1.6~MP) against the chosen IMX708 Standard / B0308 (11.9~MP): at 100~m the IMX296 reads 0.0176~px against the B0308's 0.0339~px, roughly half, despite the B0308 having 7.4$\times$ the total pixel count. Equation \ref{eq:thread-pixels} resolves this by substituting both sensors' values at $u = 100\,000$~mm, $d = 1$~mm:
+
+\textbf{IMX296 + 6~mm:} $R_h = 1456$~px, $W = 4.97$~mm, $f = 6.0$~mm
+\begin{align*}
+\rho_{sensor} &= R_h/W = 1456/4.97 = 293.0~\text{px/mm} \quad (\text{pixel pitch } 1/\rho_{sensor} = 3.41~\mu\text{m}) \\
+m &= f/(u-f) = 6.0/99994.0 = 6.000\times10^{-5} \\
+N_{px} &= \rho_{sensor} \cdot m \cdot d = 293.0 \times 6.000\times10^{-5} \times 1 = 0.0176~\text{px}
+\end{align*}
+
+\textbf{IMX708 Standard (B0308):} $R_h = 4608$~px, $W = 6.45$~mm, $f = 4.74$~mm
+\begin{align*}
+\rho_{sensor} &= 4608/6.45 = 714.4~\text{px/mm} \quad (\text{pixel pitch } 1.40~\mu\text{m}) \\
+m &= 4.74/99995.26 = 4.740\times10^{-5} \\
+N_{px} &= 714.4 \times 4.740\times10^{-5} \times 1 = 0.0339~\text{px}
+\end{align*}
+
+Taking the ratio directly from Equation \ref{eq:thread-pixels} at $u \gg f$ (so $m \approx f/u$ for both, and $u$ cancels):
+\begin{equation*}
+\frac{N_{px}^{\text{IMX296}}}{N_{px}^{\text{B0308}}} \approx \frac{\rho_{sensor}^{\text{IMX296}}}{\rho_{sensor}^{\text{B0308}}} \times \frac{f^{\text{IMX296}}}{f^{\text{B0308}}} = \frac{293.0}{714.4} \times \frac{6.0}{4.74} = 0.410 \times 1.266 = 0.519
+\end{equation*}
+
+which matches the 0.0176/0.0339 = 0.519 read off the table. The 7.4$\times$ total-pixel-count gap barely enters: what matters is $R_h/W$ (pixel density on the sensor, the inverse of pixel pitch), not $R_h \times R_v$ (total megapixels). The IMX296's pixel pitch (3.41~$\mu$m) is 2.44$\times$ larger than the B0308's (1.40~$\mu$m), so despite having 3.16$\times$ fewer horizontal pixels ($1456$ vs $4608$) it only loses a factor of 0.410 in sensor-side pixel density, not 3.16$\times$ or 7.4$\times$. Paired with a slightly longer focal length in this comparison (6.0~mm vs 4.74~mm, a 1.266$\times$ factor in the IMX296's favor, since this 6~mm lens is the IMX477's lens reused for a like-for-like FOV comparison, not the IMX296's own quoted telephoto), the two factors combine to 0.519, not the much smaller ratio a megapixel-only comparison would suggest. The same mechanism, with a 16~mm instead of 6~mm focal length, is why the IMX296's telephoto configuration (Table \ref{tab:optical-comparison}, Section \ref{sec:global-shutter-candidate}) overtakes the B0308 outright rather than merely approaching it.
 
 The result: the IMX708 module with its standard 66\textdegree{} horizontal field-of-view lens, fixed-focus variant, SKU B0308, was chosen. At every tested distance it matched the current IMX477 baseline's tether pixel resolution within a few percent (for example, 6.8~px versus 7.8~px at 0.5~m, both crossing below 1~px per thread around 4 to 5~m), while the two wider IMX708 lens options (102\textdegree{} and 120\textdegree{} horizontal FOV) lost resolvable pixels on the thread noticeably earlier, around 2~m. The Hawk-eye OV64A40 resolved the thread furthest (to roughly 8 to 10~m) but was not selected, since its 64~MP output is difficult to reconcile with the mission's downlink budget (Section \ref{chap:physical-solar}, and the communications link budget in the APSCO deliverable), and it is a non-standard sensor not covered by the mechanical mounting CAD already produced for the IMX708 module. The fixed-focus B0308 variant was preferred over its autofocus siblings (B0306, B0312, same optics) because a fixed lens has no moving focus mechanism to survive launch vibration or vacuum operation.
 
