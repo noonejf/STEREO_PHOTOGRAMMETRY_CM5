@@ -1,0 +1,32 @@
+\chapter*{Introduction}
+\addcontentsline{toc}{chapter}{Introduction}
+
+The LINKU mission deploys a thin, non-conductive tether between two small satellites, and the camera system reconstructs its geometry from stereo imagery. Before that system can be trusted in orbit it has to be exercised on the ground, against a physical tether proxy, under illumination that resembles what the cameras will actually meet: a single, hard, directional light source, no atmosphere to scatter it, and a background that is essentially black.
+
+A dark room gives the black background and the absence of stray light. It does not, by itself, give the light source. The enclosure currently contains one unspecified bulb whose irradiance, spectrum and beam behaviour have never been measured, which means the experiment has no documented illumination condition, and the Blender replica of the same scene has no real value to match. Obtaining a suitable lamp requires asking someone who works with lighting professionally, and that conversation fails if the request is phrased in the units of an astrophysics paper rather than the units of a film set.
+
+This document exists to make that request precise. It has five chapters:
+
+\begin{itemize}
+    \item Chapter \ref{chap:units} defines the photometric quantities (lumen, candela, lux, nit) and the exposure arithmetic of stops, and identifies which of them the lighting trade actually measures.
+    \item Chapter \ref{chap:sun} derives the orbital Sun as a lighting fixture: its illuminance in lux, obtained by integrating the AM0 reference spectrum against the eye's luminous efficiency function, and the geometric consequences of its angular diameter for shadow sharpness and beam collimation.
+    \item Chapter \ref{chap:sources} summarises how the photovoltaic industry grades solar simulators (IEC 60904-9) and what spacecraft vision laboratories actually installed, separating facts taken from a facility's own operators from facts taken from a survey.
+    \item Chapter \ref{chap:cameras} works the problem from the sensor side, deriving the absolute illuminance required at the tether from the Sony IMX477 datasheet and extending it to the other two candidate cameras, with the exposure ceiling imposed by motion blur and the banding imposed by flicker.
+    \item Chapter \ref{chap:spec} states the resulting specification as numbered, individually testable acceptance criteria, with the on-site measurement protocol and the record sheet that feeds the Blender replica.
+\end{itemize}
+
+\section*{Scope and relation to the other deliverables}
+
+This document covers the \emph{physical} dark-room experiment only. Three boundaries are worth stating explicitly:
+
+\begin{itemize}
+    \item \textbf{Blender.} The companion deliverable, \textit{Blender Simulation Realism Validation for Tether Imaging}, keeps the render-side parameters (Sun strength in W/m\textsuperscript{2}, blackbody colour temperature, scene geometry). It consumes the illuminance, colour temperature and beam geometry measured under the protocol of Chapter \ref{chap:spec} as its laboratory-condition light values. Illumination content that previously lived in that deliverable has been moved here.
+    \item \textbf{Earth albedo.} Spacecraft laboratories commonly add a second, diffuse source to represent light reflected from Earth. This first LINKU experiment reproduces direct sunlight only, and albedo is out of scope.
+    \item \textbf{Optical configuration.} The lens fitted to the IMX477 stereo pair today is the Arducam C1508ZM04, 8~mm F1.6 to F16, and that is the configuration the requirement is anchored on. Because the project owns two other interchangeable lenses and is still choosing a sensor, Chapter \ref{chap:cameras} carries all six sensor-and-lens combinations through the calculation, so the light cost of any future swap can be read off directly.
+\end{itemize}
+
+\section*{How the numbers in this document were produced}
+
+Every derived quantity in this report is computed by a single script, \texttt{illumination\_numbers.py} in \texttt{Sources/data/}, from primary data files stored beside it and from constants declared at the top of that script with the source of each one. No figure in any table was typed in by hand. The two data-driven figures are produced by \texttt{Sources/data/make\_figures.py} from the same inputs. Appendix \ref{app:numeric} reproduces the script's complete output so that any table in this document can be traced to the line that generated it.
+
+Source documents are archived in \texttt{Sources/}. Where a claim could only be verified through a secondary source, or could not be verified at all, the text says so at the point of use rather than in a footnote.

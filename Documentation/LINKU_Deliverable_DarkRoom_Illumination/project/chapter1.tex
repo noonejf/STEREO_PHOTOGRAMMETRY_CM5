@@ -1,0 +1,186 @@
+\chapter{Photometric Quantities and the Language of Lighting}
+\label{chap:units}
+
+\section{Why the units matter for this request}
+
+The astrophysical literature describes the Sun in watts per square metre. A lighting professional sizes a fixture in lumens and verifies it on set in lux. These are not the same quantity measured in different units: one counts total radiant power, the other counts only the part of that power the human eye responds to, weighted wavelength by wavelength. Asking a lighting specialist for ``1361 watts per square metre'' is therefore not a specification they can act on, and asking for ``a lamp of so many lumens'' is not a specification this experiment can verify. This chapter fixes the vocabulary so that Chapters \ref{chap:sun} to \ref{chap:spec} can state the requirement in terms both sides can check.
+
+\section{The four quantities}
+
+Four photometric quantities appear in this document. They differ in what is being divided by what: total light, light per direction, light arriving per unit area, and light leaving per unit area per direction. Figure \ref{fig:photometric-chain} shows where each one sits along the path from lamp to sensor.
+
+\begin{figure}[!ht]
+\centering
+\begin{tikzpicture}[>=Stealth, font=\small, scale=1.0]
+
+% ---- Lamp -------------------------------------------------------------
+\foreach \a in {0,24,...,336}{\draw[gray!55,-{Stealth[length=1.6mm]}] (0,0) -- (\a:0.62);}
+\fill (0,0) circle (2.6pt);
+\node[align=center, font=\footnotesize] at (0,-1.62) {lamp, emitting\\in all directions};
+\node[draw, rounded corners=2pt, fill=white, inner sep=2.5pt, font=\footnotesize]
+      at (0,1.5) {$\Phi_v$ \ [lm]};
+
+% ---- Solid angle / beam ------------------------------------------------
+\fill[black!8] (0.65,0.115) -- (4.3,0.78) -- (4.3,-0.78) -- (0.65,-0.115) -- cycle;
+\draw[black!45] (0.65,0.115) -- (4.3,0.78);
+\draw[black!45] (0.65,-0.115) -- (4.3,-0.78);
+\draw[-{Stealth[length=2mm]}] (0.7,0) -- (4.25,0);
+\node[draw, rounded corners=2pt, fill=white, inner sep=2.5pt, font=\footnotesize]
+      at (2.45,1.5) {$I_v = \dfrac{d\Phi_v}{d\Omega}$ \ [cd]};
+\node[align=center, font=\footnotesize] at (2.45,-1.62) {in one direction,\\per unit solid angle};
+
+% ---- Receiving surface -------------------------------------------------
+\draw[line width=1.1pt] (4.3,-1.05) -- (4.3,1.05);
+\fill[pattern=north east lines, pattern color=black!35] (4.3,-0.78) rectangle (4.42,0.78);
+\node[draw, rounded corners=2pt, fill=white, inner sep=2.5pt, font=\footnotesize]
+      at (5.05,1.62) {$E_v = \dfrac{d\Phi_v}{dA}$ \ [lx]};
+\draw[black!45, dotted] (4.3,-1.15) -- (4.3,-2.42);
+\node[align=center, font=\footnotesize] at (4.3,-2.72) {arriving on the surface};
+
+% ---- Reflected toward the camera --------------------------------------
+\draw[-{Stealth[length=2mm]}] (4.45,0.35) -- (6.85,0.95);
+\draw[-{Stealth[length=2mm]}] (4.45,0.1) -- (6.9,0.1);
+\draw[-{Stealth[length=2mm]}] (4.45,-0.15) -- (6.85,-0.75);
+\node[draw, rounded corners=2pt, fill=white, inner sep=2.5pt, font=\footnotesize]
+      at (7.3,1.62) {$L_v$ \ [cd/m\textsuperscript{2}]};
+\node[align=center, font=\footnotesize] at (6.85,-1.62) {leaving the surface,\\what the camera sees};
+
+% ---- Camera -------------------------------------------------------------
+\draw[line width=0.8pt] (8.0,-0.42) rectangle (8.95,0.42);
+\draw[line width=0.8pt] (7.78,-0.24) rectangle (8.0,0.24);
+\node[font=\footnotesize] at (8.48,-0.95) {camera};
+
+\end{tikzpicture}
+\caption[The photometric chain from lamp to sensor]{The photometric chain. The same light is counted four ways: as a total ($\Phi_v$), per unit solid angle ($I_v$), per unit area where it lands ($E_v$), and per unit area and solid angle where it leaves a surface ($L_v$). Only $E_v$ and $L_v$ depend on where the lamp is placed; $\Phi_v$ and $I_v$ are properties of the fixture alone.}
+\label{fig:photometric-chain}
+\end{figure}
+
+\subsection{Luminous flux, the lumen}
+
+Luminous flux $\Phi_v$ is total radiant power weighted by the eye's spectral response. For a source with spectral radiant flux $\Phi_{e,\lambda}$,
+
+\begin{equation}
+\Phi_v = K_m \int_{0}^{\infty} \Phi_{e,\lambda}(\lambda)\, V(\lambda)\, d\lambda ,
+\label{eq:lumen}
+\end{equation}
+
+where $V(\lambda)$ is the CIE photopic spectral luminous efficiency function \cite{cie_vlambda} and $K_m = 683$~lm/W is the maximum luminous efficacy, the constant that ties the photometric system to the watt through the SI definition of the candela. $V(\lambda)$ peaks at 555~nm and falls to zero outside roughly 380--780~nm, so radiant power in the infrared or the ultraviolet contributes nothing to $\Phi_v$ no matter how much of it there is.
+
+The ratio of the two is the \emph{luminous efficacy of the radiation},
+
+\begin{equation}
+K = \frac{\Phi_v}{\Phi_e} \quad \mathrm{[lm/W]} ,
+\label{eq:efficacy}
+\end{equation}
+
+a property of the source's spectrum. Section \ref{sec:sun-lux} evaluates it for sunlight.
+
+\subsection{Luminous intensity, the candela}
+
+A fixture that concentrates its output into a narrow beam is brighter in that direction than one that spreads the same flux over a hemisphere. Luminous intensity is flux per unit solid angle,
+
+\begin{equation}
+I_v = \frac{d\Phi_v}{d\Omega} \quad \mathrm{[lm/sr = cd]} .
+\label{eq:candela}
+\end{equation}
+
+This is why lumens alone cannot specify this experiment: two fixtures with identical lumen ratings deliver very different light to the tether if their beam angles differ.
+
+\subsection{Illuminance, the lux}
+
+Illuminance is the luminous flux arriving per unit area of a surface,
+
+\begin{equation}
+E_v = \frac{d\Phi_v}{dA} \quad \mathrm{[lm/m^2 = lx]} .
+\label{eq:lux}
+\end{equation}
+
+For a source small enough to be treated as a point, at distance $d$, illuminating a surface whose normal makes an angle $\theta$ with the direction to the source, Equations \ref{eq:candela} and \ref{eq:lux} combine into the inverse-square cosine law,
+
+\begin{equation}
+E_v = \frac{I_v \cos\theta}{d^{\,2}} .
+\label{eq:inverse-square}
+\end{equation}
+
+Equation \ref{eq:inverse-square} is the single most consequential relation in this document: Section \ref{sec:falloff} uses it to show why an uncollimated lamp cannot illuminate the LINKU structure uniformly, and Section \ref{sec:multi-lamp} uses it to rule out lighting the tether end-on.
+
+Illuminance is what a hand-held incident light meter reads when its diffusing dome is placed at the subject position, and it is the quantity this document specifies throughout. In countries using imperial units the same quantity is quoted in foot-candles, where $1~\mathrm{fc} = 1~\mathrm{lm/ft^2} = 10.764~\mathrm{lx}$.
+
+\subsection{Luminance, the nit}
+
+Luminance describes how bright a surface \emph{appears}, which is what a camera actually measures. It is flux per unit projected area per unit solid angle,
+
+\begin{equation}
+L_v = \frac{d^2\Phi_v}{dA\,\cos\theta\,d\Omega} \quad \mathrm{[cd/m^2]} .
+\label{eq:luminance}
+\end{equation}
+
+For the specific case of a Lambertian diffuse reflector, a matte surface that scatters light equally in all directions, of reflectance $\rho$ under illuminance $E_v$, the luminance is
+
+\begin{equation}
+L_v = \frac{\rho\, E_v}{\pi} .
+\label{eq:lambertian}
+\end{equation}
+
+Equation \ref{eq:lambertian} is the bridge between the lighting specification (stated in lux) and the sensor datasheet (stated in cd/m\textsuperscript{2}). Chapter \ref{chap:cameras} uses it in exactly that role. The factor $\pi$, not $2\pi$, follows from integrating the cosine-weighted radiance over the hemisphere.
+
+\subsection{Summary table}
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Photometric quantities used in this document]{The four photometric quantities, their radiometric counterparts, and their role here.}
+\label{tab:quantities}
+\begin{tabularx}{\textwidth}{p{0.14\textwidth} p{0.10\textwidth} p{0.17\textwidth} X}
+\toprule
+\textbf{Quantity} & \textbf{Unit} & \textbf{Radiometric twin} & \textbf{What it answers, and where it is used here} \\
+\midrule
+Luminous flux $\Phi_v$ & lumen (lm) & radiant flux, W & How much light the lamp makes in total. Quoted in manufacturer catalogues; not a specification for this experiment. \\
+Luminous intensity $I_v$ & candela (cd) & radiant intensity, W/sr & How much of it goes in the direction we care about. Implicit in the beam-angle requirement. \\
+Illuminance $E_v$ & lux (lx) & irradiance, W/m\textsuperscript{2} & How much light reaches the tether. \textbf{The quantity this document specifies and the experiment measures.} \\
+Luminance $L_v$ & cd/m\textsuperscript{2} (nit) & radiance, W/(m\textsuperscript{2}\,sr) & How bright the tether looks to the camera. The quantity image-sensor datasheets are written in. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Exposure arithmetic: stops and EV}
+\label{sec:stops}
+
+Lighting and camera work is done in base-2 logarithms of light level. One \emph{stop}, equivalently one unit of exposure value (EV), is a factor of two:
+
+\begin{equation}
+\Delta\mathrm{EV} = \log_2\!\left(\frac{E_1}{E_2}\right) .
+\label{eq:stops}
+\end{equation}
+
+The image a camera forms depends on the product of illuminance and exposure time, the \emph{photometric exposure}
+
+\begin{equation}
+H_v = E_v \, t \quad \mathrm{[lx\,s]} ,
+\label{eq:exposure}
+\end{equation}
+
+so a laboratory source dimmer than the Sun can be compensated by a proportionally longer exposure. That trade has a hard limit in this experiment, because the rotation test of the companion rolling-shutter deliverable caps the usable exposure time; Chapter \ref{chap:cameras} quantifies it.
+
+Expressing a tolerance in stops also makes the uniformity requirement intuitive for a lighting specialist. The IEC non-uniformity definition used in Chapter \ref{chap:sources} compares the brightest and darkest point of the illuminated area; converting that ratio with Equation \ref{eq:stops} gives Table \ref{tab:nu-stops}.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[IEC non-uniformity classes expressed in photographic stops]{The IEC 60904-9 non-uniformity classes \cite{iec60904_9_2020}, restated as the exposure difference a photographer would read between the brightest and the darkest point of the working area. Computed by \texttt{illumination\_numbers.py}.}
+\label{tab:nu-stops}
+\begin{tabular}{lccc}
+\toprule
+\textbf{IEC class} & \textbf{Non-uniformity $NU$} & \textbf{$E_{max}/E_{min}$} & \textbf{Spread in stops} \\
+\midrule
+A+ & $\leq$1\%  & 1.020 & 0.029~EV \\
+A  & $\leq$2\%  & 1.041 & 0.058~EV \\
+B  & $\leq$5\%  & 1.105 & 0.144~EV \\
+C  & $\leq$10\% & 1.222 & 0.290~EV \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{What a lighting professional actually measures}
+
+Of the four quantities, the one used on set is illuminance in lux, read with an incident light meter at the subject. Catalogue data is published as luminous flux in lumens together with an illuminance-versus-distance table, and colour quality is reported as a correlated colour temperature with a rendering index. The specification in Chapter \ref{chap:spec} is written in exactly these terms, with one acceptance test per line that can be performed with a light meter, a ruler and the project's own cameras.

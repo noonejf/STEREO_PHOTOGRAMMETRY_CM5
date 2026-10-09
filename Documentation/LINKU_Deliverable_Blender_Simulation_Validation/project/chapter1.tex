@@ -61,7 +61,19 @@ Two different irradiance values are relevant depending on which condition is bei
 
 The orbital-condition Blender scene described in this document must use one of the two AM0 values above, not the ground-level value. This distinction is easy to overlook because most publicly available Blender tutorials and default scene templates assume a terrestrial, atmosphere-filtered Sun.
 \\\\
-\todo[inline]{The ASTM E490 standard itself has not been directly reviewed for this document; the 1361 W/m\textsuperscript{2} figure above is sourced from its role as a comparison point in Meftah et al. \cite{meftah2018solariss}, not from a direct reading of the standard. Obtain and verify against ASTM E490 directly if this figure needs to be cited as a primary requirement rather than as background justification.}
+The ASTM E490 AM0 spectral table has since been obtained and integrated directly. That work, together with the conversion of the solar constant into the photometric units a lighting specialist works in, is reported in the companion deliverable \textit{Dark-Room Solar Illumination Specification for Tether Imaging}, which supersedes the illumination material formerly carried in this document.
+
+\section{Where the illumination parameters come from}
+\label{sec:illumination-pointer}
+
+Two distinct light configurations are needed for the two renders of this document, and they are sourced differently.
+
+\begin{itemize}
+    \item \textbf{Orbital-condition render.} Sun strength 1361 W/m\textsuperscript{2} (AM0) and a blackbody colour of 5772 K, as established above. These are nominal constants and require no measurement.
+    \item \textbf{Laboratory-condition render.} Sun strength, colour temperature, lamp position and aim, and the light's angular size, which is the parameter controlling shadow softness, all come from the physical dark-room session. The specification for that session, its measurement protocol and the record sheet that carries the values back into this scene are in the companion deliverable \textit{Dark-Room Solar Illumination Specification for Tether Imaging}. Until that session has been run, the laboratory-condition light in this document remains a placeholder.
+\end{itemize}
+
+\todo[inline]{Pending: replace the placeholder laboratory-condition light values with the measured illuminance, colour temperature, lamp geometry and penumbra width recorded during the dark-room session.}
 
 \section{Validating rendered realism against real images}
 

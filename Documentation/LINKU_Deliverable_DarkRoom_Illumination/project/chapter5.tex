@@ -1,0 +1,219 @@
+\chapter{Specification and Measurement Protocol}
+\label{chap:spec}
+
+This chapter states the requirement as eight numbered items, each with the value, the source it comes from, and an acceptance test that can be performed on site with a light meter, a ruler and the project's own cameras. Items whose value is fixed by physics are distinguished from items whose value is a project threshold that may be revised if the available equipment cannot meet it.
+
+\section{Summary of requirements}
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Summary of the eight illumination requirements]{The eight requirements. ``Physics'' marks a value fixed by the Sun itself; ``project'' marks a threshold adopted for LINKU and open to revision.}
+\label{tab:spec}
+\begin{tabularx}{\textwidth}{c p{0.21\textwidth} p{0.26\textwidth} X}
+\toprule
+\textbf{\#} & \textbf{Requirement} & \textbf{Value} & \textbf{Basis} \\
+\midrule
+R1 & One light direction, no fill & 1 direction, no bounce, no ambient & Physics; Sec. \ref{sec:r1} \\
+R2 & Daylight colour & 5600--6000 K nominal, CRI $\geq$ 90, TLCI reported & Project, from Table \ref{tab:vision-labs}; Sec. \ref{sec:r2} \\
+R3 & Parallel beam & penumbra $\leq$ 35 mm at 1 m, i.e. $\alpha \leq 2$\textdegree & Project; physics reference 9.3 mm; Sec. \ref{sec:r3} \\
+R4 & Uniformity & $NU \leq 5\%$, i.e. $\leq$ 0.14 EV spread & Project, IEC class B; Sec. \ref{sec:r4} \\
+R5 & Illuminance at the tether & $\geq$ 3600 lx at 1\textdegree/s; $\geq$ 10\,000 lx at 2.76\textdegree/s & Datasheet derivation, Ch. \ref{chap:cameras}; Sec. \ref{sec:r5} \\
+R6 & Stability and flicker & $\leq$ 2\% over the session; flicker-free fixture & Project, IEC class B STI; Sec. \ref{sec:r6} \\
+R7 & Black environment & black velvet or molton; lamp out of frame & Project, from Table \ref{tab:vision-labs}; Sec. \ref{sec:r7} \\
+R8 & Recorded data & the sheet of Table \ref{tab:record} & Feeds the Blender replica; Sec. \ref{sec:r8} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{The requirements in detail}
+
+\subsection{R1: one light direction, hard light, no fill}
+\label{sec:r1}
+
+\textbf{Value.} A single key light, or several fixtures aimed strictly parallel as described in Section \ref{sec:multi-lamp}. No fill light, no bounce boards, no practical sources, no residual ambient light.
+
+\textbf{Basis.} In orbit the tether is lit from one direction by one source at effectively infinite distance, and there is no atmosphere to scatter light into the shadows. Earth albedo, the second source that real spacecraft see, is out of scope for this experiment.
+
+\textbf{Acceptance test.} With the lamp off and the room closed, the cameras at the longest exposure to be used must record no discernible scene. Any structure visible in that frame is stray light and must be eliminated before proceeding.
+
+\subsection{R2: daylight colour}
+\label{sec:r2}
+
+\textbf{Value.} Manufacturer-rated correlated colour temperature between 5600 and 6000~K, colour rendering index $\geq$ 90. The fixture's TLCI is requested as a reported figure, with no threshold attached.
+
+\textbf{Basis.} Every facility in Table \ref{tab:vision-labs} that states a colour temperature falls in 5600--6000~K, and the EPOS sun simulator is specified at 6000~K with a colour rendering index of 90 \cite{dlr2025eposportfolio}. The Sun's nominal effective temperature is 5772~K \cite{prsa2016iau}. TLCI is requested because the colour rendering index was designed for human vision and the EBU developed TLCI specifically because CRI ``was never intended for use in the television industry'' and has limitations that make it inappropriate there \cite{ebu_tech3355}; no TLCI threshold is set because none was found in any reviewed source. Any fixture whose rated colour temperature lies outside the range is excluded, which rules out tungsten halogen at 3200~K without needing a separate argument.
+
+\textbf{Acceptance test.} Manufacturer specification sheet, confirmed on site with a colour meter if one is available.
+
+\subsection{R3: parallel beam}
+\label{sec:r3}
+
+\textbf{Value.} Penumbra width $\leq$ 35~mm measured 1~m behind a shadowing edge, corresponding through Equation \ref{eq:penumbra} to a source angular size of 2\textdegree{} or less.
+
+\textbf{Basis.} The real Sun gives 9.3~mm per metre (Table \ref{tab:penumbra}); the ESA Large Space Simulator achieves a 1.9\textdegree{} collimation angle, equivalent to 33.2~mm per metre \cite{esa_lss}. The 2\textdegree{} threshold is set just outside that reference. Section \ref{sec:falloff} gives the second, independent reason for collimation: without it, the inverse-square gradient across the working volume makes R4 unreachable at any throw a dark room can provide.
+
+\textbf{Acceptance test.} Hold a straight edge 1~m in front of a white card at the tether position and measure the width of the soft transition at the shadow boundary with a ruler. No optical instrument is required.
+
+\textbf{Fixture types that meet it.} Among the reviewed facilities: an HMI spotlight \cite{benninghoff2017epos}, a metal halide arc lamp \cite{park2021tron}, and an LED fixture with a collimator \cite{pauly2022spacelab}. A Fresnel at full spot or a parabolic reflector at the longest available throw is the expected starting point.
+
+\subsection{R4: uniformity over the working volume}
+\label{sec:r4}
+
+\textbf{Value.} $NU = (E_{max}-E_{min})/(E_{max}+E_{min}) \leq 5\%$, equivalently a spread of no more than 0.14~EV between the brightest and darkest point of the volume occupied by the LINKU structure and tether.
+
+\textbf{Basis.} Class B of IEC 60904-9, using that standard's own definition, Equation \ref{eq:nu} \cite{iec60904_9_2020}. For comparison, the ESA Large Space Simulator reports $\pm$4\% in plane \cite{esa_lss}, and the GRALS lamp is described as $\pm$5\% \cite{pauly2022spacelab}.
+
+\textbf{Acceptance test.} Incident light meter readings on a three-dimensional grid covering the full width, height and \emph{depth} of the working volume. The depth axis is the one that fails first, per Table \ref{tab:falloff}, and is the one most often omitted from a uniformity check.
+
+\subsection{R5: illuminance at the tether}
+\label{sec:r5}
+
+\textbf{Value.} At least 3600~lx for tests at 1\textdegree/s, and at least 10\,000~lx for tests at 2.76\textdegree/s, measured at the tether position with the beam in its final configuration. More is better, since it buys shorter exposures.
+
+\textbf{Basis.} Table \ref{tab:light-budget}, sized for the Hawk-eye as the most demanding of the three cameras. For scale, 10\,000~lx is 3.7 stops below the orbital Sun of Equation \ref{eq:sun-lux}, and the 12~kW HMI at EPOS brackets one solar constant between 7 and 10~m \cite{dlr2025eposportfolio}. This requirement is a floor derived for a white card; the four assumptions of Section \ref{sec:light-budget} all push the real figure upward, which is why the on-site test of Section \ref{sec:protocol} measures it against the real tether.
+
+\textbf{Acceptance test.} Incident light meter at the tether position, plus the camera test of Section \ref{sec:protocol}.
+
+\subsection{R6: stability and freedom from flicker}
+\label{sec:r6}
+
+\textbf{Value.} Illuminance stable within 2\% over a capture session after warm-up. The fixture must be flicker-free: for HMI, an electronic ballast in a flicker-free mode, preferably the high-speed mode; for LED, the dimming method and pulse-width-modulation frequency must be declared by the manufacturer and verified on site. Magnetic ballasts, and the 50/60~Hz low-noise mode of an electronic ballast, are excluded \cite{arri_eb1218_manual}.
+
+\textbf{Basis.} The 2\% figure is the class B short-term instability threshold of IEC 60904-9 \cite{iec60904_9_2020}. The flicker requirement follows from Section \ref{sec:flicker}: on a 50~Hz supply the output period of 10~ms is comparable to every exposure ceiling in Table \ref{tab:light-budget}, producing banding contrasts of up to 83\% on a rolling-shutter sensor (Table \ref{tab:flicker-contrast}) and frame-to-frame brightness variation on a global-shutter one.
+
+\textbf{Acceptance test.} Light meter readings at one-minute intervals through a full session, after the warm-up time stated by the manufacturer. Separately, with each camera: photograph a uniformly lit white card at the shortest exposure to be used, and check for horizontal bands on the rolling-shutter cameras and for brightness variation across a burst of frames on the global-shutter camera.
+
+\subsection{R7: black, non-reflective environment}
+\label{sec:r7}
+
+\textbf{Value.} Black velvet or molton behind and around the structure and on all supports inside the camera field. No light spill onto walls, floor or ceiling. The fixture itself outside the camera field of view.
+
+\textbf{Basis.} Black molton curtain, carpet and robot wrapping are what DLR EPOS uses \cite{benninghoff2017epos,dlr2025eposportfolio}, black commando curtains are what Stanford TRON uses \cite{park2021tron}, and black velvet scored best among the background materials the SnT Zero-G Lab tested with the Raspberry Pi HQ camera \cite{pauly2022spacelab}. TRON also reports the sun lamp casting a flare across the image when the camera points near it \cite{park2021tron}, which is the reason for keeping the fixture out of frame. IEC 60904-9 independently lists reflections from dark-room walls among the factors that invalidate a measured classification \cite{iec60904_9_2020}.
+
+\textbf{Acceptance test.} Covered by the R1 stray-light test, plus visual inspection of each camera's framing for the fixture and for specular returns from supports.
+
+\subsection{R8: recorded data}
+\label{sec:r8}
+
+\textbf{Value.} The record sheet of Table \ref{tab:record}, completed during the session.
+
+\textbf{Basis.} These values are the inputs the Blender replica needs in order to reproduce the same light instead of a placeholder, and they are also what makes the experiment reproducible.
+
+\section{Several lamps for a long set}
+\label{sec:multi-lamp}
+
+The requirement of R1 is one light \emph{direction}, not one fixture. In orbit the whole tether receives sunlight at the same incidence angle and the same irradiance, because the source is effectively at infinity. When a single beam cannot cover the illuminated length of the tether, several identical fixtures may be placed in a row, all aimed parallel, at equal distance and equal incidence angle. Among the reviewed facilities, INVERITAS is reported to use six motorised spotlights \cite{pauly2022spacelab}, though that entry rests on a secondary source. No reviewed source describes how a parallel row is aligned, so the rules below follow from the geometry of Chapter \ref{chap:sun} rather than from a precedent.
+
+\begin{figure}[!ht]
+\centering
+\begin{tikzpicture}[>=Stealth, font=\small, scale=1.0]
+
+% =============== CORRECT ===============
+\begin{scope}
+\node[font=\footnotesize\bfseries, anchor=west] at (-0.3,2.35) {CORRECT};
+\node[font=\footnotesize, anchor=west] at (-0.3,2.02) {(top view)};
+\draw[line width=1.6pt] (-0.1,1.35) -- (5.0,1.35);
+\node[font=\footnotesize, anchor=south] at (2.45,1.45) {tether};
+\foreach \x in {0.75,2.45,4.15}{
+  \draw[-{Stealth[length=2.2mm]}, line width=0.8pt] (\x,-0.55) -- (\x,1.22);
+  \draw[fill=black!18] (\x-0.3,-1.0) rectangle (\x+0.3,-0.58);
+}
+\draw[|<->|, black!60] (0.75,-1.42) -- (2.45,-1.42);
+\draw[|<->|, black!60] (2.45,-1.42) -- (4.15,-1.42);
+\node[font=\footnotesize, fill=white, inner sep=1pt] at (1.6,-1.42) {$s$};
+\node[font=\footnotesize, fill=white, inner sep=1pt] at (3.3,-1.42) {$s$};
+\node[align=center, font=\footnotesize] at (2.45,-2.05) {identical fixtures, same distance,\\same incidence angle};
+\end{scope}
+
+% =============== INCORRECT ===============
+\begin{scope}[xshift=7.6cm]
+\node[font=\footnotesize\bfseries, anchor=west] at (-0.3,2.35) {INCORRECT};
+\draw[line width=1.6pt] (-0.1,1.35) -- (5.0,1.35);
+\node[font=\footnotesize, anchor=south] at (2.45,1.45) {tether};
+% converging lamps
+\draw[-{Stealth[length=2.2mm]}, line width=0.8pt] (0.45,-0.55) -- (2.15,1.22);
+\draw[fill=black!18] (0.15,-1.0) rectangle (0.75,-0.58);
+\draw[-{Stealth[length=2.2mm]}, line width=0.8pt] (4.45,-0.55) -- (2.75,1.22);
+\draw[fill=black!18] (4.15,-1.0) rectangle (4.75,-0.58);
+% end-on lamp
+\draw[-{Stealth[length=2.2mm]}, line width=0.8pt, black!55] (5.55,1.35) -- (5.15,1.35);
+\draw[fill=black!18, black!55] (5.58,1.14) rectangle (6.18,1.56);
+\node[font=\footnotesize, anchor=west, black!55, align=left] at (5.3,0.72) {end-on:\\grazing,\\and falls off};
+\node[align=center, font=\footnotesize] at (2.45,-2.05) {converging beams give two shadows\\and two specular lines on the tether};
+\end{scope}
+
+\end{tikzpicture}
+\caption[Correct and incorrect multi-lamp layouts]{Multi-lamp layout, seen from above. Left: fixtures in a row, all aimed parallel at equal spacing $s$ and equal distance, reproduce a single light direction along the whole tether. Right: beams arriving from different angles each produce their own shadow and their own specular highlight on a cylindrical tether, so the thread can appear doubled in the image; and a fixture placed at one end illuminates the tether at grazing incidence with inverse-square falloff along its length.}
+\label{fig:multilamp}
+\end{figure}
+
+Three configurations are excluded:
+
+\begin{enumerate}
+    \item \textbf{Converging beams.} Each light direction produces its own shadow and, on a specular cylindrical tether, its own highlight line. Two highlight lines on a target that is itself about one pixel wide (Table \ref{tab:sampling}) can present as a doubled thread, which is a failure mode the stereo matching stage is not designed to handle.
+    \item \textbf{Mixed fixtures or colour temperatures along the row.} This violates R2 locally even if each fixture passes individually, and it makes the colour of the tether a function of position.
+    \item \textbf{A fixture at one end, shining along the tether.} The incidence angle becomes grazing and Equation \ref{eq:inverse-square} applies along the tether's own length, so the far end is both dimmer and differently shaded.
+\end{enumerate}
+
+The spacing $s$ is determined on site, not in advance: measure the illuminance profile of one fixture along the tether axis, then space the fixtures so that the summed profile, including the overlap regions where contributions add, satisfies R4 over the whole illuminated length. The number of fixtures required is the illuminated length divided by the usable width of one beam, where usable means the portion that keeps the summed profile within R4.
+
+\todo[inline]{Pending: the illuminated tether length in the dark room and the usable beam width of the candidate fixture are both unknown, so the fixture count cannot be stated here. Determine both before the session is scheduled.}
+
+\section{Measurement protocol}
+\label{sec:protocol}
+
+The order matters: the geometric requirements are settled before the photometric ones, because moving a fixture to fix uniformity changes the illuminance, while dimming it does not change the uniformity.
+
+\begin{enumerate}
+    \item \textbf{Darken.} Close the room, cover all ambient sources, install the black background and wrap the supports. Verify R1 with the stray-light frame.
+    \item \textbf{Warm up.} Run the fixture for the manufacturer's stated warm-up time before any measurement. For HMI this is several minutes; EBU recommends at least 30 minutes for the spectroradiometer itself where one is used \cite{ebu_tech3355}.
+    \item \textbf{Set the beam.} Position and aim the fixture at the longest throw the room allows, at full spot. Verify R3 with the straight-edge and ruler test at 1~m.
+    \item \textbf{Map uniformity.} Measure the illuminance grid over the working volume, including the depth axis, and compute $NU$ from Equation \ref{eq:nu}. If R4 fails, adjust the beam or add fixtures per Section \ref{sec:multi-lamp} and repeat from step 3.
+    \item \textbf{Record the level.} With the geometry settled, record the illuminance at the tether position and check it against R5.
+    \item \textbf{Check flicker.} With each camera in turn, at base gain and fixed white balance, photograph a uniformly lit white card at the shortest exposure that will be used. Check for horizontal bands on the IMX477 and the Hawk-eye, and for brightness variation over a burst of frames on the IMX296.
+    \item \textbf{Check against the real tether.} Install the tether proxy at its working position. With each camera at base gain, fixed white balance and manual exposure set to its ceiling from Table \ref{tab:light-budget}, confirm that the tether is resolved without saturating and without visible blur. This step replaces the white-card estimate of Section \ref{sec:light-budget} with a measured value, and it is the one that validates or corrects the two assumption-based rows of that table.
+    \item \textbf{Monitor stability.} Log illuminance at one-minute intervals for the duration of a representative session and verify R6.
+    \item \textbf{Complete the record sheet} of Table \ref{tab:record}.
+\end{enumerate}
+
+\section{Record sheet}
+\label{sec:record}
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Data to record during the dark-room session]{Record sheet. The last column indicates which requirement or downstream consumer each entry serves.}
+\label{tab:record}
+\begin{tabularx}{\textwidth}{X l p{0.14\textwidth} p{0.14\textwidth}}
+\toprule
+\textbf{Quantity} & \textbf{Unit} & \textbf{Value} & \textbf{Serves} \\
+\midrule
+Fixture make, model, modifier, quantity, ballast or driver mode & text & & R2, R3, R6 \\
+Working volume of the structure: width, height, depth & m & & R4 \\
+Illuminated tether length & m & & Sec. \ref{sec:multi-lamp} \\
+Fixture throw and incidence angle relative to structure and cameras & m, \textdegree & & R3, Blender \\
+Illuminance at the tether position & lx & & R5, Blender \\
+Uniformity grid: minimum and maximum & lx & & R4 \\
+Measured correlated colour temperature & K & & R2, Blender \\
+Penumbra width at 1 m & mm & & R3, Blender \\
+Illuminance log: minimum and maximum over the session & lx & & R6 \\
+Per camera: model, lens, exposure time, analogue gain, white balance & text & & R5, R6 \\
+Flicker check result per camera & pass/fail & & R6 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{What this hands to the Blender deliverable}
+\label{sec:to-blender}
+
+The companion deliverable on Blender simulation validation renders the same scene and compares it against the photographs taken under this specification. Four of the recorded quantities become its laboratory-condition light parameters, replacing the placeholder values it currently carries:
+
+\begin{itemize}
+    \item \textbf{Illuminance at the tether}, converted to the irradiance units Blender's Sun lamp expects. For a source of known correlated colour temperature the conversion is a division by that source's luminous efficacy, the quantity defined in Equation \ref{eq:efficacy}; for the orbital-condition render the deliverable continues to use the AM0 value of 1361~W/m\textsuperscript{2} directly.
+    \item \textbf{Measured colour temperature}, as the blackbody shader temperature.
+    \item \textbf{Fixture position and aim}, as the lamp transform in the scene.
+    \item \textbf{Penumbra width at 1 m}, which fixes the angular size of the Blender light, the parameter that controls shadow softness, through Equation \ref{eq:penumbra}.
+\end{itemize}
+
+The last of these is worth emphasising, because it is the parameter most often left at its default in a render: a Blender sun with the wrong angular size produces shadows of the wrong sharpness, and the resulting image will not match the photograph no matter how accurate the irradiance value is.

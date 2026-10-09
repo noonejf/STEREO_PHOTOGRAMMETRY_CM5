@@ -1,0 +1,67 @@
+\documentclass[a4paper, twoside]{report}
+
+%% Language and font encodings
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+\usepackage{placeins}
+\usepackage{tabularx}
+\usepackage{longtable}
+\setcounter{secnumdepth}{3}
+\usepackage{array}
+\usepackage{subcaption}
+\usepackage[table]{xcolor}
+\usepackage{multirow}
+\usepackage{verbatim}
+
+\newcolumntype{M}[1]{>{\centering\arraybackslash}m{#1}}
+
+%% Sets page size and margins
+\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+%% Useful packages
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{fancyhdr}
+
+\usepackage{parskip}
+
+%% Diagrams
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit,
+                backgrounds, decorations.pathreplacing, angles, quotes, patterns}
+
+\begin{document}
+\input{title/title.tex}
+
+\begin{abstract}
+This document specifies the artificial illumination required to photograph the LINKU tether inside a laboratory dark room under conditions representative of direct orbital sunlight, and derives every numerical requirement from a primary source: the AM0 reference solar spectrum, the IAU nominal solar constants, the IEC 60904-9 solar-simulator classification standard, published descriptions of spacecraft vision-based navigation laboratories, and the image-sensor datasheets of the three candidate cameras.
+
+It is written to be handed to a lighting specialist. Chapter \ref{chap:units} therefore establishes the photometric vocabulary, explaining what the lumen, candela, lux and nit each measure and which of them a lighting professional actually works with. Chapter \ref{chap:sun} converts the Sun from the radiometric units used in the astrophysical literature (W/m\textsuperscript{2}) into the photometric units used on a film set (lx), and derives the geometric consequences of the Sun's angular size. Chapter \ref{chap:sources} reviews what the photovoltaic classification standard requires and what comparable space laboratories actually built. Chapter \ref{chap:cameras} derives, from the Sony IMX477 datasheet, the absolute illuminance needed at the tether, and extends it to the other two candidate sensors. Chapter \ref{chap:spec} collects the result as a numbered acceptance specification with an on-site measurement protocol.
+
+This document covers the \emph{physical} experiment. The companion deliverable on Blender simulation validation covers the rendered counterpart and consumes the illumination values measured here as its laboratory-condition light parameters.
+
+The specification is complete; the measurements are pending, and the items that require on-site determination are marked as such throughout.
+\end{abstract}
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+\input{project/introduction.tex}
+\input{project/chapter1.tex}
+\input{project/chapter2.tex}
+\input{project/chapter3.tex}
+\input{project/chapter4.tex}
+\input{project/chapter5.tex}
+\input{project/conclusion.tex}
+\input{appendix/appendix.tex}
+
+\bibliographystyle{ieeetr}
+\bibliography{bibs/sample}
+
+\end{document}

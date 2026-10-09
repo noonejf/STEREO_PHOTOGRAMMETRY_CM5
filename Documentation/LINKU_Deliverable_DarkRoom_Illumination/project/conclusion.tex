@@ -1,0 +1,47 @@
+\chapter{Conclusion}
+
+\section{What this document establishes}
+
+The illumination for the LINKU dark-room experiment is now specified as eight numbered, individually testable requirements (Table \ref{tab:spec}), stated in the units a lighting specialist works in and traceable item by item to either a primary source or an explicit project decision. Three results are worth restating.
+
+\textbf{The Sun, expressed as a lighting fixture.} Integrating the ASTM E490 AM0 spectrum against the CIE photopic luminous efficiency function gives a luminous efficacy of 97.59~lm/W for extraterrestrial sunlight, and therefore an illuminance of 132\,800~lx at the IAU nominal solar constant (Equation \ref{eq:sun-lux}). Its angular diameter of 0.533\textdegree{} sets a shadow penumbra of 9.3~mm per metre (Equation \ref{eq:penumbra}). These two numbers are what a lamp has to be compared against, and neither of them appears in the astrophysical literature in a form a lighting professional can use.
+
+\textbf{The experiment does not need solar intensity; it needs solar geometry.} The light level required at the tether is between 439 and 10\,000~lx depending on camera and rotation rate (Table \ref{tab:light-budget}), the highest of which is 3.7 stops below real sunlight. What cannot be relaxed is the geometry: a beam that is not collimated cannot hold 5\% uniformity across the depth of the structure at any throw a dark room can offer (Table \ref{tab:falloff}), and a fixture that flickers produces banding contrasts of up to 83\% at the exposures this experiment is forced to use (Table \ref{tab:flicker-contrast}).
+
+\textbf{The lens matters as much as the sensor, and the Hawk-eye sizes the lamp.} Across the six sensor-and-lens combinations the requirement spans 439 to 3622~lx, a range of 3.0 stops. The Arducam Hawk-eye is the most demanding at 3622~lx, 1.56 times the fitted IMX477 configuration, because its finer pixel tightens the motion-blur ceiling and its fixed F1.8 optic admits less light than the 8~mm wide open. Any session intended to cover all three cameras must be sized for it. On the same IMX477 sensor, the fitted 8~mm F1.6 costs 1.2 stops against the 6~mm F1.2, and buys 1.47 pixels across the tether instead of 1.11.
+
+\section{Confidence in each part}
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Confidence in the main results]{Where each principal result stands.}
+\label{tab:confidence}
+\begin{tabularx}{\textwidth}{p{0.32\textwidth} p{0.13\textwidth} X}
+\toprule
+\textbf{Result} & \textbf{Status} & \textbf{Basis or limitation} \\
+\midrule
+132\,800 lx, 0.533\textdegree, 9.3 mm/m & Firm & Computed from primary data \cite{astm_e490_data,cie_vlambda,prsa2016iau}. \\
+IEC classes and intervals & Firm & Read in the official preview of the standard \cite{iec60904_9_2020}. \\
+Uniformity and collimation argument & Firm & Follows from the inverse-square law and the IEC definition. \\
+978 lx for the IMX477 & Derived & Anchored in the Sony datasheet \cite{sony_imx477_datasheet}; four stated assumptions, all of which raise the real figure. \\
+439 and 3622 lx for the other two & Assumption & No usable datasheet constants exist for either sensor; rescaled from the IMX477 by aperture. \\
+Flicker contrasts & Firm model & Computed from an explicit waveform model; validated by the zero-contrast result at exactly one flicker period, which matches the published condition \cite{sheinin2018rollingac}. \\
+EPOS, TRON, ESA LSS, ORION, Zero-G rows & Verified & Read in documents by the facilities' own operators. \\
+INVERITAS and GRALS rows & Unverified & Secondary source only \cite{pauly2022spacelab}; both originals refused automated download. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Open items}
+
+The specification is complete; four quantities must be measured before it can be closed, and all four are marked in the text where they arise:
+
+\begin{enumerate}
+    \item The working-volume depth of the LINKU structure and the maximum fixture throw available in the dark room, which together determine whether R4 is reachable with the candidate fixture (Section \ref{sec:falloff}).
+    \item The illuminated tether length and the usable beam width of the chosen fixture, which determine the number of fixtures required (Section \ref{sec:multi-lamp}).
+    \item The measured illuminance needed against the real tether rather than a white card, which replaces the floor of Table \ref{tab:light-budget} with a measured value and tests the two assumption-based rows (Section \ref{sec:protocol}, step 7).
+    \item The dimming method and pulse-width-modulation frequency of any LED fixture offered, for which no reviewed source gives a safe value (Section \ref{sec:r6}).
+\end{enumerate}
+
+Two external dependencies remain outside this document's control and are tracked in the project work plan: the completion of the LINKU structure by a team member, and confirmation of the dark-room date by the teaching staff.

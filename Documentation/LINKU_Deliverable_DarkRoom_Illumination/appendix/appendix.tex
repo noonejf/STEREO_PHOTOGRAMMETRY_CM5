@@ -1,0 +1,107 @@
+\appendix
+
+\chapter{Symbols and Constants}
+\label{app:symbols}
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Symbols used in this document]{Symbols, in order of first appearance.}
+\label{tab:symbols}
+\begin{tabularx}{\textwidth}{p{0.10\textwidth} p{0.115\textwidth} X l}
+\toprule
+\textbf{Symbol} & \textbf{Unit} & \textbf{Meaning} & \textbf{First use} \\
+\midrule
+$\Phi_v$   & lm            & Luminous flux                                   & Eq. \ref{eq:lumen} \\
+$V(\lambda)$ & --          & CIE photopic spectral luminous efficiency       & Eq. \ref{eq:lumen} \\
+$K_m$      & lm/W          & Maximum luminous efficacy, 683                  & Eq. \ref{eq:lumen} \\
+$K$        & lm/W          & Luminous efficacy of a given spectrum           & Eq. \ref{eq:efficacy} \\
+$I_v$      & cd            & Luminous intensity                              & Eq. \ref{eq:candela} \\
+$E_v$      & lx            & Illuminance                                     & Eq. \ref{eq:lux} \\
+$L_v$      & cd/m\textsuperscript{2} & Luminance                             & Eq. \ref{eq:luminance} \\
+$\rho$     & --            & Reflectance of a Lambertian surface             & Eq. \ref{eq:lambertian} \\
+$H_v$      & lx\,s         & Photometric exposure, $E_v t$                   & Eq. \ref{eq:exposure} \\
+$E_{e,\lambda}$ & W/(m\textsuperscript{2}nm) & Spectral irradiance           & Eq. \ref{eq:lux-from-spectrum} \\
+$\alpha$   & \textdegree   & Angular diameter of a source                    & Eq. \ref{eq:angular-diameter} \\
+$w$        & mm            & Penumbra width                                  & Eq. \ref{eq:penumbra} \\
+$L$        & m             & Distance behind an occluding edge               & Eq. \ref{eq:penumbra} \\
+$D$        & m             & Fixture throw; also camera working distance     & Eq. \ref{eq:inverse-square} \\
+$\Delta z$ & m             & Depth of the working volume                     & Fig. \ref{fig:falloff} \\
+$NU$       & \%            & Spatial non-uniformity of irradiance            & Eq. \ref{eq:nu} \\
+$p$        & \textmu m     & Pixel pitch                                     & Eq. \ref{eq:ifov} \\
+$f$        & mm            & Lens focal length                               & Eq. \ref{eq:ifov} \\
+$W$        & mm            & Active sensor width, $p \cdot N_h$              & Eq. \ref{eq:fov} \\
+$N$        & --            & Lens f-number                                   & Eq. \ref{eq:image-illuminance} \\
+$\mathrm{GSD}$ & mm        & Ground sample distance                          & Eq. \ref{eq:gsd} \\
+$\omega$   & \textdegree/s & Camera angular rate                             & Eq. \ref{eq:blur} \\
+$b$        & px            & Motion blur                                     & Eq. \ref{eq:blur} \\
+$t_{\max}$ & s             & Exposure ceiling                                & Eq. \ref{eq:tmax} \\
+$H_{sat}$  & lx\,s         & Exposure that saturates the sensor              & Eq. \ref{eq:hsat} \\
+$E_{\min}$ & lx            & Illuminance required within $t_{\max}$          & Eq. \ref{eq:emin} \\
+$T_{\mathrm{flicker}}$ & s & Period of the lamp's luminous output            & Eq. \ref{eq:flicker-period} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Constants used in the calculations]{Every constant entering \texttt{illumination\_numbers.py}, with its source.}
+\label{tab:constants}
+\begin{tabularx}{\textwidth}{p{0.19\textwidth} p{0.20\textwidth} X}
+\toprule
+\textbf{Constant} & \textbf{Value} & \textbf{Source} \\
+\midrule
+$K_m$ & 683 lm/W & SI definition of the candela \\
+$\mathcal{S}^{\,\mathrm{N}}_{\odot}$ & 1361 W/m\textsuperscript{2} & IAU 2015 Resolution B3 \cite{prsa2016iau} \\
+$\mathcal{R}^{\,\mathrm{N}}_{\odot}$ & 695\,700 km & IAU 2015 Resolution B3 \cite{prsa2016iau} \\
+$\mathcal{T}^{\,\mathrm{N}}_{\mathrm{eff}\odot}$ & 5772 K & IAU 2015 Resolution B3 \cite{prsa2016iau} \\
+au & 149\,597\,870.7 km & IAU 2012 Resolution B2 \\
+IMX477 sensitivity $S$ & 250 LSB & Sony datasheet, sec. 10-1 \cite{sony_imx477_datasheet} \\
+IMX477 $V_{sat}$ & 1023 LSB & Sony datasheet, sec. 10-1 \cite{sony_imx477_datasheet} \\
+IMX477 $V_{OB}$ & 64 LSB & Sony datasheet, sec. 10-1 note 2 \cite{sony_imx477_datasheet} \\
+Test luminance $L_{\mathrm{ref}}$ & 706 cd/m\textsuperscript{2}, 3200 K & Sony datasheet, cond. I, sec. 11-3-1 \cite{sony_imx477_datasheet} \\
+Test aperture, time & F2.8, 1/120 s & Sony datasheet, sec. 11-3-1 and 11-4-1 \cite{sony_imx477_datasheet} \\
+Pixel pitches & 1.55, 3.45, 0.80 \textmu m & \cite{raspberrypi_camera_docs}, \cite{arducam_hawkeye_wiki} \\
+Resolutions & 4056, 1456, 9152 px & \cite{raspberrypi_camera_docs}, \cite{arducam_hawkeye_wiki} \\
+Lenses & 8.0 mm F1.6 (fitted); 6.0 mm F1.2; 16.0 mm F1.4; 5.1 mm F1.8 & Arducam C1508ZM04 page and LINKU D5 Camera System Report; \cite{raspberrypi_camera_docs}; project optical comparator \\
+Working distance & 3.5 m & Blender replica of the enclosure \\
+Tether diameter & 1.0 mm & default in \texttt{camera\_dof\_visualizer.py} \\
+Angular rates & 1.0 and 2.76 \textdegree/s & rolling-shutter deliverable \\
+White card $\rho$ & 0.9 & assumption, stated in Sec. \ref{sec:light-budget} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\FloatBarrier
+
+\chapter{Findings in the Project Code and Documentation}
+\label{app:findings}
+
+Three discrepancies were found while assembling the camera parameters of Chapter \ref{chap:cameras}. None originates in this document, and all three are recorded here.
+
+\section*{In the documentation}
+
+\textbf{Field of view quoted for the 8 mm lens.} Chapter 5 of the LINKU D5 Camera System Report \cite{linku_d5_camera_report} states that the Arducam C1508ZM04 gives ``approximately 58.4\textdegree{} in the horizontal direction and 44.6\textdegree{} in the vertical direction'' on the IMX477. Those are the lens manufacturer's figures for the lens's own 2/3'' optical format. The same specification separately gives 44\textdegree(H) for a 1/2.3'' IMX477 \cite{arducam_c1508zm04}, and the geometry of Equation \ref{eq:fov} with the 6.287~mm active width gives 42.9\textdegree(H) $\times$ 32.8\textdegree(V). The quoted horizontal figure therefore overstates the real field of view by about 36\%. Anything derived from it, such as the angular coverage of the tether deployment region, should be rechecked.
+
+\section*{In the optical comparator}
+
+The following are in \texttt{calculate\_cam/camera\_dof\_visualizer.py}.
+
+\begin{enumerate}
+    \item \textbf{Hawk-eye sensor label.} The entry is named ``Arducam Hawk-eye (OV64A40)'' with \texttt{pixel\_size\_um: 1.4} annotated as estimated. The OV64A40 is a different product, the 64MP OwlSight, of optical format 1/1.32'' and pixel pitch 1.008~\textmu m. The Hawk-eye's documented pitch is 0.80~\textmu m at optical format 1/1.7'' \cite{arducam_hawkeye_wiki}, which also equals that entry's own \texttt{sensor\_width\_mm} divided by \texttt{resolution\_h}. Because every computation in that file derives pixel pitch from width over resolution rather than reading the \texttt{pixel\_size\_um} field, the computed outputs are correct; only the label and the annotated field are wrong.
+    \item \textbf{Minimum object distance of the 6 mm lens.} The entry reads \texttt{"mod\_mm": 0.2} with the comment ``minimum focus distance 0.2 mm''. The manufacturer value is 0.2~\textbf{m}, that is 200~mm \cite{raspberrypi_camera_docs}. The field is used as \texttt{max(near, lens["mod\_mm"]/1000)}, so the stored value of 0.2~mm disables the near-distance clamp that the field exists to apply. This one does affect the tool's output at short distances. It does not affect any number in this document, which works at a 3.5~m working distance, well beyond either value.
+
+    The origin of the error is traceable: the Arducam product page for the HQ camera bundle with this lens, SKU B0240, lists ``MOD 0.2mm'', while Arducam's own page for the same lens sold separately lists ``MOD: 0.2m''. The comparator reproduced the typo rather than introducing it.
+
+    \item \textbf{Stored field of view of the 6 mm lens.} The entry reads \texttt{"fov\_h\_deg": 65.0}, taken from the same Arducam bundle page. Equation \ref{eq:fov} with that page's own stated sensor area gives 55.3\textdegree{} horizontal, and Raspberry Pi publishes 55\textdegree{} for the same focal length on the same camera \cite{raspberrypi_camera_docs}; 65\textdegree{} is close to the 66.4\textdegree{} \emph{diagonal}. Table \ref{tab:fov-check} sets out the comparison. The same mismatch exists for other entries in that file, whose stored \texttt{fov\_h\_deg} values are manufacturer figures for assorted optical formats rather than values derived for the sensor each lens is paired with. The field is used only for the displayed field-of-view read-out and for the depth-of-field plot's horizontal extent; the thread-pixel and 1~px-limit computations derive their geometry from \texttt{sensor\_width\_mm}, \texttt{resolution\_h} and \texttt{focal\_length\_mm}, so those outputs are unaffected.
+\end{enumerate}
+
+\FloatBarrier
+
+\chapter{Complete Numeric Output}
+\label{app:numeric}
+
+The following is the unedited output of \texttt{illumination\_numbers.py}, followed by the flicker-contrast figures emitted by \texttt{make\_figures.py}. Every table in this document is drawn from it. Both scripts, and the two data files they read, are in \texttt{Sources/data/}.
+
+{\scriptsize\verbatiminput{Sources/data/numeric_output.txt}}

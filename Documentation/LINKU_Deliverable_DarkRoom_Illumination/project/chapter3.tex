@@ -1,0 +1,153 @@
+\chapter{How Solar Simulation Is Graded, and What Comparable Laboratories Built}
+\label{chap:sources}
+
+Two bodies of practice bear on this experiment. The photovoltaic industry has a formal standard for grading solar simulators, which supplies rigorous definitions and numeric thresholds. Spacecraft vision-based navigation laboratories have no such standard but have repeatedly solved the same problem this experiment faces, and their published descriptions show what is actually built. This chapter takes the definitions and thresholds from the first and the engineering practice from the second, and is explicit about which claims could be traced to a facility's own operators.
+
+\section{IEC 60904-9: the photovoltaic classification}
+
+\subsection{What the standard grades}
+
+IEC 60904-9 classifies a solar simulator on exactly three measurable properties: how closely its output spectrum matches a reference solar spectrum, how uniform its irradiance is across the test plane, and how stable that irradiance is in time \cite{iec60904_9_2020}. A simulator is rated with three letters in that order, so that a ``CBA'' simulator has a class C spectral match, class B spatial non-uniformity and class A temporal instability.
+
+Only the free official preview of the standard, covering clauses 1 to 5.2 and including all three tables reproduced below, was read for this document. The measurement procedures that follow clause 5.2 remain behind the paywall.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[IEC 60904-9:2020 solar simulator classifications]{Solar simulator classifications, Table 3 of IEC 60904-9:2020 Edition 3.0 \cite{iec60904_9_2020}. STI and LTI are short- and long-term temporal instability. Class A+ was introduced in the 2020 edition and is only defined when spectral match is evaluated in the extended wavelength range of Table \ref{tab:iec-bands-ext}.}
+\label{tab:iec-classes}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Class} & \textbf{Spectral match, all intervals} & \textbf{Spatial non-uniformity} & \textbf{STI} & \textbf{LTI} \\
+\midrule
+A+  & 0.875--1.125$\times$ reference & $\leq$1\%  & $\leq$0.25\% & $\leq$1\% \\
+A   & 0.75--1.25$\times$ reference   & $\leq$2\%  & $\leq$0.5\%  & $\leq$2\% \\
+B   & 0.6--1.4$\times$ reference     & $\leq$5\%  & $\leq$2\%    & $\leq$5\% \\
+C   & 0.4--2.0$\times$ reference     & $\leq$10\% & $\leq$10\%   & $\leq$10\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two parts of the standard are used directly in this document. The non-uniformity definition, Equation \ref{eq:nu}, is adopted as the uniformity criterion in Chapter \ref{chap:spec}, and the class B thresholds are adopted as the LINKU targets. The standard also states explicitly that a classification is valid only for the conditions under which it was measured, and lists ``reflections from the surroundings such as properties of dark room walls'' among the factors that change it \cite{iec60904_9_2020}, which is a direct warning for a dark-room experiment.
+
+\subsection{The spectral-match intervals}
+
+For the spectral match, the reference AM1.5G spectrum is divided into six wavelength intervals, and the simulator's share of total irradiance in each interval must fall within the ratios of Table \ref{tab:iec-classes}. The 2020 edition defines two interval sets: the restricted set retained for backward compatibility (Table \ref{tab:iec-bands-restricted}) and the extended set required for class A+ (Table \ref{tab:iec-bands-ext}).
+
+\begin{table}[!ht]
+\centering
+\small
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\caption[AM1.5G intervals, restricted range]{Table 1 of \cite{iec60904_9_2020}: restricted range, 400--1100 nm.}
+\label{tab:iec-bands-restricted}
+\begin{tabular}{ccc}
+\toprule
+\textbf{\#} & \textbf{Range [nm]} & \textbf{Share [\%]} \\
+\midrule
+1 & 400--500   & 18.4 \\
+2 & 500--600   & 19.9 \\
+3 & 600--700   & 18.4 \\
+4 & 700--800   & 14.9 \\
+5 & 800--900   & 12.5 \\
+6 & 900--1100  & 15.9 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\caption[AM1.5G intervals, extended range]{Table 2 of \cite{iec60904_9_2020}: extended range, 300--1200 nm, required for A+.}
+\label{tab:iec-bands-ext}
+\begin{tabular}{ccc}
+\toprule
+\textbf{\#} & \textbf{Range [nm]} & \textbf{Share [\%]} \\
+\midrule
+1 & 300--470   & 16.61 \\
+2 & 470--561   & 16.74 \\
+3 & 561--657   & 16.67 \\
+4 & 657--772   & 16.63 \\
+5 & 772--919   & 16.66 \\
+6 & 919--1200  & 16.69 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\end{table}
+
+\subsection{Why only part of the standard applies here}
+
+The spectral-match criterion is designed for photovoltaic testing, where the quantity of interest is the electrical energy a cell harvests across its full spectral response, extending well into the infrared. LINKU's instrument is a camera with an infrared filter \cite{raspberrypi_camera_docs}, so three of the six intervals in Table \ref{tab:iec-bands-restricted} lie largely outside the band it records. The uniformity and stability criteria, by contrast, transfer directly: a gradient or a fluctuation degrades an image exactly as it degrades a cell measurement. Chapter \ref{chap:spec} therefore adopts the IEC definitions and thresholds for uniformity and stability, and replaces the spectral-match criterion with a colour-temperature and colour-rendering requirement drawn from the laboratory practice reviewed below.
+
+\section{Light-source technologies}
+
+Three technologies dominate solar simulator design. Table \ref{tab:tech} summarises the trade, grounded in the comparative review inside \cite{rezende2024lowcost} and the LED testbed of \cite{schulthess2026classaaa}.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Solar simulator light-source technologies]{Light-source technologies for solar simulation.}
+\label{tab:tech}
+\begin{tabularx}{\textwidth}{p{0.16\textwidth} X X}
+\toprule
+\textbf{Technology} & \textbf{Spectral quality} & \textbf{Cost and practical notes} \\
+\midrule
+Xenon arc & Best broadband match to the solar spectrum, including the ultraviolet; the industry reference for class AAA systems. & Most expensive per watt; needs housing, filtering and lamp replacement. Normally justified only for a dedicated photovoltaic testing laboratory. \\
+Metal halide / HMI & Matches natural sunlight satisfactorily per prior work, at far lower cost per watt than xenon arc. & A published large-area design used seven 1500~W stadium fixtures for a total build cost below \$10\,000 \cite{rezende2024lowcost}. This is also the family used as the sun simulator at DLR EPOS and at Stanford TRON (Table \ref{tab:vision-labs}). \\
+LED array & Spectrum is tunable by combining emitters of different peak wavelengths rather than fixed by one emitter. Reaches class AAA when actively controlled and calibrated \cite{schulthess2026classaaa}. & Cheapest, most compact and most controllable; the technology recommended by every LED-based precedent reviewed. Reaching class AAA requires closed-loop spectral sensing. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Two LED builds bracket the achievable range. Rezende et al. built a 2U CubeSat electrical-power-system test bench from 10 white LEDs of about 10~W each, driven at 36~V and sized to deliver 1000~W/m\textsuperscript{2} at the device under test, inside a 440$\times$340$\times$340~mm wooden box; all ten emitters are the same white type, current-controlled for intensity only, with no spectral tuning \cite{rezende2024lowcost}. Schulthess et al. built a verified class AAA testbed from 2964 LEDs of 8 distinct types, including infrared peaks at 740, 850 and 940~nm, closed-loop against an 18-channel spectrometer, reaching a spectral match below 1.3\% and non-uniformity below 1.28\% over a 16.5$\times$16.5~cm area \cite{schulthess2026classaaa}. The gap between these two builds is the cost of spectral fidelity, and it is a cost this experiment does not need to pay, because what the LINKU cameras require is directional geometry and stable level, not a photovoltaic-grade spectrum.
+
+\section{Spacecraft vision laboratories}
+\label{sec:vision-labs}
+
+Laboratories that photograph spacecraft mock-ups under simulated sunlight face the same problem as this experiment. The starting point for this section is the facility survey of Pauly et al. \cite{pauly2022spacelab}; each facility was then checked against a document written by its own operators wherever an open copy could be obtained. Table \ref{tab:vision-labs} reports the result and labels the source level of every row.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Sun simulation in spacecraft vision laboratories]{Sun simulation in spacecraft vision-based navigation laboratories. ``Primary'' means the values were read in a document written by the facility's own operators; ``secondary'' means they rest only on the survey \cite{pauly2022spacelab}.}
+\label{tab:vision-labs}
+\begin{tabularx}{\textwidth}{p{0.15\textwidth} X p{0.17\textwidth}}
+\toprule
+\textbf{Facility} & \textbf{Sun source and reported characteristics} & \textbf{Source level} \\
+\midrule
+ESA Large Space Simulator, ESTEC & Collimated sun beam of 6~m diameter, 70--2600~W/m\textsuperscript{2}, collimation angle 1.9\textdegree, in-plane uniformity $\pm$4\%, in-volume $\pm$6\%, stability $\pm$0.5\% at one solar constant. & Primary \cite{esa_lss} \\
+DLR EPOS 2.0, Germany & ARRI Max 12/18 spotlight with a 12~kW Osram HMI lamp, luminous flux 1.15 million lumens, daylight colour temperature 6000~K, colour rendering index 90. Spectrally verified against sunlight with a spectral irradiance meter at 7~m. Operating distance 7--10~m, chosen according to the sensor's spectral sensitivity. Black molton curtain, carpet and robot wrapping. & Primary \cite{benninghoff2017epos,dlr2025eposportfolio} \\
+Stanford TRON, USA & Metal halide arc lamp for direct sunlight, plus 10 LED light boxes for Earth albedo. All ambient sources covered with black commando curtains. The sun lamp casts a flare across the image when the camera points near it. & Primary \cite{park2021tron} \\
+FIT ORION, USA & Litepanels Hilio D12 LED panel, 350~W, 5600~K, used to create orbital lighting effects. The beam angle of 10--60\textdegree, continuous dimming and low-reflectivity black paint on walls, floor and ceiling are reported only in the survey. & Primary for fixture, power and colour temperature \cite{mahendrakar2023orion}; secondary for the rest \cite{pauly2022spacelab} \\
+SnT Zero-G Lab, Luxembourg & Godox SL-60 LED, 5600~K, tested bare, with reflector and with collimator; the collimated configuration was chosen to mimic the Sun without atmosphere. Black velvet scored best among the background materials tested, using the Raspberry Pi HQ camera. & Primary \cite{pauly2022spacelab} \\
+DFKI INVERITAS, Germany & Six motorised 575~W gas-discharge spotlights, 6000~K, maximum 14\,500~lx at 10~m with a 12\textdegree{} field; light-absorbing paint on walls and components. & Secondary \cite{pauly2022spacelab}; the original \cite{paul2015inveritas} is paywalled and the open copy refused automated download \\
+ESA GRALS, ESTEC & Dimmable collimated lamp with spectral response close to 6000~K and uniformity $\pm$5\%. & Secondary \cite{pauly2022spacelab}; the cited original \cite{cassinis2022grals} refused automated download, and its open conference version does not describe the lamp \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Corrections found during verification}
+
+Checking against the originals changed two entries, which is the reason the source-level column exists:
+
+\begin{itemize}
+    \item \textbf{EPOS.} The survey describes an ``ARRI Max 18/12 \dots mounted on a 2-DOF yoke'' \cite{pauly2022spacelab}. Neither operator document read here uses that designation or mentions a yoke; both name the fixture ARRI Max 12/18 and give the 12~kW lamp, 6000~K and CRI 90 figures reported in Table \ref{tab:vision-labs} \cite{benninghoff2017epos,dlr2025eposportfolio}.
+    \item \textbf{TRON.} A web summary consulted during the search described the sun lamp as a xenon short-arc lamp. The operators' own paper states a metal halide arc lamp \cite{park2021tron}, and that is what Table \ref{tab:vision-labs} reports.
+\end{itemize}
+
+The GRALS description in the survey ends with the phrase ``shadow-free backlight illumination'', wording that does not describe a sun simulator. It is reported for completeness and given no weight in this document.
+
+\subsection{What the facilities agree on}
+
+None of these laboratories attempts a photovoltaic-grade spectral match. They converge instead on four properties, and these four are what Chapter \ref{chap:spec} turns into requirements:
+
+\begin{enumerate}
+    \item A single hard, directional source representing the Sun.
+    \item A daylight colour temperature between 5600 and 6000~K.
+    \item A black, light-absorbing environment with no ambient light and the fixture out of the camera's field.
+    \item A collimated or narrow beam, wherever the beam geometry is specified at all.
+\end{enumerate}
+
+\subsection{A scale reference for intensity}
+\label{sec:epos-scale}
+
+The DLR portfolio document includes a figure plotting the absolute spectral irradiance of the 12~kW HMI spotlight at 7~m and at 10~m against sunlight in Earth orbit, over roughly 400--1050~nm \cite{dlr2025eposportfolio}. Read from that figure, the 7~m curve lies above the solar curve across most of the visible band and the 10~m curve lies below it. A fixture of that class therefore brackets one solar constant somewhere between 7 and 10~m, which is the only published order-of-magnitude anchor found for what full-Sun intensity costs in hardware. Chapter \ref{chap:cameras} shows that the LINKU experiment does not need anything close to that level.

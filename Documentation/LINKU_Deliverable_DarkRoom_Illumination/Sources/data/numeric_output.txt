@@ -1,0 +1,115 @@
+
+1. Orbital Sun, radiometry to photometry
+----------------------------------------
+  E490 integrated irradiance      Ee =    1366.1 W/m2
+  E490 integrated illuminance     Ev =    133320 lx
+  luminous efficacy of AM0 light  K  =     97.59 lm/W
+  at the IAU nominal constant     Ev =    132824 lx  (<- report value)
+  share 400-700 nm (       visible) :  38.6 %
+  share 400-1100 nm (IEC restricted) :  66.4 %
+  share 300-1200 nm (  IEC extended) :  77.2 %
+
+2. Angular size and penumbra
+----------------------------
+  Sun angular diameter at 1 au    alpha = 0.533 deg
+  penumbra width w = L*tan(alpha), per metre of L:
+    alpha = 0.53 deg (real Sun     ) ->   9.3 mm/m
+    alpha = 1.00 deg (1 deg source ) ->  17.5 mm/m
+    alpha = 1.90 deg (ESA LSS beam ) ->  33.2 mm/m
+    alpha = 2.00 deg (LINKU limit  ) ->  34.9 mm/m
+    alpha = 5.00 deg (5 deg source ) ->  87.5 mm/m
+
+3. Uncollimated source: falloff across object depth
+---------------------------------------------------
+  non-uniformity NU = (Emax-Emin)/(Emax+Emin), IEC 60904-9 definition
+  minimum throw D for a target NU, as a multiple of object depth dz:
+    NU <=    2 % (class A) -> D >=  49.5 * dz
+    NU <=    5 % (class B) -> D >=  19.5 * dz
+    NU <=   10 % (class C) -> D >=   9.5 * dz
+  NU produced by a given throw and depth:
+    D =  3 m, dz = 0.5 m -> Emin/Emax = 0.735, NU =  15.3 %
+    D =  5 m, dz = 0.5 m -> Emin/Emax = 0.826, NU =   9.5 %
+    D = 10 m, dz = 0.5 m -> Emin/Emax = 0.907, NU =   4.9 %
+    D =  5 m, dz = 1.0 m -> Emin/Emax = 0.694, NU =  18.0 %
+    D = 10 m, dz = 1.0 m -> Emin/Emax = 0.826, NU =   9.5 %
+
+4. Stops below the orbital Sun
+------------------------------
+     132800 lx -> 0.00 stops below the Sun, exposure x   1.0
+      50000 lx -> 1.41 stops below the Sun, exposure x   2.7
+      20000 lx -> 2.73 stops below the Sun, exposure x   6.6
+      10000 lx -> 3.73 stops below the Sun, exposure x  13.3
+       5000 lx -> 4.73 stops below the Sun, exposure x  26.6
+       1000 lx -> 7.05 stops below the Sun, exposure x 132.8
+  IEC non-uniformity classes expressed in stops (max-to-min spread):
+    class A+: NU =    1 % -> 0.029 EV
+    class A : NU =    2 % -> 0.058 EV
+    class B : NU =    5 % -> 0.144 EV
+    class C : NU =   10 % -> 0.290 EV
+
+5. IMX477 saturation exposure, from the Sony datasheet
+------------------------------------------------------
+  usable range / sensitivity      = (1023-64)/250 = 3.836
+  saturation at F2.8  (L*t)_sat   =  22.57 cd s/m2
+  saturation at F1.2  (L*t)_sat   =   4.15 cd s/m2
+  on a rho=0.9 white card   H_sat =  14.47 lx s
+  the orbital Sun saturates it in   0.11 ms
+
+6. Per-camera exposure limit and light requirement
+--------------------------------------------------
+  IFOV = p/f ; t_max = blur*IFOV/omega ; E_min = H_sat(N)/t_max
+  working distance 3.5 m, tether 1.0 mm, blur 1 px
+
+  configuration                    width mm  IFOV deg FOV H deg  GSD mm  px/teth    t@1.0   t@2.76  E@1deg/s
+  IMX477 + 8 mm F1.6 (fitted)         6.287    0.0111      42.9   0.678     1.47    11.1m     4.0m     2317
+  IMX477 + 6 mm F1.2                  6.287    0.0148      55.3   0.904     1.11    14.8m     5.4m      978
+  IMX296 + 16 mm F1.4                 5.023    0.0124      17.8   0.755     1.33    12.4m     4.5m     1594
+  IMX296 + 8 mm F1.6                  5.023    0.0247      34.9   1.509     0.66    24.7m     9.0m     1041
+  IMX296 + 6 mm F1.2                  5.023    0.0329      45.4   2.013     0.50    32.9m    11.9m      439
+  Hawk-eye + 5.1 mm F1.8 (fixed)      7.322    0.0090      71.3   0.549     1.82     9.0m     3.3m     3622
+
+  Light requirement at each rotation rate (lx):
+    IMX477 + 8 mm F1.6 (fitted)         2317 lx @ 1 deg/s     6396 lx @ 2.76 deg/s
+    IMX477 + 6 mm F1.2                   978 lx @ 1 deg/s     2698 lx @ 2.76 deg/s
+    IMX296 + 16 mm F1.4                 1594 lx @ 1 deg/s     4400 lx @ 2.76 deg/s
+    IMX296 + 8 mm F1.6                  1041 lx @ 1 deg/s     2873 lx @ 2.76 deg/s
+    IMX296 + 6 mm F1.2                   439 lx @ 1 deg/s     1212 lx @ 2.76 deg/s
+    Hawk-eye + 5.1 mm F1.8 (fixed)      3622 lx @ 1 deg/s     9998 lx @ 2.76 deg/s
+
+  Relative to the fitted IMX477 + 8 mm (same rate):
+    IMX477 + 8 mm F1.6 (fitted)      x1.00 (+0.0 stops)
+    IMX477 + 6 mm F1.2               x0.42 (-1.2 stops)
+    IMX296 + 16 mm F1.4              x0.69 (-0.5 stops)
+    IMX296 + 8 mm F1.6               x0.45 (-1.2 stops)
+    IMX296 + 6 mm F1.2               x0.19 (-2.4 stops)
+    Hawk-eye + 5.1 mm F1.8 (fixed)   x1.56 (+0.6 stops)
+
+7. Flicker periods vs exposure limits
+-------------------------------------
+    50 Hz grid -> luminous flicker at 100 Hz, period 10.0 ms
+    60 Hz grid -> luminous flicker at 120 Hz, period 8.3 ms
+    ARRI flicker-free mode   75 Hz square wave -> period 13.33 ms
+    ARRI high-speed mode     1000 Hz square wave -> period 1.00 ms
+
+  exposure limits for comparison (ms):
+    IMX477 + 8 mm F1.6 (fitted)       11.1 @ 1 deg/s,   4.0 @ 2.76 deg/s
+    IMX477 + 6 mm F1.2                14.8 @ 1 deg/s,   5.4 @ 2.76 deg/s
+    IMX296 + 16 mm F1.4               12.4 @ 1 deg/s,   4.5 @ 2.76 deg/s
+    IMX296 + 8 mm F1.6                24.7 @ 1 deg/s,   9.0 @ 2.76 deg/s
+    IMX296 + 6 mm F1.2                32.9 @ 1 deg/s,  11.9 @ 2.76 deg/s
+    Hawk-eye + 5.1 mm F1.8 (fixed)     9.0 @ 1 deg/s,   3.3 @ 2.76 deg/s
+
+=== Flicker model, from make_figures.py ===
+
+flicker contrast at other exposures (50 Hz supply, 25 ms frame):
+   t_exp =   3.3 ms -> contrast  83.0 %
+   t_exp =   4.0 ms -> contrast  75.7 %
+   t_exp =   5.4 ms -> contrast  58.5 %
+   t_exp =   9.0 ms -> contrast  10.9 %
+   t_exp =  10.0 ms -> contrast   0.0 %
+   t_exp =  11.1 ms -> contrast   9.7 %
+   t_exp =  12.4 ms -> contrast  17.6 %
+   t_exp =  14.8 ms -> contrast  21.5 %
+   t_exp =  20.0 ms -> contrast   0.0 %
+   t_exp =  24.7 ms -> contrast  12.8 %
+   t_exp =  32.9 ms -> contrast   7.6 %

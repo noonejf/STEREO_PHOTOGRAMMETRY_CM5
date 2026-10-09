@@ -35,7 +35,9 @@ The prototype configuration was intentionally selected to remain consistent with
 \\\\
 The use of interchangeable C-mount optics enabled the evaluation of multiple focal-length configurations during the optical trade-off analyses presented in Chapter \ref{chap:theoretical-optical-analyses}. Based on these analyses, an $8 mm$ focal-length configuration was selected for the experimental validation campaign. This configuration was found to provide an appropriate compromise between field-of-view coverage and spatial sampling performance for tether observation.
 \\\\
-Each sensor was equipped with an Arducam C1508ZM04 C-mount lens with a focal length of $8 mm$ and a manually adjustable aperture of f/1.6. The resulting field of view on the IMX477 sensor is approximately $58.4^\circ$ in the horizontal direction and $44.6^\circ$ in the vertical direction, providing sufficient angular coverage throughout the expected tether deployment region.
+Each sensor was equipped with an Arducam C1508ZM04 C-mount lens with a focal length of $8 mm$ and a manually adjustable aperture ranging from f/1.6 to f/16. The resulting field of view on the IMX477 sensor is approximately $42.9^\circ$ in the horizontal direction and $32.8^\circ$ in the vertical direction, providing sufficient angular coverage throughout the expected tether deployment region.
+
+These values are obtained from the sensor geometry, $\mathrm{FOV} = 2\arctan\left(W/2f\right)$, using the IMX477 active area of $6.287 \times 4.712$ mm and the $8$ mm focal length, and they agree with the $44^\circ$ horizontal figure the lens manufacturer publishes for this lens on a $1/2.3''$ IMX477. The lens specification also quotes $58.4^\circ \times 44.6^\circ$; those figures apply to the lens's own $2/3''$ optical format, which is larger than the IMX477, and must not be used for this camera. An earlier revision of this report quoted them, overstating the horizontal field of view by about $36\%$.
 
 \subsection{Stereo rig and mounting configuration}
 
