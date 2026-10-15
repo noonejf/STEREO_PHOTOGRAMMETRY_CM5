@@ -21,7 +21,43 @@ class PointCloudExporter:
         """Inicializar exportador"""
         self.supported_formats = ['ply', 'xyz', 'pcd', 'obj']
         logger.info("Exportador de nubes de puntos inicializado")
-    
+
+    @staticmethod
+    def _colors_as_uint8(colors: np.ndarray) -> np.ndarray:
+        """
+        Normalizar colores a uint8 [0, 255] venga como venga el arreglo.
+
+        Hace falta porque los dos generadores de nube entregan rangos
+        distintos y antes cada exportador asumia [0, 1] a ciegas:
+
+          - generate_point_cloud_from_matches (el camino geometrico, el que
+            corre por defecto) devuelve uint8 en [0, 255]
+          - generate_point_cloud (el camino denso SGBM) divide por 255 y
+            devuelve float en [0, 1]
+
+        Multiplicar un uint8 por 255 desborda modulo 256: un RGB de
+        (120, 200, 30) se escribia como (136, 56, 226). Toda nube exportada
+        por el camino geometrico salia con los colores corruptos.
+        """
+        if colors is None or len(colors) == 0:
+            return np.zeros((0, 3), dtype=np.uint8)
+
+        arr = np.asarray(colors)
+
+        # Entero: ya viene en [0, 255]. Float con algun valor por encima de
+        # 1 tambien, porque un rango [0, 1] nunca lo supera.
+        already_255 = np.issubdtype(arr.dtype, np.integer) or float(arr.max()) > 1.0
+
+        if already_255:
+            return np.clip(arr, 0, 255).astype(np.uint8)
+        return np.clip(arr.astype(np.float32) * 255.0, 0, 255).astype(np.uint8)
+
+    @classmethod
+    def _colors_as_float01(cls, colors: np.ndarray) -> np.ndarray:
+        """Normalizar colores a float [0, 1]. Ver _colors_as_uint8."""
+        return cls._colors_as_uint8(colors).astype(np.float32) / 255.0
+
+
     def export_point_cloud(self, points: np.ndarray, colors: np.ndarray, 
                           output_file: str, format_type: str = 'ply',
                           normals: Optional[np.ndarray] = None,
@@ -101,7 +137,7 @@ class PointCloudExporter:
             num_points = len(points)
             
             # Convertir colores a rango [0, 255]
-            colors_255 = (colors * 255).astype(np.uint8)
+            colors_255 = self._colors_as_uint8(colors)
             
             with open(output_file, 'w') as f:
                 # Escribir header PLY
@@ -155,7 +191,7 @@ class PointCloudExporter:
             num_points = len(points)
             
             # Convertir colores a rango [0, 255]
-            colors_255 = (colors * 255).astype(np.uint8)
+            colors_255 = self._colors_as_uint8(colors)
             
             with open(output_file, 'w') as f:
                 # Header simple
@@ -182,7 +218,7 @@ class PointCloudExporter:
             num_points = len(points)
             
             # Convertir colores a rango [0, 1] para PCD
-            colors_float = colors.astype(np.float32)
+            colors_float = self._colors_as_float01(colors)
             
             with open(output_file, 'w') as f:
                 # Header PCD
@@ -235,7 +271,7 @@ class PointCloudExporter:
             num_points = len(points)
             
             # Convertir colores a rango [0, 1]
-            colors_float = colors.astype(np.float32)
+            colors_float = self._colors_as_float01(colors)
             
             with open(output_file, 'w') as f:
                 # Header OBJ

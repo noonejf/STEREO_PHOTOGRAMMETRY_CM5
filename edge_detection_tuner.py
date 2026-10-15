@@ -142,6 +142,17 @@ class EdgeDetectionTuner(QDialog):
         self._preview_scale = 1.0
         self.dataset_manager = DatasetManager("data/ai_dataset/mask_dataset")
 
+        # Modo de segmentacion activo. False = metodo clasico (sliders),
+        # True = modelo IA. Lo enciende _apply_ai_mask y lo apaga cualquier
+        # cambio de parametro clasico (_schedule_update).
+        #
+        # Existe porque antes la mascara IA era solo una vista previa: las
+        # dos rutas de salida llamaban a update_detection(), que recalcula
+        # con el metodo clasico y reasigna self.mask_result, asi que lo que
+        # recibia el pipeline nunca era la mascara del modelo.
+        self._ai_mode = False
+        self._ai_model_cache = None
+
         # Debounce timer: evita recalcular mientras el usuario arrastra el slider
         self._update_timer = QTimer()
         self._update_timer.setSingleShot(True)
@@ -576,7 +587,7 @@ class EdgeDetectionTuner(QDialog):
         if file_path:
             self.original_img = cv2.imread(file_path)
             self._prepare_preview()
-            self.update_detection()
+            self.refresh_mask()
 
     def _prepare_preview(self):
         """Generar imagen reducida para procesamiento rápido en tiempo real"""
@@ -600,7 +611,59 @@ class EdgeDetectionTuner(QDialog):
 
     def _schedule_update(self):
         """Debounce: espera 200ms tras el último cambio antes de recalcular"""
+        # Tocar cualquier parametro clasico sale del modo IA: el usuario
+        # esta ajustando el metodo clasico y eso es lo que quiere ver.
+        self._ai_mode = False
         self._update_timer.start(200)
+
+    def refresh_mask(self):
+        """
+        Recalcular self.mask_result con el modo de segmentacion activo.
+
+        Punto de entrada unico para quien necesite la mascara final. Llamar
+        a update_detection() directamente fuerza el metodo clasico y
+        descarta la mascara IA, que es exactamente el bug que esto corrige.
+        """
+        if self._ai_mode:
+            mask = self._infer_ai_mask(self.original_img)
+            if mask is not None:
+                self.mask_result = mask
+                return
+            # El modelo fallo o desaparecio: caer al clasico en vez de
+            # devolver una mascara vieja que ya no corresponde a la imagen.
+            logger_msg = "modelo IA no disponible, usando metodo clasico"
+            print(f"ATENCION: {logger_msg}")
+            self._ai_mode = False
+        self.update_detection()
+
+    def _infer_ai_mask(self, img):
+        """
+        Correr el modelo IA sobre una imagen y devolver la mascara a
+        resolucion completa, o None si no se puede.
+
+        Sin efectos de interfaz, para poder usarlo por lotes sobre la
+        imagen izquierda y la derecha.
+        """
+        if img is None or not self._MASK_MODEL_PATH.exists():
+            return None
+        try:
+            import pickle
+            if self._ai_model_cache is None:
+                with open(self._MASK_MODEL_PATH, "rb") as f:
+                    self._ai_model_cache = pickle.load(f)
+            md = self._ai_model_cache
+            clf = md["model"]
+            tw, th = md.get("target_size", (self._AI_TARGET_W, self._AI_TARGET_H))
+
+            img_small = cv2.resize(img, (tw, th))
+            feats = self._ai_features(img_small)
+            pred = clf.predict(feats).reshape(th, tw).astype(np.uint8) * 255
+
+            h_orig, w_orig = img.shape[:2]
+            return cv2.resize(pred, (w_orig, h_orig), interpolation=cv2.INTER_NEAREST)
+        except Exception as e:
+            print(f"ERROR en inferencia IA: {e}")
+            return None
 
     def update_detection(self):
         """Actualizar detección de bordes"""
@@ -1108,17 +1171,36 @@ class EdgeDetectionTuner(QDialog):
             QMessageBox.warning(self, "Sin máscara", "Genera la máscara antes de guardar.")
             return
 
+        # Guardar una mascara generada por el propio modelo como etiqueta de
+        # entrenamiento es auto-entrenamiento: el modelo acaba reforzando sus
+        # propios errores sin que nadie los verifique. Se permite, porque la
+        # alternativa (guardar en silencio algo distinto de lo que el usuario
+        # vio en pantalla) es peor, pero se avisa.
+        if self._ai_mode:
+            resp = QMessageBox.question(
+                self, "Mascara generada por el modelo",
+                "La mascara activa la produjo el modelo IA, no el metodo clasico.\n\n"
+                "Guardarla como etiqueta de entrenamiento significa entrenar el "
+                "modelo con su propia salida, sin verificacion humana. Eso refuerza "
+                "sus errores.\n\n"
+                "Recomendado: corrige la mascara con el metodo clasico antes de "
+                "guardarla, o verifica que sea correcta.\n\n"
+                "Guardar de todas formas?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if resp != QMessageBox.Yes:
+                return
+
         # En modo procesamiento estéreo: recalcular máscaras para AMBAS imágenes
-        # con los mismos parámetros de filtro actuales.
+        # con el modo de segmentación activo.
         if self.processing_mode and hasattr(self, 'left_img_data') and self.right_img_data is not None:
             self.original_img = self.left_img_data
             self._prepare_preview()
-            self.update_detection()
+            self.refresh_mask()
             mask_left = self.get_current_mask().copy()
 
             self.original_img = self.right_img_data
             self._prepare_preview()
-            self.update_detection()
+            self.refresh_mask()
             mask_right = self.get_current_mask().copy()
 
             # Restaurar la vista que estaba activa
@@ -1175,8 +1257,9 @@ class EdgeDetectionTuner(QDialog):
         """Aplicar configuración actual y cerrar (para modo procesamiento)"""
         # Guardar la máscara actual
         if self.original_img is not None:
-            # Recalcular máscara con configuración actual
-            self.update_detection()
+            # Recalcular con el modo activo (clasico o IA), no a la fuerza
+            # con el clasico, que descartaba la mascara del modelo.
+            self.refresh_mask()
             # La máscara ya está en self.mask_result
 
             # NUEVO: Guardar máscaras a disco para poder usarlas en tests
@@ -1277,39 +1360,32 @@ class EdgeDetectionTuner(QDialog):
             self.btn_apply_ai.setEnabled(False)
             QApplication.processEvents()
 
-            with open(self._MASK_MODEL_PATH, "rb") as f:
-                md = pickle.load(f)
-            clf = md["model"]
-            tw, th = md.get("target_size", (self._AI_TARGET_W, self._AI_TARGET_H))
+            mask_full = self._infer_ai_mask(self.original_img)
+            if mask_full is None:
+                raise RuntimeError(
+                    "No se pudo correr el modelo. Revisa data/models/mask_model.pkl"
+                )
 
-            # Redimensionar para inferencia
-            img_small = cv2.resize(self.original_img, (tw, th))
-            feats = self._ai_features(img_small)
-
-            # Predicción
-            pred = clf.predict(feats).reshape(th, tw).astype(np.uint8) * 255
-
-            # Escalar máscara de vuelta a resolución original
-            h_orig, w_orig = self.original_img.shape[:2]
-            mask_full = cv2.resize(pred, (w_orig, h_orig), interpolation=cv2.INTER_NEAREST)
+            # A partir de aqui la mascara IA es la mascara activa, y
+            # sobrevive hasta que el usuario toque un parametro clasico.
+            self.mask_result = mask_full
+            self._ai_mode = True
 
             # Aplicar misma lógica de preview que el filtro clásico
             if self._preview_scale < 1.0:
-                self.mask_result = mask_full
                 mask_preview = cv2.resize(
-                    pred,
+                    mask_full,
                     (self._preview_img.shape[1], self._preview_img.shape[0]),
                     interpolation=cv2.INTER_NEAREST,
                 )
             else:
-                self.mask_result = mask_full
                 mask_preview = mask_full
 
             # Actualizar stats
             pixels_detected = int(np.sum(mask_full > 0))
             pct = 100 * pixels_detected / mask_full.size
             self.stats_label.setText(
-                f"IA — Píxeles: {pixels_detected} ({pct:.2f}%)"
+                f"IA (modo activo) - Pixeles: {pixels_detected} ({pct:.2f}%)"
             )
 
             # Mostrar resultado en panel de visualización
@@ -1372,9 +1448,9 @@ class EdgeDetectionTuner(QDialog):
             self.setWindowTitle("Tune Cable Detection - LEFT Image")
             self.btn_switch.setText("↔️ Switch to RIGHT Image")
 
-        # Actualizar detección con la nueva imagen
+        # Actualizar detección con la nueva imagen, respetando el modo activo
         self._prepare_preview()
-        self.update_detection()
+        self.refresh_mask()
 
 
 def open_cable_detection_tuner(left_img, right_img=None):
@@ -1497,13 +1573,13 @@ def open_cable_detection_tuner_with_switch(left_img, right_img, left_path="", ri
 
         tuner.original_img = left_img
         tuner._prepare_preview()
-        tuner.update_detection()
-        mask_left = tuner.get_current_mask()
+        tuner.refresh_mask()
+        mask_left = tuner.get_current_mask().copy()
 
         tuner.original_img = right_img
         tuner._prepare_preview()
-        tuner.update_detection()
-        mask_right = tuner.get_current_mask()
+        tuner.refresh_mask()
+        mask_right = tuner.get_current_mask().copy()
 
         # NUEVO: Guardar máscaras a disco para tests
         try:

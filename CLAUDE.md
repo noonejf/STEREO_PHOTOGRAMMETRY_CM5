@@ -62,15 +62,15 @@ Processing page, mode **`Geometric (Wire Tracking)`**, which is the **default**
 
 | # | Step | Entry point |
 |---|------|-------------|
-| 1 | Segment the cable into binary masks (L+R) | `open_cable_detection_tuner_with_switch()` — `edge_detection_tuner.py:1426` |
-| 2 | Find the two endpoints (skeletonize, prune, geodesic-farthest pair) | `detect_wire_endpoints()` — `processing/endpoint_detector.py:771` |
-| 3 | Trace the path: automatic **or** hand-drawn | `WireMethodChoiceDialog` — `gui/wire_method_choice.py:85` |
-| 3a | Auto: DFS over the mask with backtracking and momentum | `SmartWireTracker.track_wire()` — `processing/smart_wire_tracker.py:88` |
-| 3b | Manual: user clicks points along the wire | `WirePathDrawerDialog` — `gui/wire_path_drawer.py:176` |
-| 4 | Rectify both images | `StereoProcessor.rectify_images()` — `processing/stereo_processor.py:403` |
-| 5 | Match left to right | `compute_disparity_from_wire_paths()` — `processing/stereo_processor.py:852` |
-| 6 | Sparse 3D cloud of the cable | `generate_point_cloud_from_matches()` — `processing/stereo_processor.py:1441` |
-| 7 | Metric scalars | `compute_wire_metrics()` — `processing/wire_metrics.py:56` |
+| 1 | Segment the cable into binary masks (L+R) | `open_cable_detection_tuner_with_switch()`, `edge_detection_tuner.py:1426` |
+| 2 | Find the two endpoints (skeletonize, prune, geodesic-farthest pair) | `detect_wire_endpoints()`, `processing/endpoint_detector.py:771` |
+| 3 | Trace the path: automatic **or** hand-drawn | `WireMethodChoiceDialog`, `gui/wire_method_choice.py:85` |
+| 3a | Auto: DFS over the mask with backtracking and momentum | `SmartWireTracker.track_wire()`, `processing/smart_wire_tracker.py:88` |
+| 3b | Manual: user clicks points along the wire | `WirePathDrawerDialog`, `gui/wire_path_drawer.py:176` |
+| 4 | Rectify both images | `StereoProcessor.rectify_images()`, `processing/stereo_processor.py:403` |
+| 5 | Match left to right | `compute_disparity_from_wire_paths()`, `processing/stereo_processor.py:852` |
+| 6 | Sparse 3D cloud of the cable | `generate_point_cloud_from_matches()`, `processing/stereo_processor.py:1441` |
+| 7 | Metric scalars | `compute_wire_metrics()`, `processing/wire_metrics.py:56` |
 | 8 | Export PLY/XYZ/PCD/OBJ | `PointCloudExporter.export_point_cloud()` |
 
 ### The one assumption to keep in mind
@@ -102,7 +102,19 @@ tensorflow, onnx or tflite anywhere in the repo.
 - Trains at 256x192, augments with flips and brightness, balances 1:4.
 - Pickled to `data/models/mask_model.pkl`.
 - Consumed as an **optional alternative segmenter at pipeline step 1**, in
-  `edge_detection_tuner.py:1263`.
+  `_apply_ai_mask` (`edge_detection_tuner.py:1345`).
+
+**How the two segmentation modes interact.** The tuner holds a `_ai_mode` flag.
+Pressing "Aplicar modelo IA" turns it on; touching any classical parameter turns
+it off (`_schedule_update`). Everything that needs the final mask must call
+**`refresh_mask()`**, which dispatches on that flag. Calling `update_detection()`
+directly forces the classical method and silently discards the AI mask, which was
+a real bug: both exit paths did exactly that, so the trained model was a preview
+only and never reached the pipeline. If you add a new exit path, use
+`refresh_mask()`.
+
+Saving to the dataset while in AI mode now asks for confirmation first, because
+training the model on its own unverified output reinforces its errors.
 
 Two caveats worth repeating to the user before they trust it:
 
@@ -195,12 +207,12 @@ standalone needs the repo root on `sys.path`.
 
 **Deliberately unused code, kept on purpose.** Do not "clean" these away:
 
-- `processing/wire_matcher.py` — epipolar NCC matcher. Its only consumer is
+- `processing/wire_matcher.py`: epipolar NCC matcher. Its only consumer is
   `StereoProcessor.compute_disparity_wire_guided()`, which the GUI never calls.
   Kept because it does **not** rely on the parametric assumption described
   above, and is the obvious fix if that assumption starts failing. Not yet
   validated on real data.
-- `StereoProcessor.process_wire_masks()` — headless version of GUI steps 2-3,
+- `StereoProcessor.process_wire_masks()`: headless version of GUI steps 2-3,
   useful for batch scripts.
 
 Both carry a `[SIN USO EN EL FLUJO ACTUAL]` banner in their docstring. If you
