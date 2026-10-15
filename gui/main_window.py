@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (
     QGroupBox, QMessageBox, QSplitter, QFrame,
     QApplication, QStackedWidget,
 )
-from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
+from PyQt5.QtCore import QThread, pyqtSignal, QTimer, QSize, Qt
 from PyQt5.QtGui import QFont
 
 from camera.stereo_camera import StereoCamera
@@ -24,6 +24,8 @@ from gui.camera_preview import CameraPreviewWidget
 from gui.calibration_dialog import CalibrationPage
 from gui.processing_dialog import ProcessingPage
 from gui.ai_page import AIPage
+from gui.optics_page import OpticsPage
+from gui.icons import get_icon
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -185,14 +187,20 @@ class CountdownThread(QThread):
 # ── Sidebar button ────────────────────────────────────────────────────────────
 
 class _SidebarButton(QPushButton):
-    def __init__(self, icon_text: str, label: str, parent=None):
+    def __init__(self, icon_name: str, label: str, parent=None):
         super().__init__(parent)
-        self.setText(f"{icon_text}\n{label}")
+        self._icon_name = icon_name
+        self.setText(label)
         self.setFixedSize(88, 76)
+        self.setIconSize(QSize(22, 22))
         self.setCursor(Qt.PointingHandCursor)
         self._set_active(False)
 
     def _set_active(self, active: bool):
+        # The icon colour follows the active state, so the selected page
+        # reads at a glance and not only from the left border.
+        self.setIcon(get_icon(self._icon_name,
+                              ACCENT_CYAN if active else TEXT_DIM, 22))
         if active:
             self.setStyleSheet(f"""
                 QPushButton {{
@@ -290,11 +298,13 @@ class PhotogrammetryDashboard(QMainWindow):
         )
         self.proc_page = ProcessingPage(self.camera_config, self)  # index 2
         self.ai_page   = AIPage(self)                              # index 3
+        self.optics_page = OpticsPage(self)                        # index 4
 
         self.stack.addWidget(self.dash_page)
         self.stack.addWidget(self.calib_page)
         self.stack.addWidget(self.proc_page)
         self.stack.addWidget(self.ai_page)
+        self.stack.addWidget(self.optics_page)
 
         body.addWidget(self.stack, 1)
         root.addLayout(body, 1)
@@ -339,10 +349,11 @@ class PhotogrammetryDashboard(QMainWindow):
         v.setSpacing(0)
 
         nav_items = [
-            ("⌂",  "Dashboard"),
-            ("⊕",  "Calibration"),
-            ("◈",  "Processing"),
-            ("◉",  "AI"),
+            ("dashboard",   "Dashboard"),
+            ("calibration", "Calibration"),
+            ("processing",  "Processing"),
+            ("ai",          "AI"),
+            ("optics",      "Optics"),
         ]
         self._sidebar_buttons = []
         for i, (icon, label) in enumerate(nav_items):
@@ -388,14 +399,16 @@ class PhotogrammetryDashboard(QMainWindow):
         right_lbl = QLabel(f"Right: {self.camera_config.right_camera.name}")
         right_lbl.setStyleSheet(f"color: {ACCENT_ORANGE}; font-weight: bold; background: transparent;")
 
-        self.btn_start_preview = QPushButton("▶  Start Preview")
+        self.btn_start_preview = QPushButton("  Start Preview")
+        self.btn_start_preview.setIcon(get_icon("play", TEXT_PRIMARY, 16))
         self.btn_start_preview.setStyleSheet(
             f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY}; }}"
             f"QPushButton:hover {{ background-color: #3B4B60; }}"
         )
         self.btn_start_preview.clicked.connect(self.toggle_preview)
 
-        self.btn_stop_preview = QPushButton("⏹  Stop Preview")
+        self.btn_stop_preview = QPushButton("  Stop Preview")
+        self.btn_stop_preview.setIcon(get_icon("stop", TEXT_PRIMARY, 16))
         self.btn_stop_preview.setStyleSheet(
             f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY}; }}"
             f"QPushButton:hover {{ background-color: #3B4B60; }}"
@@ -466,7 +479,8 @@ class PhotogrammetryDashboard(QMainWindow):
             df.addWidget(lbl)
         cg.addWidget(self.calibration_details_frame)
 
-        self.btn_calibrate = QPushButton("⊕  Calibrate Cameras")
+        self.btn_calibrate = QPushButton("  Calibrate Cameras")
+        self.btn_calibrate.setIcon(get_icon("calibration", "white", 16))
         self.btn_calibrate.setFixedHeight(36)
         self.btn_calibrate.setStyleSheet(
             f"QPushButton {{ background-color: {ACCENT_GREEN}; color: white;"
@@ -479,7 +493,8 @@ class PhotogrammetryDashboard(QMainWindow):
         )
         cg.addWidget(self.btn_calibrate)
 
-        self.btn_switch_calibration = QPushButton("⇄  Switch Calibration File")
+        self.btn_switch_calibration = QPushButton("  Switch Calibration File")
+        self.btn_switch_calibration.setIcon(get_icon("folder", TEXT_PRIMARY, 16))
         self.btn_switch_calibration.setFixedHeight(30)
         self.btn_switch_calibration.setStyleSheet(
             f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY};"
@@ -495,7 +510,8 @@ class PhotogrammetryDashboard(QMainWindow):
         og = QVBoxLayout(ops_group)
         og.setSpacing(6)
 
-        self.btn_capture_3d = QPushButton("◈  Capture for 3D Model")
+        self.btn_capture_3d = QPushButton("  Capture for 3D Model")
+        self.btn_capture_3d.setIcon(get_icon("camera", "white", 16))
         self.btn_capture_3d.setFixedHeight(38)
         self.btn_capture_3d.setStyleSheet(
             f"QPushButton {{ background-color: {ACCENT_BLUE}; color: white;"
@@ -507,7 +523,8 @@ class PhotogrammetryDashboard(QMainWindow):
         self.btn_capture_3d.setEnabled(self.is_calibrated)
         og.addWidget(self.btn_capture_3d)
 
-        self.btn_process_3d = QPushButton("▶  Process Captures")
+        self.btn_process_3d = QPushButton("  Process Captures")
+        self.btn_process_3d.setIcon(get_icon("processing", "white", 16))
         self.btn_process_3d.setFixedHeight(34)
         self.btn_process_3d.setStyleSheet(
             f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY}; border-radius: 6px; }}"
@@ -550,7 +567,8 @@ class PhotogrammetryDashboard(QMainWindow):
         self.progress_bar.setVisible(False)
         cv.addWidget(self.progress_bar)
 
-        self.btn_cancel = QPushButton("✕  Cancel")
+        self.btn_cancel = QPushButton("  Cancel")
+        self.btn_cancel.setIcon(get_icon("cross", TEXT_PRIMARY, 16))
         self.btn_cancel.setVisible(False)
         self.btn_cancel.setStyleSheet(
             f"QPushButton {{ background-color: {RED_OFF}; color: white; border-radius: 6px; }}"
@@ -633,8 +651,8 @@ class PhotogrammetryDashboard(QMainWindow):
             self.btn_start_preview.setEnabled(False)
             self.btn_stop_preview.setEnabled(False)
             self.btn_capture_3d.setEnabled(False)
-            self.btn_start_preview.setText("▶  Preview (Unavailable)")
-            self.btn_capture_3d.setText("◈  Capture (Unavailable)")
+            self.btn_start_preview.setText("  Preview (Unavailable)")
+            self.btn_capture_3d.setText("  Capture (Unavailable)")
             if self.is_calibrated:
                 self.btn_process_3d.setEnabled(True)
                 self.log_message("Processing-only mode — can process existing captures")
@@ -667,7 +685,7 @@ class PhotogrammetryDashboard(QMainWindow):
             self.preview_active = True
             self.btn_start_preview.setEnabled(False)
             self.btn_stop_preview.setEnabled(True)
-            self.btn_start_preview.setText("▶  Preview Active")
+            self.btn_start_preview.setText("  Preview Active")
             self.log_message("Preview started")
         except Exception as e:
             self.log_message(f"Error starting preview: {e}", "ERROR")
@@ -680,7 +698,7 @@ class PhotogrammetryDashboard(QMainWindow):
             self.preview_active = False
             self.btn_start_preview.setEnabled(True)
             self.btn_stop_preview.setEnabled(False)
-            self.btn_start_preview.setText("▶  Start Preview")
+            self.btn_start_preview.setText("  Start Preview")
             self.log_message("Preview stopped")
         except Exception as e:
             self.log_message(f"Error stopping preview: {e}", "ERROR")
@@ -747,7 +765,7 @@ class PhotogrammetryDashboard(QMainWindow):
             }.get(calib_info['quality'], TEXT_SECONDARY)
 
             self.calibration_status_label.setText(
-                f"✓ Calibrated — {calib_info['quality']}"
+                f"Calibrated: {calib_info['quality']}"
             )
             self.calibration_status_label.setStyleSheet(
                 f"color: {quality_color}; font-weight: bold; background: transparent;"
@@ -864,7 +882,7 @@ class PhotogrammetryDashboard(QMainWindow):
                 result = self.stereo_camera.capture_stereo_pair()
                 if result.get('success', False):
                     self.log_message("Stereo pair captured successfully")
-                    self.countdown_label.setText("✓ Capture Successful")
+                    self.countdown_label.setText("Capture Successful")
                     self.btn_process_3d.setEnabled(True)
                 else:
                     self.log_message(

@@ -299,7 +299,7 @@ class DatasetViewerDialog(QDialog):
         samples = self.dm.list_samples()
         self.count_label.setText(f"{len(samples)} samples  —  {self.dm.base_dir}")
         for s in samples:
-            ok = "✓" if s['has_mask'] else "✗"
+            ok = "yes" if s['has_mask'] else "no"
             stereo = " [S]" if s.get('is_stereo') else ""
             notes_hint = f"  [{s['notes']}]" if s['notes'] else ""
             item = QListWidgetItem(f"{ok}  #{s['id']:04d}  {s['date']}{stereo}{notes_hint}")

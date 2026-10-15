@@ -256,7 +256,7 @@ class WirePathDrawerDialog(QDialog):
         btn_cancel.clicked.connect(self.reject)
         btns.addWidget(btn_cancel)
 
-        self.btn_ok = QPushButton("✓ Confirmar path")
+        self.btn_ok = QPushButton("Confirm path")
         self.btn_ok.setEnabled(False)
         self.btn_ok.setStyleSheet(
             "background-color:#4CAF50; color:white; font-weight:bold; padding:8px;"
@@ -289,7 +289,7 @@ class WirePathDrawerDialog(QDialog):
         zoom_pct = int(self.canvas._zoom * 100)
         ready = n >= 2
         self.stats_label.setText(
-            f"Puntos: {n}  —  {'listo ✓' if ready else 'añade al menos 2 puntos'}"
+            f"Points: {n}  |  {'ready' if ready else 'add at least 2 points'}"
             f"  |  Zoom: {zoom_pct}%"
         )
         self.btn_ok.setEnabled(ready)

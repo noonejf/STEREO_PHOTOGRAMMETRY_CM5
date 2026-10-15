@@ -21,6 +21,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
 from PyQt5.QtGui import QFont
 
 from utils.dataset_manager import DatasetManager
+from gui.icons import get_icon
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -209,7 +210,7 @@ class MaskTrainingThread(QThread):
                 pickle.dump(model_data, fh)
 
             self.progress_sig.emit(100)
-            self.log_sig.emit(f"✓ Modelo guardado → {MASK_MODEL_PATH}", "SUCCESS")
+            self.log_sig.emit(f"Model saved to {MASK_MODEL_PATH}", "SUCCESS")
             self.done_sig.emit(
                 True,
                 f"Entrenamiento completado  |  F1={f1:.3f}  Precision={prec:.3f}  Recall={rec:.3f}"
@@ -250,7 +251,8 @@ class AIPage(QWidget):
         )
         bb = QHBoxLayout(back_bar)
         bb.setContentsMargins(8, 0, 8, 0)
-        btn_back = QPushButton("← Dashboard")
+        btn_back = QPushButton("  Dashboard")
+        btn_back.setIcon(get_icon("back", TEXT_DIM, 16))
         btn_back.setStyleSheet(
             f"background:transparent; color:{ACCENT_CYAN}; font-weight:bold;"
             f" border:none; font-size:13px;"
@@ -327,7 +329,7 @@ class AIPage(QWidget):
         self._mask_ds_label.setStyleSheet(f"color:{TEXT_SEC}; font-size:12px;")
         ds_row.addWidget(self._mask_ds_label)
         ds_row.addStretch()
-        btn_view = QPushButton("📊 Ver Dataset")
+        btn_view = QPushButton("  View dataset")
         btn_view.setFixedHeight(28)
         btn_view.setStyleSheet(
             f"background:{BG_CARD}; color:{TEXT_PRIMARY}; border-radius:5px;"
@@ -356,7 +358,7 @@ class AIPage(QWidget):
         v.addWidget(desc)
 
         # Train button
-        self._btn_train_mask = QPushButton("▶  Entrenar Modelo de Máscaras")
+        self._btn_train_mask = QPushButton("  Train mask model")
         self._btn_train_mask.setFixedHeight(38)
         self._btn_train_mask.setStyleSheet(
             f"QPushButton {{ background:{ACCENT_GREEN}; color:white;"
@@ -381,7 +383,7 @@ class AIPage(QWidget):
         self._path_ds_label.setStyleSheet(f"color:{TEXT_SEC}; font-size:12px;")
         ds_row.addWidget(self._path_ds_label)
         ds_row.addStretch()
-        btn_view = QPushButton("📊 Ver Dataset")
+        btn_view = QPushButton("  View dataset")
         btn_view.setFixedHeight(28)
         btn_view.setStyleSheet(
             f"background:{BG_CARD}; color:{TEXT_PRIMARY}; border-radius:5px;"
@@ -408,7 +410,7 @@ class AIPage(QWidget):
         desc.setStyleSheet(f"color:{TEXT_DIM}; font-size:11px;")
         v.addWidget(desc)
 
-        self._btn_train_path = QPushButton("▶  Entrenar Modelo de Paths")
+        self._btn_train_path = QPushButton("  Train path model")
         self._btn_train_path.setFixedHeight(38)
         self._btn_train_path.setStyleSheet(
             f"QPushButton {{ background:{ACCENT_ORANGE}; color:white;"
@@ -434,7 +436,7 @@ class AIPage(QWidget):
             try:
                 with open(MASK_MODEL_PATH, "rb") as f:
                     md = pickle.load(f)
-                self._mask_status_label.setText("Estado: ✓ Modelo entrenado")
+                self._mask_status_label.setText("Status: model trained")
                 self._mask_status_label.setStyleSheet(f"color:{GREEN_ON}; font-size:12px;")
                 self._mask_meta_label.setText(
                     f"Última sesión: {md.get('date','?')}  |  "
@@ -452,7 +454,7 @@ class AIPage(QWidget):
             self._mask_status_label.setText("Estado: ✗ No entrenado")
             self._mask_status_label.setStyleSheet(f"color:{RED_OFF}; font-size:12px;")
             self._mask_meta_label.setText("")
-            self._btn_train_mask.setText("▶  Entrenar Modelo de Máscaras")
+            self._btn_train_mask.setText("  Train mask model")
 
         self._btn_train_mask.setEnabled(n_mask >= 1)
 
@@ -466,7 +468,7 @@ class AIPage(QWidget):
             try:
                 with open(PATH_MODEL_PATH, "rb") as f:
                     pd_ = pickle.load(f)
-                self._path_status_label.setText("Estado: ✓ Modelo entrenado")
+                self._path_status_label.setText("Status: model trained")
                 self._path_status_label.setStyleSheet(f"color:{GREEN_ON}; font-size:12px;")
                 self._path_meta_label.setText(
                     f"Última sesión: {pd_.get('date','?')}  |  {pd_.get('n_pairs',0)} imágenes"

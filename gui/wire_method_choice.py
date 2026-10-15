@@ -178,7 +178,7 @@ class WireMethodChoiceDialog(QDialog):
         d1.setWordWrap(True)
         d1.setStyleSheet("color:#94A3B8; font-size:11px;")
         l1.addWidget(d1)
-        btn1 = QPushButton("▶ Ejecutar SmartWireTracker")
+        btn1 = QPushButton("Run SmartWireTracker")
         btn1.setStyleSheet(
             "background:#3B82F6; color:white; font-weight:bold;"
             " padding:8px; border-radius:6px;"
@@ -240,7 +240,7 @@ class WireMethodChoiceDialog(QDialog):
         self.ds_count_label.setStyleSheet("color:#94A3B8; font-size:11px;")
         lds.addWidget(self.ds_count_label)
 
-        self.btn_ds = QPushButton("💾 Guardar en Dataset")
+        self.btn_ds = QPushButton("Save to dataset")
         self.btn_ds.setEnabled(False)
         self.btn_ds.setStyleSheet(
             "background:#334155; color:#64748B; font-weight:bold;"
@@ -249,7 +249,7 @@ class WireMethodChoiceDialog(QDialog):
         self.btn_ds.clicked.connect(self._save_to_dataset)
         lds.addWidget(self.btn_ds)
 
-        btn_view_ds = QPushButton("📊 Ver Dataset")
+        btn_view_ds = QPushButton("View dataset")
         btn_view_ds.setStyleSheet(
             "background:#273548; color:#E2E8F0; font-weight:bold;"
             " padding:8px; border-radius:6px;"
@@ -272,7 +272,7 @@ class WireMethodChoiceDialog(QDialog):
         btn_cancel.clicked.connect(self.reject)
         final.addWidget(btn_cancel)
 
-        self.btn_use = QPushButton("✓ Usar este path →")
+        self.btn_use = QPushButton("Use this path")
         self.btn_use.setEnabled(False)
         self.btn_use.setStyleSheet(
             "background:#16A34A; color:white; font-weight:bold;"
@@ -348,7 +348,7 @@ class WireMethodChoiceDialog(QDialog):
         n_l = len(self._result['left']['path'])
         n_r = len(self._result['right']['path'])
         self.status_label.setText(
-            f"✓ {method} — izq: {n_l} pts  |  der: {n_r} pts"
+            f"{method}: left {n_l} pts, right {n_r} pts"
         )
         self.status_label.setStyleSheet(
             "color:#22C55E; font-weight:bold; padding:4px; font-size:11px;"
@@ -395,7 +395,7 @@ class WireMethodChoiceDialog(QDialog):
         self.btn_ds.setEnabled(False)
 
         files = "img izq+der  +  mask izq+der" + ("  +  paths" if wire_paths_json else "")
-        print(f"✓ Dataset path: muestra #{sample_id:04d} ({files})")
+        print(f"Dataset path: sample #{sample_id:04d} ({files})")
 
         QMessageBox.information(
             self, "Guardado en dataset",

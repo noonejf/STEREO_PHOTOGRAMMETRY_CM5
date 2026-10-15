@@ -205,8 +205,8 @@ class GuidedAnalysisWorker(QThread):
             st = self.session.status()
             self.analysis.emit({
                 "status": "no_board",
-                "message": ("tablero no visible" if corners_l is None
-                            else "la camara derecha no lo ve"),
+                "message": ("board not visible" if corners_l is None
+                            else "the right camera cannot see it"),
                 "tilt_deg": None,
                 "corners": None,
                 "status_obj": st,
@@ -235,7 +235,7 @@ class GuidedAnalysisWorker(QThread):
 # ── Widgets ──────────────────────────────────────────────────────────────────
 
 class BinChips(QWidget):
-    """Los cuatro rangos de inclinacion, con cuantas vistas lleva cada uno."""
+    """The four tilt ranges, each with how many views it has."""
 
     def __init__(self, tilt_bins, min_per_bin: int, parent=None):
         super().__init__(parent)
@@ -330,7 +330,7 @@ class GuidedStatusPanel(QWidget):
         row.addWidget(self.tilt_label)
 
         self.hint_label = QLabel(
-            "Aqui aparece que inclinacion falta mientras calibras.")
+            "The tilt range still missing appears here while you calibrate.")
         self.hint_label.setWordWrap(True)
         self.hint_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         self.hint_label.setStyleSheet(
@@ -341,12 +341,12 @@ class GuidedStatusPanel(QWidget):
         lay.addLayout(row)
 
         # Cobertura por rango
-        lay.addWidget(self._section("Cobertura de inclinaciones"))
+        lay.addWidget(self._section("Tilt coverage"))
         self.chips = BinChips(tilt_bins, min_per_bin)
         lay.addWidget(self.chips)
 
         # Progreso
-        lay.addWidget(self._section("Progreso de la calibracion"))
+        lay.addWidget(self._section("Calibration progress"))
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
@@ -360,15 +360,15 @@ class GuidedStatusPanel(QWidget):
             f"border-radius:4px; }}")
         lay.addWidget(self.progress)
 
-        note = QLabel("No cuenta fotos: mide cobertura de poses y cuanto se han "
-                      "estabilizado los parametros.")
+        note = QLabel("Not a photo count: it measures pose coverage and how far the "
+                      "parameters have settled.")
         note.setWordWrap(True)
         note.setStyleSheet(
             f"color:{TEXT_DIM}; font-size:11px; background:transparent;")
         lay.addWidget(note)
 
         # Metricas
-        lay.addWidget(self._section("Datos de la sesion"))
+        lay.addWidget(self._section("Session data"))
         # Dos columnas de pares: la misma informacion en la mitad de alto,
         # que es lo que permite que los botones principales quepan sin
         # desplazar en pantallas de 720 px.
@@ -377,12 +377,12 @@ class GuidedStatusPanel(QWidget):
         grid.setVerticalSpacing(3)
         self._metrics = {}
         rows = [
-            ("kept", "Vistas aceptadas"),
-            ("fx", "Incertidumbre de fx"),
-            ("seen", "Fotogramas vistos"),
+            ("kept", "Views kept"),
+            ("fx", "fx uncertainty"),
+            ("seen", "Frames seen"),
             ("ere", "Max ERE"),
-            ("spread", "Rango de inclinacion"),
-            ("worst", "Peor determinado"),
+            ("spread", "Tilt spread"),
+            ("worst", "Least determined"),
         ]
         for i, (key, title) in enumerate(rows):
             r, c = divmod(i, 2)
@@ -400,7 +400,7 @@ class GuidedStatusPanel(QWidget):
         grid.setColumnStretch(3, 1)
         lay.addLayout(grid)
 
-        self.set_banner("Listo para empezar", "Pulsa Iniciar calibracion guiada", "idle")
+        self.set_banner("Ready to start", "Press Start guided calibration", "idle")
 
     @staticmethod
     def _section(text: str) -> QLabel:
@@ -458,7 +458,7 @@ class GuidedStatusPanel(QWidget):
 
         unc = st.uncertainty
         if unc is None:
-            self._metrics["fx"].setText("faltan vistas para ajustar")
+            self._metrics["fx"].setText("need more views to fit")
             self._metrics["worst"].setText("--")
         else:
             fx = unc.values.get("fx", 0.0)

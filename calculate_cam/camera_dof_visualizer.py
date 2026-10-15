@@ -106,10 +106,16 @@ LENSES = {
         "f_number_min":    1.2,
         "f_number_max":    1.2,       # fixed lens
         "adjustable_f":   False,
-        "mod_mm":          0.2,        # minimum focus distance 0.2 mm
+        "mod_mm":          200.0,      # MOD 0.2 m. El 0.2 anterior venia de
+                                       # una errata en la pagina del bundle
+                                       # B0240 de Arducam ("MOD 0.2mm"); la
+                                       # pagina del lente suelto dice 0.2 m.
+                                       # El campo se usa como mod_mm/1000, asi
+                                       # que 0.2 desactivaba el limite de
+                                       # distancia minima.
         "fov_h_deg":       65.0,
         "mount":           "CS",
-        "description":     "6 mm F1.2 · FOV 65° · MOD 0.2 mm",
+        "description":     "6 mm F1.2 · FOV 65° · MOD 0.2 m",
     },
     "Lens 8mm F1.6-F16 Zoom (C-Mount)": {
         "focal_length_mm": 8.0,
@@ -348,7 +354,7 @@ class DoFCanvas(FigureCanvas):
                        linestyle=':', zorder=3, label=f'Hyperfocal: {hyperfocal_m:.1f} m')
 
         # ── Origin (camera) ──
-        ax.annotate('📷 Camera\n(origin)', xy=(0, 0), xytext=(2, 0.35),
+        ax.annotate('Camera\n(origin)', xy=(0, 0), xytext=(2, 0.35),
                     color='#cdd6f4', fontsize=8,
                     arrowprops=dict(arrowstyle='->', color='#cdd6f4', lw=1))
 
@@ -693,7 +699,7 @@ class MainWindow(QMainWindow):
         # Linear FOV interpolation
         t = (fl - fl_min) / (fl_max - fl_min)
         fov = fov_w + t * (fov_t - fov_w)
-        self.lbl_fov_info.setText(f"Estimated FOV: {fov:.1f}° H  (wide ← → tele)")
+        self.lbl_fov_info.setText(f"Estimated FOV: {fov:.1f}° H  (wide to tele)")
 
     def _on_fn_spinbox(self, val):
         self.sl_fn.blockSignals(True)

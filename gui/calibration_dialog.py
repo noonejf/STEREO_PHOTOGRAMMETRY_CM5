@@ -29,6 +29,7 @@ from gui.camera_preview import CameraPreviewWidget
 from gui.guided_calibration import (
     DETECT_WIDTH, GuidedAnalysisWorker, GuidedStatusPanel,
 )
+from gui.icons import get_icon
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -157,7 +158,8 @@ class CalibrationPage(QWidget):
         bb = QHBoxLayout(back_bar)
         bb.setContentsMargins(12, 0, 12, 0)
 
-        btn_back = QPushButton("← Dashboard")
+        btn_back = QPushButton("  Dashboard")
+        btn_back.setIcon(get_icon("back", TEXT_SECONDARY, 16))
         btn_back.setStyleSheet(
             f"QPushButton {{ background-color: transparent; color: {ACCENT_CYAN};"
             f"border: none; font-weight: bold; font-size: 13px; }}"
@@ -167,7 +169,7 @@ class CalibrationPage(QWidget):
         bb.addWidget(btn_back)
         bb.addStretch()
 
-        page_title = QLabel("⊕  Stereo Camera Calibration")
+        page_title = QLabel("Stereo Camera Calibration")
         page_title.setStyleSheet(
             f"color: {TEXT_PRIMARY}; font-weight: bold; font-size: 15px;"
             f"background: transparent;"
@@ -251,14 +253,16 @@ class CalibrationPage(QWidget):
 
         # Preview toggle buttons
         btn_row = QHBoxLayout()
-        self.btn_preview_start = QPushButton("▶  Start Preview")
+        self.btn_preview_start = QPushButton("  Start Preview")
+        self.btn_preview_start.setIcon(get_icon("play", TEXT_PRIMARY, 16))
         self.btn_preview_start.setStyleSheet(
             f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY}; }}"
             f"QPushButton:hover {{ background-color: #3B4B60; }}"
         )
         self.btn_preview_start.clicked.connect(self.start_preview_for_positioning)
 
-        self.btn_preview_stop = QPushButton("⏹  Stop Preview")
+        self.btn_preview_stop = QPushButton("  Stop Preview")
+        self.btn_preview_stop.setIcon(get_icon("stop", TEXT_PRIMARY, 16))
         self.btn_preview_stop.setStyleSheet(
             f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY}; }}"
             f"QPushButton:hover {{ background-color: #3B4B60; }}"
@@ -266,12 +270,12 @@ class CalibrationPage(QWidget):
         self.btn_preview_stop.clicked.connect(self.stop_preview_for_capture)
         self.btn_preview_stop.setEnabled(False)
 
-        self.btn_expand = QPushButton("⬌  Ampliar vistas")
+        self.btn_expand = QPushButton("  Enlarge views")
+        self.btn_expand.setIcon(get_icon("expand", TEXT_PRIMARY, 16))
         self.btn_expand.setCheckable(True)
         self.btn_expand.setToolTip(
-            "Ocultar el panel de controles para que las vistas ocupen toda la "
-            "ventana. Util mientras posicionas el tablero. El aviso grande "
-            "sigue visible arriba."
+            "Hide the controls so the views take the whole window. Useful while "
+            "positioning the board. The large prompt stays visible above."
         )
         self.btn_expand.setStyleSheet(
             f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY}; }}"
@@ -287,7 +291,7 @@ class CalibrationPage(QWidget):
         v.addLayout(btn_row)
 
         hint = QLabel(
-            "El tablero tiene que verse completo en LAS DOS camaras."
+            "The board must be fully visible in BOTH cameras."
         )
         hint.setStyleSheet(
             f"color: {TEXT_DIM}; font-size: 11px; background: transparent;"
@@ -301,7 +305,7 @@ class CalibrationPage(QWidget):
         return panel
 
     def eventFilter(self, obj, event):
-        """Reorientar las vistas cuando cambia la forma del panel."""
+        """Re-orient the views when the panel shape changes."""
         if (obj is getattr(self, "_preview_panel", None)
                 and event.type() == QEvent.Resize):
             self._reflow_previews(event.size())
@@ -316,7 +320,10 @@ class CalibrationPage(QWidget):
         panel es mas ancho que alto, lado a lado cada vista usa toda la
         altura y la imagen sale bastante mayor.
         """
-        wanted = (Qt.Horizontal if size.width() > size.height() * 1.15
+        # Umbral en 1.0: con el aspecto del sensor impuesto (4:3), en cuanto
+        # el panel es mas ancho que alto conviene lado a lado, porque ahi la
+        # altura deja de ser el limite y la imagen crece.
+        wanted = (Qt.Horizontal if size.width() >= size.height()
                   else Qt.Vertical)
         if self._preview_split.orientation() == wanted:
             return
@@ -325,7 +332,7 @@ class CalibrationPage(QWidget):
         self._preview_split.setSizes([half, half])
 
     def _toggle_expanded_preview(self, expanded: bool):
-        """Dar toda la ventana a las vistas, o devolver el panel de controles."""
+        """Give the whole window to the views, or bring the controls back."""
         scroll = getattr(self, "_controls_scroll", None)
         if scroll is None:
             return
@@ -333,11 +340,11 @@ class CalibrationPage(QWidget):
         self._preview_title.setVisible(not expanded)
         self.preview_banner.setVisible(expanded)
         self.btn_expand.setText(
-            "⬌  Volver a los controles" if expanded
-            else "⬌  Ampliar vistas")
+            "  Back to controls" if expanded
+            else "  Enlarge views")
 
     def _set_preview_banner(self, title, subtitle, kind, tilt=None, st=None):
-        """Reflejar el aviso principal en la franja del modo ampliado."""
+        """Mirror the main prompt in the strip used by the enlarged mode."""
         palette = {
             "idle":    (TEXT_SECONDARY, BG_CARD),
             "search":  (YELLOW_WARN, "#3A2E08"),
@@ -352,9 +359,9 @@ class CalibrationPage(QWidget):
         if tilt is not None:
             bits.append(f"{tilt:.0f}°")
         if st is not None:
-            bits.append(f"{st.accepted}/{st.target} vistas")
+            bits.append(f"{st.accepted}/{st.target} views")
             done = sum(1 for c in st.bin_counts.values() if c >= 3)
-            bits.append(f"{done}/4 rangos")
+            bits.append(f"{done}/4 ranges")
         right = "  ·  ".join(bits)
         self.preview_banner.setText(
             f"<span style='font-size:26px; font-weight:bold'>{title}</span>"
@@ -387,7 +394,7 @@ class CalibrationPage(QWidget):
         return panel
 
     def _create_guided_group(self):
-        group = QGroupBox("Calibracion guiada")
+        group = QGroupBox("Guided calibration")
         v = QVBoxLayout(group)
         v.setSpacing(8)
 
@@ -396,21 +403,21 @@ class CalibrationPage(QWidget):
 
         cfg = QHBoxLayout()
         cfg.setSpacing(6)
-        cfg.addWidget(QLabel("Pausa para reposicionar:"))
+        cfg.addWidget(QLabel("Repositioning pause:"))
         self.rearm_spin = QSpinBox()
         self.rearm_spin.setRange(0, 15)
         self.rearm_spin.setValue(3)
         self.rearm_spin.setSuffix(" s")
         self.rearm_spin.setToolTip(
-            "Tiempo tras cada foto antes de volver a buscar una pose. Sirve "
-            "para que te muevas sin que el sistema dispare de inmediato."
+            "Time after each shot before the system looks for a pose again, so "
+            "you can move without it firing immediately."
         )
         cfg.addWidget(self.rearm_spin)
         cfg.addStretch()
         v.addLayout(cfg)
 
-        self.btn_guided_finish = QPushButton(
-            "⏹  Finalizar con las vistas que haya")
+        self.btn_guided_finish = QPushButton("  Finish with the views collected")
+        self.btn_guided_finish.setIcon(get_icon("check", TEXT_SECONDARY, 16))
         self.btn_guided_finish.setFixedHeight(32)
         self.btn_guided_finish.setStyleSheet(
             f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_SECONDARY};"
@@ -420,14 +427,15 @@ class CalibrationPage(QWidget):
             f"QPushButton:disabled {{ color: {TEXT_DIM}; border-color: {BG_CARD}; }}"
         )
         self.btn_guided_finish.setToolTip(
-            "Cerrar la sesion y calibrar con lo capturado hasta ahora, aunque "
-            "falten rangos de inclinacion. Avisa de que falta antes de hacerlo."
+            "Close the session and calibrate with what has been captured, even "
+            "if tilt ranges are missing. It names what is missing first."
         )
         self.btn_guided_finish.clicked.connect(self.finish_guided_early)
         self.btn_guided_finish.setEnabled(False)
         v.addWidget(self.btn_guided_finish)
 
-        self.btn_guided = QPushButton("▶  Iniciar calibracion guiada")
+        self.btn_guided = QPushButton("  Start guided calibration")
+        self.btn_guided.setIcon(get_icon("calibration", "#06202A", 16))
         self.btn_guided.setFixedHeight(44)
         self.btn_guided.setStyleSheet(
             f"QPushButton {{ background-color: {ACCENT_CYAN}; color: #06202A;"
@@ -442,7 +450,7 @@ class CalibrationPage(QWidget):
         return group
 
     def _create_board_info_group(self):
-        group = QGroupBox("Tablero de calibracion")
+        group = QGroupBox("Calibration board")
         v = QVBoxLayout(group)
         st = self.camera_config.stereo
 
@@ -452,22 +460,22 @@ class CalibrationPage(QWidget):
         # imprimir un tablero que el software no reconoce.
         if getattr(st, "use_charuco", False):
             info_label = QLabel(
-                f"<b>Tipo:</b> ChArUco (genera con generate_charuco.py)<br>"
-                f"<b>Cuadros:</b> {st.charuco_squares_x} x {st.charuco_squares_y}"
-                f"  &nbsp;<b>Diccionario:</b> {st.charuco_dict_name}<br>"
-                f"<b>Lado del cuadro:</b> {st.charuco_square_size_mm} mm"
-                f"  &nbsp;<b>Marcador:</b> {st.charuco_marker_size_mm} mm<br>"
-                f"<b>Importante:</b> el tablero debe estar plano y rigido. "
-                f"Una hoja pegada con cinta introduce un sesgo que ninguna "
-                f"cantidad de fotos corrige."
+                f"<b>Type:</b> ChArUco (generate it with generate_charuco.py)<br>"
+                f"<b>Squares:</b> {st.charuco_squares_x} x {st.charuco_squares_y}"
+                f"  &nbsp;<b>Dictionary:</b> {st.charuco_dict_name}<br>"
+                f"<b>Square side:</b> {st.charuco_square_size_mm} mm"
+                f"  &nbsp;<b>Marker:</b> {st.charuco_marker_size_mm} mm<br>"
+                f"<b>Important:</b> the board must be flat and rigid. A sheet taped "
+                f"to a backing introduces a bias that no number of "
+                f"photographs removes."
             )
         else:
             bs = st.calibration_board_size
             info_label = QLabel(
-                f"<b>Tipo:</b> ajedrez clasico<br>"
-                f"<b>Esquinas internas:</b> {bs[0]} x {bs[1]} "
-                f"({bs[0] * bs[1]} en total)<br>"
-                f"<b>Lado del cuadro:</b> {st.calibration_square_size_mm} mm"
+                f"<b>Type:</b> plain chessboard<br>"
+                f"<b>Inner corners:</b> {bs[0]} x {bs[1]} "
+                f"({bs[0] * bs[1]} total)<br>"
+                f"<b>Square side:</b> {st.calibration_square_size_mm} mm"
             )
         info_label.setWordWrap(True)
         info_label.setStyleSheet(
@@ -562,12 +570,13 @@ class CalibrationPage(QWidget):
         row = QHBoxLayout()
         row.setSpacing(8)
 
-        self.btn_start = QPushButton("Flujo antiguo (cuenta regresiva)")
+        self.btn_start = QPushButton("  Legacy flow (countdown)")
+        self.btn_start.setIcon(get_icon("clock", TEXT_SECONDARY, 16))
         self.btn_start.setFixedHeight(36)
         self.btn_start.setToolTip(
-            "Flujo anterior: dispara cada N segundos sin mirar la pose. Es el "
-            "que produjo los 23 intentos fallidos. Se conserva por si hace "
-            "falta, pero usa la calibracion guiada de arriba."
+            "The previous flow: it fires every N seconds without looking at the "
+            "pose, and it is the one that produced the 23 failed attempts. "
+            "Kept in case it is needed; prefer the guided flow above."
         )
         self.btn_start.setStyleSheet(
             f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_SECONDARY};"
@@ -580,7 +589,8 @@ class CalibrationPage(QWidget):
         self.btn_start.setEnabled(self.cameras_available)
         row.addWidget(self.btn_start)
 
-        self.btn_process_existing = QPushButton("Procesar sesion existente")
+        self.btn_process_existing = QPushButton("  Process existing session")
+        self.btn_process_existing.setIcon(get_icon("folder", "white", 16))
         self.btn_process_existing.setFixedHeight(36)
         self.btn_process_existing.setStyleSheet(
             f"QPushButton {{ background-color: {ACCENT_BLUE}; color: white;"
@@ -590,7 +600,8 @@ class CalibrationPage(QWidget):
         self.btn_process_existing.clicked.connect(self.process_existing_session)
         row.addWidget(self.btn_process_existing)
 
-        self.btn_cancel = QPushButton("Cancelar")
+        self.btn_cancel = QPushButton("  Cancel")
+        self.btn_cancel.setIcon(get_icon("cross", TEXT_PRIMARY, 16))
         self.btn_cancel.setFixedHeight(36)
         self.btn_cancel.setStyleSheet(
             f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY};"
@@ -625,7 +636,7 @@ class CalibrationPage(QWidget):
             self.right_preview.start_preview()
             self.btn_preview_start.setEnabled(False)
             self.btn_preview_stop.setEnabled(True)
-            self.btn_preview_start.setText("▶  Preview Active")
+            self.btn_preview_start.setText("  Preview Active")
         except Exception as e:
             self.add_log_message(f"Error starting preview: {e}", "WARNING")
 
@@ -636,7 +647,7 @@ class CalibrationPage(QWidget):
             self.right_preview.stop_preview()
             self.btn_preview_start.setEnabled(self.cameras_available)
             self.btn_preview_stop.setEnabled(False)
-            self.btn_preview_start.setText("▶  Start Preview")
+            self.btn_preview_start.setText("  Start Preview")
         except Exception as e:
             self.add_log_message(f"Error stopping preview: {e}", "WARNING")
 
@@ -644,7 +655,7 @@ class CalibrationPage(QWidget):
 
     def _load_current_calibration_status(self):
         if self.camera_config.is_calibrated():
-            self.status_label.setText("✓ System Calibrated")
+            self.status_label.setText("System Calibrated")
             self.status_label.setStyleSheet(
                 f"color: {GREEN_ON}; font-weight: bold; font-size: 14px;"
                 f"background: transparent;"
@@ -803,12 +814,12 @@ class CalibrationPage(QWidget):
         """
         target = self.num_images_spin.value()
         reply = QMessageBox.question(
-            self, "Calibracion guiada",
-            f"El sistema va a guiarte hasta reunir {target} vistas utiles.\n\n"
-            "Dispara solo cuando la pose sirve, asi que puede mirar muchos mas "
-            "fotogramas que eso. Tienes que cubrir los cuatro rangos de "
-            "inclinacion que se muestran en pantalla.\n\n"
-            "Empezar?",
+            self, "Guided calibration",
+            f"The system will guide you until it has {target} useful views.\n\n"
+            "It only fires when the pose is worth keeping, so it may look at "
+            "many more frames than that. You need to cover the four tilt "
+            "ranges shown on screen.\n\n"
+            "Start?",
             QMessageBox.Yes | QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
@@ -817,10 +828,10 @@ class CalibrationPage(QWidget):
         try:
             self.capture_session_dir = self.stereo_camera.create_calibration_session_dir()
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo crear la sesion: {e}")
+            QMessageBox.critical(self, "Error", f"Could not create the session: {e}")
             return
 
-        self.add_log_message(f"Sesion guiada en: {self.capture_session_dir}", "INFO")
+        self.add_log_message(f"Guided session at: {self.capture_session_dir}", "INFO")
 
         self.guided_active = True
         self._guided_busy = False
@@ -853,7 +864,7 @@ class CalibrationPage(QWidget):
 
         self._analysis_timer.start()
         self.guided_panel.set_banner(
-            "Muestra el tablero", "Que lo vean las dos camaras", "search")
+            "Show the board", "Both cameras must see it", "search")
 
     def _on_left_frame(self, frame):
         self._last_left = frame
@@ -882,7 +893,7 @@ class CalibrationPage(QWidget):
             gl = self._to_detect_gray(self._last_left)
             gr = self._to_detect_gray(self._last_right)
         except Exception as e:
-            self.add_log_message(f"Preview ilegible: {e}", "WARNING")
+            self.add_log_message(f"Unreadable preview: {e}", "WARNING")
             return
         self.guided_worker.offer(gl, gr)
 
@@ -907,20 +918,20 @@ class CalibrationPage(QWidget):
             self.btn_guided_finish.setEnabled(st.accepted >= 6)
             self.progress_bar.setValue(int(round(100 * st.overall_progress())))
             self.progress_message.setText(
-                f"{st.accepted} de {st.target} vistas utiles "
-                f"({st.seen} fotogramas vistos)")
+                f"{st.accepted} of {st.target} useful views "
+                f"({st.seen} frames seen)")
         self.guided_panel.set_tilt(tilt, active_bin)
 
         if self._guided_busy:
             return
 
         if status == "accepted":
-            self.add_log_message(f"Vista aceptada: {res.get('message')}", "INFO")
+            self.add_log_message(f"View kept: {res.get('message')}", "INFO")
             self._guided_capture()
         elif status == "no_board":
             self.guided_panel.set_banner(
-                "Muestra el tablero", res.get("message", ""), "search")
-            self._set_preview_banner("Muestra el tablero",
+                "Show the board", res.get("message", ""), "search")
+            self._set_preview_banner("Show the board",
                                      res.get("message", ""), "search", tilt, st)
         elif status == "rejected_quality":
             sub = self._friendly_reason(res.get("message", ""))
@@ -928,88 +939,84 @@ class CalibrationPage(QWidget):
             if mv is not None and mx and mv > mx:
                 # Dar la cifra, no solo el adjetivo: asi el operador sabe si
                 # le falta mucho o esta a punto.
-                sub = (f"En movimiento: {mv:.1f} px, hace falta bajar de "
-                       f"{mx:.1f}. Mantenlo quieto un segundo")
-            self.guided_panel.set_banner("Ajusta", sub, "reject")
-            self._set_preview_banner("Ajusta", sub, "reject", tilt, st)
+                sub = (f"Moving: {mv:.1f} px, needs to drop below {mx:.1f}. "
+                       f"Hold it still for a second")
+            self.guided_panel.set_banner("Adjust", sub, "reject")
+            self._set_preview_banner("Adjust", sub, "reject", tilt, st)
         elif status == "rejected_pose":
             # El detalle de que falta ya aparece en la caja de ayuda, debajo.
             # Repetirlo aqui solo gastaba espacio.
             msg = res.get("message", "")
-            sub = ("Esta pose ya la tienes" if "duplicate" in msg.lower()
-                   else "Esa inclinacion no entra en ningun rango util")
-            self.guided_panel.set_banner("Cambia la pose", sub, "pose")
-            self._set_preview_banner("Cambia la pose", sub, "pose", tilt, st)
+            sub = ("You already have this pose" if "duplicate" in msg.lower()
+                   else "That tilt is outside every useful range")
+            self.guided_panel.set_banner("Change the pose", sub, "pose")
+            self._set_preview_banner("Change the pose", sub, "pose", tilt, st)
 
     @staticmethod
     def _friendly_reason(message: str) -> str:
         """
-        Convertir el motivo tecnico del rechazo en una instruccion accionable.
+        Turn the technical rejection reason into something to act on.
 
-        Los modulos de medida estan en ingles porque los cita el entregable;
-        la traduccion vive aqui, en la capa que mira el operador. Cada caso
-        dice que hacer, no solo que esta mal.
+        The measurement modules report what is wrong; the operator needs to
+        know what to do about it, which is not the same sentence.
         """
         m = message.lower()
         if "blur" in m:
-            return "Borroso: revisa el enfoque o sujeta el tablero mas firme"
+            return "Blurred: check focus, or hold the board steadier"
         if "moving" in m:
-            return "En movimiento: mantenlo quieto un segundo"
+            return "Moving: hold it still for a second"
         if "corner" in m or "detected" in m:
-            return "Se ven pocas esquinas: muestra el tablero completo"
+            return "Too few corners visible: show the whole board"
         if "clipped" in m:
-            return "Reflejos quemados: gira el tablero o baja la luz"
+            return "Blown highlights: turn the board or lower the light"
         if "too small" in m:
-            return "Muy lejos: acerca el tablero a la camara"
+            return "Too far: bring the board closer"
         if "too large" in m:
-            return "Muy cerca: aleja el tablero"
+            return "Too close: move the board back"
         return message
 
     @staticmethod
     def _translate_hint(hint: str) -> str:
-        """Pasar a espanol la instruccion que genera la sesion."""
-        import re
+        """
+        Make the session hint read as an instruction.
+
+        The session states what is missing in its own terms; this puts it in
+        the imperative and spells out the bin labels.
+        """
+        import re as _re
 
         bins = {
             "frontal, for the distortion terms":
-                "frontal, para los coeficientes de distorsion",
-            "slightly tilted": "poco inclinado",
-            "clearly tilted": "claramente inclinado",
-            "strongly tilted": "muy inclinado",
+                "frontal, for the distortion coefficients",
+            "slightly tilted": "slightly tilted",
+            "clearly tilted": "clearly tilted",
+            "strongly tilted": "strongly tilted",
         }
 
-        m = re.match(r"need (\d+) more view\(s\) at ([\d.]+) to ([\d.]+) "
-                     r"degrees of tilt \((.+)\)", hint)
+        m = _re.match(r"need (\d+) more view\(s\) at ([\d.]+) to ([\d.]+) "
+                      r"degrees of tilt \((.+)\)", hint)
         if m:
             n, lo, hi, label = m.groups()
-            uno = n == "1"
-            verbo, plural = ("Falta", "vista") if uno else ("Faltan", "vistas")
-            return (f"{verbo} {n} {plural} entre {float(lo):.0f} y "
-                    f"{float(hi):.0f} grados de inclinacion "
+            noun = "view" if n == "1" else "views"
+            return (f"{n} more {noun} between {float(lo):.0f} and "
+                    f"{float(hi):.0f} degrees of tilt "
                     f"({bins.get(label, label)})")
 
-        m = re.match(r"(\d+) more view\(s\)\. Least determined: (\w+); (.+)",
-                     hint)
+        m = _re.match(r"(\d+) more view\(s\)\. Least determined: (\w+); (.+)",
+                      hint)
         if m:
             n, worst, what = m.groups()
-            uno = n == "1"
-            verbo, plural = ("Falta", "vista") if uno else ("Faltan", "vistas")
-            guide = {
-                "tilt the board further and move it off centre":
-                    "inclinalo mas y sacalo del centro",
-                "bring the board to the edges and corners of the frame":
-                    "llevalo a los bordes y esquinas del cuadro",
-            }.get(what, what)
-            return (f"{verbo} {n} {plural}. El parametro peor determinado es "
-                    f"{worst}: {guide}")
+            noun = "view" if n == "1" else "views"
+            return (f"{n} more {noun}. Least determined parameter is "
+                    f"{worst}: {what}")
 
-        m = re.match(r"(\d+) more view\(s\)$", hint)
+        m = _re.match(r"(\d+) more view\(s\)$", hint)
         if m:
             n = m.group(1)
-            return (f"Falta {n} vista" if n == "1" else f"Faltan {n} vistas")
+            return f"{n} more view" if n == "1" else f"{n} more views"
 
         if hint.startswith("complete"):
-            return "Listo: rangos cubiertos y objetivo alcanzado"
+            return "Done: tilt ranges covered and target reached"
         return hint
 
     def _guided_capture(self):
@@ -1018,9 +1025,9 @@ class CalibrationPage(QWidget):
         self.guided_worker.set_paused(True)
         self._analysis_timer.stop()
         self.guided_panel.set_banner(
-            "QUIETO", "Tomando la foto, no muevas el tablero", "hold")
+            "HOLD STILL", "Taking the shot, do not move the board", "hold")
         self._set_preview_banner(
-            "QUIETO", "Tomando la foto, no muevas el tablero", "hold")
+            "HOLD STILL", "Taking the shot, do not move the board", "hold")
         self.stop_preview_for_capture()
         QTimer.singleShot(350, self._guided_execute_capture)
 
@@ -1032,16 +1039,16 @@ class CalibrationPage(QWidget):
                 self.capture_session_dir, self.images_captured)
             self.images_captured += 1
         except Exception as e:
-            self.add_log_message(f"Error de captura: {e}", "ERROR")
-            QMessageBox.critical(self, "Error de captura", str(e))
+            self.add_log_message(f"Capture error: {e}", "ERROR")
+            QMessageBox.critical(self, "Capture error", str(e))
             self.cancel_calibration()
             return
 
         st = self.guided_worker.session.status() if self.guided_worker.session else None
         if st is not None and st.complete:
             self.add_log_message(
-                f"Objetivo alcanzado: {st.accepted} vistas utiles de "
-                f"{st.seen} fotogramas vistos", "INFO")
+                f"Target reached: {st.accepted} useful views out of "
+                f"{st.seen} frames seen", "INFO")
             self._finish_guided()
             return
 
@@ -1062,9 +1069,9 @@ class CalibrationPage(QWidget):
             if self.guided_worker and self.guided_worker.session:
                 hint = self._translate_hint(self.guided_worker.session.hint())
             self.guided_panel.set_banner(
-                f"Muevete  {self._rearm_left}", hint, "capture")
+                f"Move  {self._rearm_left}", hint, "capture")
             self._set_preview_banner(
-                f"Muevete  {self._rearm_left}", hint, "capture")
+                f"Move  {self._rearm_left}", hint, "capture")
             self._rearm_left -= 1
         else:
             self._rearm_timer.stop()
@@ -1079,18 +1086,18 @@ class CalibrationPage(QWidget):
         hint = ""
         if self.guided_worker and self.guided_worker.session:
             hint = self._translate_hint(self.guided_worker.session.hint())
-        self.guided_panel.set_banner("Buscando pose", hint, "search")
-        self._set_preview_banner("Buscando pose", hint, "search")
+        self.guided_panel.set_banner("Looking for a pose", hint, "search")
+        self._set_preview_banner("Looking for a pose", hint, "search")
 
     def finish_guided_early(self):
         """
-        Cerrar la sesion antes de cubrir los cuatro rangos.
+        Close the session before all four ranges are covered.
 
-        Existe porque el espacio fisico, el tamano del tablero o el alcance
-        del operador pueden impedir una inclinacion concreta, y quedarse sin
-        salida salvo cancelar y perder todo seria peor. Pero avisa de que
-        falta, porque un rango vacio es exactamente lo que hizo irrecuperable
-        la distancia focal en los 23 intentos anteriores.
+        Physical space, board size or the operator's reach can make one tilt
+        unattainable, and having no way out but cancelling and losing the
+        whole session would be worse. It names what is missing first, because
+        an empty range is exactly what left the focal length unrecoverable in
+        the 23 previous attempts.
         """
         if not self.guided_active or self.guided_worker is None:
             return
@@ -1099,59 +1106,59 @@ class CalibrationPage(QWidget):
             return
 
         st = session.status()
-        missing = [f"{lo:.0f} a {hi:.0f} grados ({st.bin_counts[lab]} de "
+        missing = [f"{lo:.0f} to {hi:.0f} degrees ({st.bin_counts[lab]} of "
                    f"{session.min_per_bin})"
                    for lo, hi, lab in session.tilt_bins
                    if st.bin_counts[lab] < session.min_per_bin]
 
         if missing:
             detail = "\n".join(f"  - {m}" for m in missing)
-            msg = (f"Llevas {st.accepted} vistas utiles, pero faltan rangos de "
-                   f"inclinacion:\n\n{detail}\n\n"
-                   "Un rango vacio deja parametros mal determinados. Con el "
-                   "rango de mayor inclinacion vacio, la distancia focal puede "
-                   "quedar sin resolver, que es exactamente lo que ocurrio en "
-                   "los 23 intentos anteriores.\n\n"
-                   "Calibrar igual con lo que hay?")
+            msg = (f"You have {st.accepted} useful views, but these tilt "
+                   f"ranges are not covered:\n\n{detail}\n\n"
+                   "An empty range leaves parameters poorly determined. "
+                   "With the highest tilt range empty the focal length can "
+                   "stay unresolved, which is exactly what happened in the "
+                   "23 previous attempts.\n\n"
+                   "Calibrate anyway with what there is?")
         else:
-            msg = (f"Los cuatro rangos estan cubiertos y llevas {st.accepted} "
-                   f"vistas de {st.target}.\n\nCalibrar ya?")
+            msg = (f"All four ranges are covered and you have {st.accepted} "
+                   f"views of {st.target}.\n\nCalibrate now?")
 
-        if QMessageBox.question(self, "Finalizar antes de tiempo", msg,
+        if QMessageBox.question(self, "Finish early", msg,
                                 QMessageBox.Yes | QMessageBox.No,
                                 QMessageBox.No) != QMessageBox.Yes:
             return
 
         if self.images_captured < 1:
-            QMessageBox.warning(self, "Sin capturas",
-                                "No hay ninguna foto guardada todavia.")
+            QMessageBox.warning(self, "No captures",
+                                "No photograph has been saved yet.")
             return
 
         self.add_log_message(
-            f"Sesion cerrada por el operador con {st.accepted} vistas", "WARNING")
+            f"Session closed by the operator with {st.accepted} views", "WARNING")
         if missing:
             self.add_log_message(
-                f"Rangos sin cubrir: {'; '.join(missing)}", "WARNING")
+                f"Ranges not covered: {'; '.join(missing)}", "WARNING")
         self._finish_guided()
 
     def _finish_guided(self):
         """Cerrar el bucle y pasar la sesion al ajuste a resolucion completa."""
         self._stop_guided_machinery()
         self.guided_panel.set_banner(
-            "Capturas completas", "Calculando la calibracion", "done")
+            "Captures complete", "Computing the calibration", "done")
         self._set_preview_banner(
-            "Capturas completas", "Calculando la calibracion", "done")
+            "Captures complete", "Computing the calibration", "done")
 
         if self.guided_worker and self.guided_worker.session:
             res = self.guided_worker.session.result()
             self.guided_panel.set_spread(res.get("tilt_spread_deg", 0.0))
             self.add_log_message(
-                f"Guiado: {res['n_views']} vistas de {res['frames_seen']} "
-                f"fotogramas, rango de inclinacion "
-                f"{res.get('tilt_spread_deg', 0):.0f} grados", "INFO")
+                f"Guided: {res['n_views']} views from {res['frames_seen']} "
+                f"frames, tilt spread "
+                f"{res.get('tilt_spread_deg', 0):.0f} degrees", "INFO")
             for reason, n in sorted(res.get("rejections", {}).items(),
                                     key=lambda kv: -kv[1])[:5]:
-                self.add_log_message(f"  rechazos, {reason}: {n}", "INFO")
+                self.add_log_message(f"  rejected, {reason}: {n}", "INFO")
 
         self._process_calibration_images()
 
@@ -1192,7 +1199,7 @@ class CalibrationPage(QWidget):
         self.is_capturing = False
 
         if success:
-            self.add_log_message("✓ Calibration completed successfully", "INFO")
+            self.add_log_message("Calibration completed successfully", "INFO")
             self._set_countdown_style("CALIBRATION SUCCESSFUL", "System ready!", -2)
             self.progress_bar.setValue(100)
 
@@ -1249,7 +1256,7 @@ class CalibrationPage(QWidget):
         if self.guided_active:
             self._stop_guided_machinery()
             self.guided_panel.set_banner(
-                "Cancelada", "Puedes volver a empezar cuando quieras", "idle")
+                "Cancelled", "You can start again whenever you want", "idle")
 
         if self.countdown_timer.isActive():
             self.countdown_timer.stop()

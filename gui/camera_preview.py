@@ -186,6 +186,19 @@ class CameraPreviewWidget(QWidget):
         
         video_layout = QVBoxLayout(video_frame)
         video_layout.setContentsMargins(2, 2, 2, 2)
+
+        # Relacion de aspecto del sensor, tomada de la resolucion de captura.
+        # El IMX477 entrega 4056x3040, es decir 4:3. Sin esto el hueco de la
+        # vista toma la forma que le deje el layout, normalmente un
+        # rectangulo alto y estrecho, y la imagen 4:3 queda pequena en medio
+        # con franjas vacias arriba y abajo. Peor que feo: lo que se ve en
+        # pantalla no tiene la forma de lo que se va a capturar, asi que
+        # encuadrar el tablero mirando el preview enganna.
+        try:
+            cap = self.config.left_camera.capture_resolution
+            self._aspect = float(cap[0]) / float(cap[1])
+        except Exception:
+            self._aspect = 4.0 / 3.0
         
         # Label para mostrar video
         self.video_label = QLabel()
@@ -215,7 +228,8 @@ class CameraPreviewWidget(QWidget):
         # Mostrar texto por defecto
         self.show_no_signal()
         
-        video_layout.addWidget(self.video_label)
+        video_layout.addWidget(self.video_label, 0, Qt.AlignCenter)
+        self._video_frame = video_frame
         layout.addWidget(video_frame)
         
         # Información de la cámara
@@ -332,6 +346,26 @@ class CameraPreviewWidget(QWidget):
         
         logger.info(f"Preview stopped for {self.camera_name}")
     
+    def resizeEvent(self, event):
+        """Mantener el hueco de la vista con la forma del sensor."""
+        super().resizeEvent(event)
+        self._apply_aspect()
+
+    def _apply_aspect(self):
+        """Caja mas grande con la relacion de aspecto del sensor que quepa."""
+        frame = getattr(self, "_video_frame", None)
+        if frame is None:
+            return
+        avail_w = max(frame.width() - 6, 40)
+        avail_h = max(frame.height() - 6, 30)
+        w = min(avail_w, int(avail_h * self._aspect))
+        h = int(round(w / self._aspect))
+        if h > avail_h:
+            h = avail_h
+            w = int(round(h * self._aspect))
+        if (w, h) != (self.video_label.width(), self.video_label.height()):
+            self.video_label.setFixedSize(w, h)
+
     def on_frame_ready(self, frame):
         """Callback cuando un frame está listo"""
         try:

@@ -25,6 +25,7 @@ from PyQt5.QtGui import QPixmap, QImage, QFont
 
 from processing.stereo_processor import StereoProcessor
 from processing.point_cloud_generator import PointCloudExporter
+from gui.icons import get_icon
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -415,7 +416,8 @@ class ResultsVisualizationWidget(QWidget):
         v.addWidget(title_lbl)
 
         toolbar = QHBoxLayout()
-        btn_load = QPushButton("📂  Load Point Cloud (.ply)")
+        btn_load = QPushButton("  Load Point Cloud (.ply)")
+        btn_load.setIcon(get_icon("folder", TEXT_PRIMARY, 16))
         btn_load.setStyleSheet(
             f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY};"
             f"border-radius: 4px; padding: 5px 10px; }}"
@@ -919,7 +921,8 @@ class ProcessingPage(QWidget):
         bb = QHBoxLayout(back_bar)
         bb.setContentsMargins(12, 0, 12, 0)
 
-        btn_back = QPushButton("← Dashboard")
+        btn_back = QPushButton("  Dashboard")
+        btn_back.setIcon(get_icon("back", TEXT_SECONDARY, 16))
         btn_back.setStyleSheet(
             f"QPushButton {{ background-color: transparent; color: {ACCENT_CYAN};"
             f"border: none; font-weight: bold; font-size: 13px; }}"
@@ -929,7 +932,7 @@ class ProcessingPage(QWidget):
         bb.addWidget(btn_back)
         bb.addStretch()
 
-        page_title = QLabel("◈  3D Processing — Model Generation")
+        page_title = QLabel("3D Processing: Model Generation")
         page_title.setStyleSheet(
             f"color: {TEXT_PRIMARY}; font-weight: bold; font-size: 15px;"
             f"background: transparent;"
@@ -962,7 +965,8 @@ class ProcessingPage(QWidget):
         ab.setContentsMargins(12, 0, 12, 0)
         ab.setSpacing(8)
 
-        self.btn_start = QPushButton("▶  Start Processing")
+        self.btn_start = QPushButton("  Start Processing")
+        self.btn_start.setIcon(get_icon("play", "white", 16))
         self.btn_start.setFixedHeight(36)
         self.btn_start.setStyleSheet(
             f"QPushButton {{ background-color: {ACCENT_BLUE}; color: white;"
@@ -973,7 +977,8 @@ class ProcessingPage(QWidget):
         self.btn_start.clicked.connect(self.start_processing)
         ab.addWidget(self.btn_start)
 
-        self.btn_cancel = QPushButton("⏹  Cancel")
+        self.btn_cancel = QPushButton("  Cancel")
+        self.btn_cancel.setIcon(get_icon("cross", TEXT_PRIMARY, 16))
         self.btn_cancel.setFixedHeight(36)
         self.btn_cancel.setStyleSheet(
             f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY};"
@@ -1182,7 +1187,7 @@ class ProcessingPage(QWidget):
                 self.selected_right_path = str(right_imgs[0])
                 ts = datetime.fromtimestamp(latest.stat().st_mtime)
                 self.capture_info_label.setText(
-                    f"✓ Last Capture Detected\n"
+                    f"Last Capture Detected\n"
                     f"Date: {ts.strftime('%Y-%m-%d %H:%M:%S')}\n"
                     f"Session: {latest.name}\n"
                     f"Status: Ready to process"
@@ -1264,7 +1269,7 @@ class ProcessingPage(QWidget):
                 if not r.exists(): r = session / "right.png"
                 ts = datetime.fromtimestamp(session.stat().st_mtime)
                 complete = l.exists() and r.exists()
-                icon = "✓" if complete else "!"
+                icon = "OK" if complete else "!"
                 item = QListWidgetItem(
                     f"[{icon}] {session.name}\n    {ts.strftime('%Y-%m-%d %H:%M:%S')}"
                 )
@@ -1349,7 +1354,7 @@ class ProcessingPage(QWidget):
 
                 ts = datetime.fromtimestamp(sd.stat().st_mtime)
                 self.capture_info_label.setText(
-                    f"✓ Session Selected\n"
+                    f"Session Selected\n"
                     f"{sd.name}\n"
                     f"Date: {ts.strftime('%Y-%m-%d %H:%M:%S')}\n"
                     f"Status: Ready to process"
@@ -1559,7 +1564,7 @@ class ProcessingPage(QWidget):
                             f"| RIGHT {len(tracking_results['right']['path'])} pts",
                             "INFO",
                         )
-                        self.filter_status_label.setText("✓ Filter + Wire Tracking OK")
+                        self.filter_status_label.setText("Filter + Wire Tracking OK")
                         self.filter_status_label.setStyleSheet(
                             f"background-color: {BG_CARD}; color: {GREEN_ON};"
                             f"padding: 6px; border-radius: 3px; font-size: 11px;"
@@ -1576,7 +1581,7 @@ class ProcessingPage(QWidget):
                     logger.error(f"Wire tracking error: {e}")
                     self.add_log_message(f"Wire tracking error: {e}", "ERROR")
                     self.wire_tracking_result = None
-                    self.filter_status_label.setText("✓ Filter configured (no wire tracking)")
+                    self.filter_status_label.setText("Filter configured (no wire tracking)")
                     self.filter_status_label.setStyleSheet(
                         f"background-color: {BG_CARD}; color: {GREEN_ON};"
                         f"padding: 6px; border-radius: 3px; font-size: 11px;"
