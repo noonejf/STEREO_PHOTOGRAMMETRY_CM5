@@ -1,324 +1,276 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) when working in this repository.
 
-## Project Overview
+## What this project actually is
 
-Stereo photogrammetry system for **Raspberry Pi CM5** with **Arducam HQ 477 (IMX477 12MP)** dual cameras. Provides PyQt5-based GUI for camera calibration, synchronized stereo capture, and 3D model reconstruction. Designed for space applications and industrial inspection requiring robust computer vision.
+Project **LINKU** (PUCP / APSCO): a stereo vision system that **measures a thin
+cable (tether) strung between two satellites**, in 3D, in the dark.
 
-## Key Commands
+Hardware: **Raspberry Pi CM5** with two **Arducam HQ 477 (IMX477, 12 MP)**
+cameras, currently fitted with the **Arducam C1508ZM04 8 mm f/1.6-f/16** lens.
 
-### Running the Application
+The headline output is **not a dense point cloud**. It is a set of metric
+scalars about the cable: arc length in metres, straightness, depth range,
+diameter and curvature. A sparse point cloud of the cable is a by-product.
+
+> Why this matters when reading the code: dense SGBM **fails** on a thin,
+> textureless object, because there is nothing to correlate along the wire.
+> The whole geometric pipeline exists to work around that. Treat "stereo
+> photogrammetry" in old names and docstrings as a historical label.
+
+## Running it
 
 ```bash
-# Main application
-python3 main.py
-
-# First-time setup guide
-python3 quick_start.py
-
-# System diagnostics
-python3 demo_system_check.py
-
-# Test calibration module
-python3 test_calibration_module.py
+python3 main.py          # the application
+python3 quick_start.py   # first-time setup guide
+python3 generate_charuco.py   # regenerate charuco_board_5x7.png for printing
 ```
 
-### Installation
+`main.py` does not require cameras. If `libcamera` or the sensors are missing it
+starts in **"Processing Only Mode"**: you can process archived captures but not
+take new ones. This is the normal path on a Windows dev machine.
 
 ```bash
-# Automated installation (Raspberry Pi OS Bookworm)
-python3 install_setup.py
-
-# Manual dependency installation
-pip3 install -r requirements.txt
-
-# System packages (prefer apt over pip on Raspberry Pi)
-sudo apt install python3-pyqt5 python3-opencv libcamera-apps
-```
-
-### Camera Verification
-
-```bash
-# List available cameras
+# Camera checks (on the Pi)
 libcamera-hello --list-cameras
-
-# Test individual cameras
 libcamera-hello --camera 0 -t 2000
-libcamera-hello --camera 1 -t 2000
-```
 
-### Development Utilities
+# Offline calibration diagnostics (no camera, no GUI, writes nothing)
+python3 tools/analyze_calibration_sessions.py
+python3 tools/replay_guided_session.py calibration_20260216_160735
 
-```bash
-# Clean temporary files
-python3 -c "from utils.file_manager import FileManager; fm = FileManager(); print(fm.cleanup_temp_files())"
-
-# Check storage usage
-python3 -c "from utils.file_manager import FileManager; fm = FileManager(); print(fm.get_storage_usage())"
-
-# View logs
+# Logs
 tail -f logs/stereo_photogrammetry.log
 ```
 
-## Architecture Overview
+## Application structure
 
-### Core Data Flow
+One PyQt5 window, a 4-item sidebar, a `QStackedWidget` ([gui/main_window.py](gui/main_window.py)):
+
+| # | Page | Class | File |
+|---|------|-------|------|
+| 0 | Dashboard | built inline | `gui/main_window.py:357` |
+| 1 | Calibration | `CalibrationPage` | `gui/calibration_dialog.py:91` |
+| 2 | Processing | `ProcessingPage` | `gui/processing_dialog.py:881` |
+| 3 | AI | `AIPage` | `gui/ai_page.py` |
+
+## The cable measurement pipeline (the main path)
+
+Processing page, mode **`Geometric (Wire Tracking)`**, which is the **default**
+(`gui/processing_dialog.py:1061`). `Dense SGBM (Traditional)` is the fallback.
+
+| # | Step | Entry point |
+|---|------|-------------|
+| 1 | Segment the cable into binary masks (L+R) | `open_cable_detection_tuner_with_switch()` — `edge_detection_tuner.py:1426` |
+| 2 | Find the two endpoints (skeletonize, prune, geodesic-farthest pair) | `detect_wire_endpoints()` — `processing/endpoint_detector.py:771` |
+| 3 | Trace the path: automatic **or** hand-drawn | `WireMethodChoiceDialog` — `gui/wire_method_choice.py:85` |
+| 3a | Auto: DFS over the mask with backtracking and momentum | `SmartWireTracker.track_wire()` — `processing/smart_wire_tracker.py:88` |
+| 3b | Manual: user clicks points along the wire | `WirePathDrawerDialog` — `gui/wire_path_drawer.py:176` |
+| 4 | Rectify both images | `StereoProcessor.rectify_images()` — `processing/stereo_processor.py:403` |
+| 5 | Match left to right | `compute_disparity_from_wire_paths()` — `processing/stereo_processor.py:852` |
+| 6 | Sparse 3D cloud of the cable | `generate_point_cloud_from_matches()` — `processing/stereo_processor.py:1441` |
+| 7 | Metric scalars | `compute_wire_metrics()` — `processing/wire_metrics.py:56` |
+| 8 | Export PLY/XYZ/PCD/OBJ | `PointCloudExporter.export_point_cloud()` |
+
+### The one assumption to keep in mind
+
+Step 5 matches **parametrically, not epipolarly**: the point at i% along the
+left path is paired with the point at i% along the right path. This only holds
+if both traced paths start and end at the **same physical points** on the cable
+and traverse it at the same rate. When an endpoint is occluded or a path leaves
+the frame, the error is systematic and silent. There is no epipolar check to
+catch it.
+
+Triangulation is written out by hand (`processing/wire_metrics.py:95`), not via
+`cv2.triangulatePoints` or `cv2.reprojectImageTo3D`, neither of which is used
+anywhere in the repo.
+
+`compute_wire_metrics` drops points with `disp <= 0` or `Z` outside 0.05 to
+50.0 m **before** computing arc length, so `total_length_m` under-reports if a
+mid-wire segment gets filtered.
+
+## The AI page
+
+Real trained model, but **classical ML, not deep learning**. There is no torch,
+tensorflow, onnx or tflite anywhere in the repo.
+
+- `RandomForestClassifier` from scikit-learn, per-pixel binary cable/background
+  segmentation (`gui/ai_page.py:91`).
+- 9 hand-crafted per-pixel features: B, G, R, H, S, V, 3x3 blur, 9x9 blur,
+  local contrast (`gui/ai_page.py:70`).
+- Trains at 256x192, augments with flips and brightness, balances 1:4.
+- Pickled to `data/models/mask_model.pkl`.
+- Consumed as an **optional alternative segmenter at pipeline step 1**, in
+  `edge_detection_tuner.py:1263`.
+
+Two caveats worth repeating to the user before they trust it:
+
+1. **The reported F1/precision/recall are training-set scores**
+   (`gui/ai_page.py:187` predicts on `X_tr`, the same array passed to `fit`
+   five lines earlier). There is no held-out split, so
+   the numbers are optimistic by construction.
+2. **The second model does not exist.** `PATH_MODEL_PATH` is never written,
+   `_train_path_model()` is a "Próximamente" placeholder, and the matching
+   "Opción 3 - IA Wire Tracker" button is permanently disabled
+   (`gui/wire_method_choice.py:212`).
+
+## Datasets
+
+`utils/dataset_manager.py` manages two independent on-disk sample stores with
+the same class, with perceptual dedup (64x64 gray MD5):
 
 ```
-GUI Layer (PyQt5)
-    ↓
-Configuration Layer (camera_config.py)
-    ↓
-Hardware Layer (stereo_camera.py) → libcamera interface
-    ↓
-Processing Layer (stereo_processor.py) → OpenCV algorithms
-    ↓
-Export Layer (point_cloud_generator.py) → PLY/XYZ/PCD/OBJ
+data/ai_dataset/mask_dataset/   # images + masks, for the RandomForest
+data/ai_dataset/path_dataset/   # images + masks + paths JSON, for the model that does not exist yet
+  images/0001.jpg, 0001_right.jpg
+  masks/0001.png,  0001_right.png
+  paths/0001.json  {"left": [[x,y],...], "right": [[x,y],...]}
 ```
 
-### Key Components
+Browse either with `DatasetViewerDialog` (`gui/dataset_viewer.py:135`).
 
-**Configuration Management** (`config/camera_config.py`)
-- Manages camera settings (resolution, FPS, exposure, gain)
-- Stores calibration matrices in JSON format
-- Auto-loads existing calibration on startup
-- Methods: `get_capture_settings()`, `is_calibrated()`, `get_calibration_info()`
+## Calibration
 
-**Stereo Camera System** (`camera/stereo_camera.py`)
-- Abstracts dual Arducam HQ 477 operations via libcamera-jpeg calls
-- Verifies camera availability on initialization
-- Creates timestamped capture sessions
-- Methods: `verify_cameras()`, `capture_calibration_pair()`, `capture_stereo_pair()`
+### How it works today
 
-**Calibration Engine** (`camera/camera_calibration.py`)
-- Detects chessboard corners (9x6 internal squares, 24mm size)
-- Computes intrinsic/extrinsic parameters, rectification maps
-- Validates calibration quality (target: <0.5 pixel error)
-- Methods: `calibrate_from_session()`, `detect_chessboard_corners()`, `validate_calibration()`
+`CalibrationPage`: you press Start, a **countdown** runs, one pair is shot, it
+waits, shoots again, and so on. All images are processed **at the end**. There
+is no live feedback and no way to reject a bad frame as it happens.
 
-**Stereo Processor** (`processing/stereo_processor.py`)
-- Implements SGBM (Semi-Global Block Matching) - high quality, ~30-60s
-- Implements BM (Block Matching) - fast, ~10-20s
-- Performs rectification, disparity computation, outlier filtering
-- Methods: `process_stereo_pair()`, `filter_disparity()`, `compute_point_cloud()`
+Board: **ChArUco 5x7, 37 mm squares, 29.6 mm markers, DICT_6X6_250**
+(`config/camera_config.py:56`). Print `charuco_board_5x7.png`.
 
-**Point Cloud Generator** (`processing/point_cloud_generator.py`)
-- Exports to PLY (binary/ASCII with colors), XYZ, PCD, OBJ formats
-- Handles voxel downsampling and optional normal computation
-- Methods: `export_point_cloud()`, `_export_ply()`, `_export_xyz()`
+Calibration captures at **full resolution (4056x3040) with an explicit
+`--mode`** (`config/camera_config.py`, `get_libcamera_cmd`). This matters:
+`fx = f/pixel_size`, so calibrating at one resolution and capturing at another
+invalidates the result, and two IMX477 modes **crop** as well as bin, so you
+cannot simply rescale. This was fixed after the archived sessions were taken.
 
-**GUI Components** (`gui/`)
-- `MainWindow`: Main application layout with preview, controls, status
-- `CameraPreviewWidget`: Real-time camera feed
-- `CalibrationDialog`: Interactive calibration workflow with countdown
-- `ProcessingDialog`: Algorithm selection, parameter tuning, visualization
+### State of the current calibration
 
-### Threading Architecture
+`data/calibration/calibration_data.json` is flagged **`is_good_quality: False`**
+by the system itself: error 1.53 px, shot at 1920x1440, and `cx = 694.8` on a
+1920-wide image where it should sit near 960. That 265 px offset is the
+signature of the `[tx,ty]` vs `[cx,cy]` degeneracy.
 
-- **CountdownThread** (MainWindow): Non-blocking countdown timer
-- **CalibrationProcessingThread** (CalibrationDialog): Background calibration
-- **ProcessingWorkerThread** (ProcessingDialog): Background 3D processing
+`calibration_data_blender_sim.json` has error 0.0 and `images_used: 0`. It is
+**not a fit**, it is the ground truth of the Blender simulation written out
+directly. Correct for simulation work, meaningless for hardware.
 
-All use Qt threads to prevent UI freezing during long operations.
+### Diagnosis of the 23 failed sessions
 
-## Critical Configuration
+Measured over 424 archived frames: median board tilt **4.4°**, only 39% above
+5°, and **not one frame above 45°**. With the board near-frontal the focal
+length is mathematically unrecoverable, because a longer focal at a greater
+distance produces an identical image. More frames of the same pose would never
+have fixed it.
 
-### Camera Setup (Arducam HQ 477)
+Reprojection RMS is **not** a quality metric. It is the training residual the
+optimizer just minimised. Use the parameter covariance instead
+(`stdDeviationsIntrinsics`).
 
-Edit `/boot/firmware/config.txt` (or `/boot/config.txt` on older systems):
+### The guided replacement (built, not yet wired)
+
+| File | Status |
+|------|--------|
+| `camera/calibration_guidance.py` | Done. Per-frame gates, degeneracy and novelty tests, parameter uncertainty, convergence, approximate Max ERE |
+| `camera/guided_session.py` | Done. The continuous-capture loop: a rejected frame does **not** consume a slot, so asking for 25 views yields 25 that passed both gates |
+| `tools/analyze_calibration_sessions.py` | Done. Retrospective diagnosis |
+| `tools/replay_guided_session.py` | Done. Replays archived sessions frame by frame, no hardware |
+| **Wiring into `gui/calibration_dialog.py`** | **Not done.** The GUI still runs the countdown flow |
+
+Neither module imports a camera or PyQt, by design, so both can be exercised
+offline. The session refuses to report itself complete until the accepted views
+cover four tilt bins (0-10°, 15-30°, 30-45°, 45-70°) with at least 3 each.
+
+## Things that will trip you up
+
+**`edge_detection_tuner.py` looks like a dev tool but is load-bearing.** It sits
+at the repo root and has its own `main()`, yet
+`gui/processing_dialog.py:1526` imports `open_cable_detection_tuner_with_switch`
+from it. It is the **only** way the app produces cable masks. Do not move or
+delete it. It also imports back into `utils/` and `gui/`, so running it
+standalone needs the repo root on `sys.path`.
+
+**Deliberately unused code, kept on purpose.** Do not "clean" these away:
+
+- `processing/wire_matcher.py` — epipolar NCC matcher. Its only consumer is
+  `StereoProcessor.compute_disparity_wire_guided()`, which the GUI never calls.
+  Kept because it does **not** rely on the parametric assumption described
+  above, and is the obvious fix if that assumption starts failing. Not yet
+  validated on real data.
+- `StereoProcessor.process_wire_masks()` — headless version of GUI steps 2-3,
+  useful for batch scripts.
+
+Both carry a `[SIN USO EN EL FLUJO ACTUAL]` banner in their docstring. If you
+add more dead-but-intentional code, mark it the same way.
+
+**`data/captures/` and `data/calibration/` are versioned** (177 and 1073 files).
+`.gitignore` tries to exclude `data/captures/`, but the rule was added after the
+files were committed, so it has no effect on them. Decide deliberately before
+adding more.
+
+## Critical configuration
+
+### Camera setup (on the Pi)
+
+`/boot/firmware/config.txt`:
 ```
 camera_auto_detect=0
 dtoverlay=imx477,cam0
 dtoverlay=imx477,cam1
 gpu_mem=128
-start_x=1
 ```
-**Reboot required after changes.**
+Reboot after changing.
 
-### Resolution Settings
+### Resolution (`config/camera_config.py`)
 
-Configured in `config/camera_config.py`:
 ```python
-capture_resolution = (3840, 2880)  # High quality for 3D
-preview_resolution = (1920, 1440)  # Balanced for UI
+max_resolution     = (4056, 3040)   # full sensor
+capture_resolution = (4056, 3040)   # photos AND calibration
+preview_resolution = (1920, 1440)   # live view only
+sensor_mode_bits   = 12
+framerate          = 15
 ```
 
-### Calibration Requirements
+### Optical discipline
 
-- **Chessboard**: 10x7 squares (9x6 internal corners)
-- **Square size**: 24mm
-- **Minimum images**: 10-30 (25 typical)
-- **Quality target**: <0.5 pixel reprojection error (excellent), <1.0 (good)
+The focus and aperture rings must be **set and locked before calibrating** and
+not touched afterwards. Moving focus changes the focal length, and `fx` is the
+focal length in pixels: 1% of drift is 1% of scale error on every reconstructed
+distance. Calibrate on the **integrated support** that will be used for the
+experiment, never on a different mount.
 
-### Data Persistence
+Full derivation, with the illumination requirements, in
+`Documentation/LINKU_Deliverable_DarkRoom_Illumination/`.
 
-- **Camera settings**: `config/camera_settings.json`
-- **Calibration data**: `data/calibration/calibration_data.json`
-  - Contains: camera matrices, distortion coefficients, R, T, rectification matrices
-  - Format: JSON with numpy arrays serialized as lists
-- **Calibration sessions**: `data/calibration/calibration_YYYYMMDD_HHMMSS/`
-- **Capture sessions**: `data/captures/stereo_YYYYMMDD_HHMMSS/`
-- **Results**: `data/results/` (PLY, XYZ, PCD, OBJ files)
+## Data layout
 
-## Calibration Workflow
-
-1. User clicks "Calibrate" → `CalibrationDialog` launched
-2. Preview shows chessboard with 10-second countdown timer
-3. User moves chessboard through 25 iterations capturing pairs
-4. Background thread processes each pair:
-   - Refines corner detection
-   - Computes intrinsic/extrinsic parameters
-   - Validates quality
-5. Stereo calibration computes R/T between cameras
-6. Saves to `data/calibration/calibration_data.json`
-
-## 3D Reconstruction Workflow
-
-1. User clicks "Process Latest Captures" → `ProcessingDialog`
-2. Select algorithm:
-   - **SGBM**: High quality, slower (~30-60s)
-   - **BM**: Fast, lower quality (~10-20s)
-3. Processing pipeline:
-   - Load calibration matrices
-   - Rectify images
-   - Compute disparity map
-   - Apply median + WLS filtering
-   - Filter outliers
-   - Convert to 3D point cloud
-4. Export to selected formats (PLY/XYZ/PCD/OBJ)
-
-## Common Development Tasks
-
-### Adding New Export Formats
-
-Extend `processing/point_cloud_generator.py`:
-```python
-def _export_new_format(self, points, colors, output_file):
-    # Implementation here
-    pass
+```
+config/camera_settings.json               camera settings
+data/calibration/calibration_data.json    active calibration (see caveat above)
+data/calibration/calibration_YYYYMMDD_HHMMSS/   sessions
+data/captures/stereo_YYYYMMDD_HHMMSS/     stereo pairs
+data/ai_dataset/{mask,path}_dataset/      training samples
+data/models/mask_model.pkl                the RandomForest
+data/results/                             exported PLY/XYZ/PCD/OBJ
+logs/stereo_photogrammetry.log            rotating, 10 MB
 ```
 
-### Modifying Algorithm Parameters
+## Documentation
 
-SGBM/BM parameters in `processing/stereo_processor.py`:
-```python
-# Adjust for performance vs quality trade-offs
-numDisparities = 96  # Reduce to 64 for speed
-blockSize = 5        # Increase for noise reduction
+LaTeX deliverables under `Documentation/`, compiled with the repo-root script:
+
+```powershell
+.\compilar.ps1 "Documentation\LINKU_Deliverable_Calibration_Method"
 ```
 
-### Extending Camera Support
+Cited sources go in each deliverable's `Sources/` folder and into its
+`bibs/sample.bib`. Papers still being read live in
+`Documentation/Investigacion/`.
 
-Modify `config/camera_config.py` and `camera/stereo_camera.py` to support different camera models. Key changes:
-- Update libcamera command generation
-- Adjust resolution constraints
-- Modify calibration board parameters if needed
+## Technology stack
 
-## Hardware Considerations
-
-### Raspberry Pi CM5 Constraints
-
-- **CPU**: ARM-based, limited vs desktop
-- **RAM**: 4GB minimum, 8GB recommended
-- **Storage**: High-speed SD card (64GB+) recommended
-- **Sync timing**: <50ms between cameras (target), <100ms (acceptable)
-
-### Performance Optimization Strategies
-
-1. **Resolution management**: Use lower resolution for preview (1920x1440) vs capture (3840x2880)
-2. **Algorithm selection**: BM for real-time feedback, SGBM for final output
-3. **Calibration efficiency**: 25 images balances quality and speed
-4. **Voxel downsampling**: Applied to reduce point cloud size
-
-### Expected Performance Metrics
-
-- **Calibration**: 25 images → 3-5 minutes
-- **Capture**: ~2-3 seconds per stereo pair
-- **Processing (SGBM)**: ~30-60 seconds
-- **Processing (BM)**: ~10-20 seconds
-- **Export**: ~5-15 seconds
-- **3D accuracy**: ~1-2mm at 1 meter distance
-- **Point cloud density**: 60-80% valid pixels
-
-## Logging and Debugging
-
-### Log System
-
-- **Location**: `logs/stereo_photogrammetry.log`
-- **Rotation**: 10MB max per file
-- **Levels**: DEBUG, INFO, WARNING, ERROR, CRITICAL
-- **Format**: Colored console output via colorlog
-
-### Common Issues
-
-**"No se detectaron cámaras"**
-- Verify `/boot/firmware/config.txt` has correct dtoverlay entries
-- Check `libcamera-hello --list-cameras` shows 2 cameras
-- Verify CSI cable connections to CAM0/CAM1
-
-**"Calibración falla repetidamente"**
-- Ensure 10x7 chessboard (9x6 internal corners)
-- Check uniform lighting without reflections
-- Keep board completely flat
-- Move board to different angles/distances covering full FOV
-
-**"PyQt5 no se instala"**
-- Use apt instead of pip: `sudo apt install python3-pyqt5`
-
-**"Procesamiento 3D muy lento"**
-- Reduce capture resolution: `(2560, 1920)` instead of `(3840, 2880)`
-- Use BM algorithm instead of SGBM
-- Reduce numDisparities to 64
-
-## Important Design Patterns
-
-### State Management
-
-MainWindow tracks:
-- `is_calibrated`: Boolean for valid calibration
-- `preview_active`: Boolean for live preview
-- `stereo_camera`: StereoCamera instance (created once)
-- `camera_config`: CameraConfig instance (auto-loaded with calibration)
-
-### Error Handling
-
-- System checks before GUI launch (verify OpenCV, PyQt5, cameras)
-- Exception handling in Qt dialogs with user-friendly messages
-- Graceful degradation (preview continues if processing fails)
-- Detailed error logging to rotating files
-
-### Configuration Persistence
-
-- Dataclasses for typed settings (`CameraSettings`, `StereoConfig`)
-- JSON serialization with numpy array conversion
-- Automatic loading on CameraConfig initialization
-- Fallback to defaults if files missing
-
-## Technology Stack
-
-- **Python**: 3.9+
-- **GUI**: PyQt5 (native on Raspberry Pi, avoid pip installation)
-- **Computer Vision**: OpenCV 4.5+, numpy, scipy, scikit-image
-- **3D Processing**: open3d-python (may need special ARM build)
-- **Hardware Interface**: libcamera-apps, python3-picamera2 (optional)
-- **Logging**: colorlog for colored output
-- **Scientific**: matplotlib, pandas
-- **Image Processing**: Pillow
-
-## Use Cases
-
-**Space Applications**
-- Satellite component inspection
-- Inter-satellite distance measurement
-- Structure deployment verification
-
-**Industrial Applications**
-- 3D quality control
-- Manufactured part measurement
-- Automated inspection
-
-**Research Applications**
-- Motion analysis
-- Precise scientific measurements
-- 3D specimen documentation
+Python 3.9+, PyQt5 (install via apt on the Pi, not pip), OpenCV 4.5+, numpy,
+scipy, scikit-image, scikit-learn, libcamera-apps, colorlog.

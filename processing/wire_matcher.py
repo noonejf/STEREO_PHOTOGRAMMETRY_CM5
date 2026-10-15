@@ -2,6 +2,22 @@
 """
 Wire Matcher - Sistema de matching guiado para cables finos
 Implementa correlación por línea epipolar para objetos uniformes sin textura interna
+
+ESTADO: via experimental, fuera del flujo de produccion. Se conserva a
+proposito, no es codigo olvidado.
+
+Su unico consumidor es StereoProcessor.compute_disparity_wire_guided(), que a
+su vez no se llama desde la GUI. El pipeline que corre hoy empareja los dos
+paths del cable por posicion relativa a lo largo del trazo
+(StereoProcessor.compute_disparity_from_wire_paths), no por geometria
+epipolar.
+
+Por que vale la pena no borrarlo: el emparejamiento por posicion relativa
+asume que ambos paths empiezan y terminan en los mismos puntos fisicos del
+cable y que lo recorren a la misma velocidad. Cuando esa suposicion se rompe
+(un extremo ocluido, un trazo que se sale por el borde) el error es
+sistematico y silencioso. El matching epipolar por NCC de este modulo no
+depende de esa suposicion. Queda pendiente validarlo contra datos reales.
 """
 
 import cv2

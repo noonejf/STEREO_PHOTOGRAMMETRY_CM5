@@ -572,6 +572,14 @@ class StereoProcessor:
         """
         Calcular disparidad usando matching guiado para cables/objetos finos
 
+        [SIN USO EN EL FLUJO ACTUAL - VIA EXPERIMENTAL]
+        Nadie llama a este método desde la GUI. Es el único consumidor de
+        processing/wire_matcher.py (matching epipolar por NCC). El flujo en
+        produccion usa compute_disparity_from_wire_paths(), que empareja los
+        dos paths por posicion relativa en vez de por geometria epipolar.
+        Se conserva como alternativa a evaluar: el NCC epipolar es mas
+        riguroso geometricamente, pero no esta validado con datos reales.
+
         Este método es especializado para objetos uniformes sin textura interna
         (cables, hilos, alambres) donde SGBM falla por falta de features.
 
@@ -729,6 +737,12 @@ class StereoProcessor:
         """
         Procesa máscaras de cables usando SmartWireTracker para generar paths precisos.
         Detecta automáticamente endpoints y ejecuta tracking en ambas máscaras.
+
+        [SIN USO EN EL FLUJO ACTUAL]
+        La GUI hace estos mismos pasos ella misma, para poder mostrar el
+        trazado en vivo y dejar que el usuario elija entre tracker automatico
+        y dibujo manual (ver gui/wire_method_choice.py). Este método sirve
+        como version headless del mismo trabajo, util para scripts por lotes.
 
         Args:
             mask_left: Máscara binaria del cable izquierdo (255=cable, 0=fondo)
@@ -1509,187 +1523,6 @@ class StereoProcessor:
             'colors': colors,
             'num_points': len(points_3d)
         }
-
-    def process_wire_geometric(self,
-                               mask_left: np.ndarray,
-                               mask_right: np.ndarray,
-                               left_img: np.ndarray,
-                               right_img: np.ndarray,
-                               save_debug: bool = True,
-                               progress_callback: Callable = None) -> Dict[str, Any]:
-        """
-        Pipeline completo: máscaras → paths geométricos → disparidad → profundidad → nube de puntos.
-
-        Este es el método CORRECTO para procesar cables/hilos.
-
-        Args:
-            mask_left: Máscara binaria del cable izquierdo
-            mask_right: Máscara binaria del cable derecho
-            left_img: Imagen izquierda (para colores)
-            right_img: Imagen derecha
-            save_debug: Guardar imágenes de debug
-            progress_callback: Callback de progreso
-
-        Returns:
-            Dict con todos los resultados del procesamiento
-        """
-        from processing.endpoint_detector import detect_wire_endpoints
-        from processing.smart_wire_tracker import SmartWireTracker
-
-        logger.info("=" * 60)
-        logger.info("🚀 PROCESAMIENTO GEOMÉTRICO DE CABLE")
-        logger.info("=" * 60)
-
-        processing_start = datetime.now()
-
-        result = {
-            'success': False,
-            'algorithm': 'GEOMETRIC_PATH',
-            'wire_tracking': {},
-            'disparity': {},
-            'depth': {},
-            'point_cloud': {}
-        }
-
-        try:
-            # === PASO 1: Detectar endpoints y tracking en ambas máscaras ===
-            if progress_callback:
-                progress_callback(10, "Detectando endpoints...")
-
-            logger.info("📍 PASO 1: Detectando endpoints y tracking...")
-
-            # Máscara izquierda
-            start_left, end_left = detect_wire_endpoints(mask_left, method="skeleton", side="left")
-            tracker_left = SmartWireTracker(mask_left, start_left, end_left)
-            track_left = tracker_left.track_wire(max_iterations=10000)
-
-            if save_debug:
-                tracker_left.visualize('data/results/debug/wire_path_left.png')
-
-            logger.info(f"   LEFT: {len(track_left['path'])} puntos, cobertura {track_left['coverage']*100:.1f}%")
-
-            # Máscara derecha
-            if progress_callback:
-                progress_callback(20, "Tracking cable derecho...")
-
-            start_right, end_right = detect_wire_endpoints(mask_right, method="skeleton", side="right")
-            tracker_right = SmartWireTracker(mask_right, start_right, end_right)
-            track_right = tracker_right.track_wire(max_iterations=10000)
-
-            if save_debug:
-                tracker_right.visualize('data/results/debug/wire_path_right.png')
-
-            logger.info(f"   RIGHT: {len(track_right['path'])} puntos, cobertura {track_right['coverage']*100:.1f}%")
-
-            # Alinear paths verticalmente (recortar tramos sin correspondencia estéreo)
-            path_left_a, path_right_a = self._align_stereo_paths_vertical(
-                track_left['path'], track_right['path'], start_left, start_right
-            )
-
-            result['wire_tracking'] = {
-                'left': {
-                    'path': path_left_a,
-                    'coverage': track_left['coverage'],
-                    'start': start_left,
-                    'end': end_left
-                },
-                'right': {
-                    'path': path_right_a,
-                    'coverage': track_right['coverage'],
-                    'start': start_right,
-                    'end': end_right
-                }
-            }
-
-            # === PASO 2: Calcular disparidad desde paths geométricos ===
-            if progress_callback:
-                progress_callback(40, "Calculando disparidad geométrica...")
-
-            logger.info("📐 PASO 2: Calculando disparidad desde paths geométricos...")
-
-            image_shape = mask_left.shape[:2]
-            disparity_result = self.compute_disparity_from_wire_paths(
-                track_left['path'],
-                track_right['path'],
-                image_shape,
-                y_tolerance=5,
-                save_debug=save_debug
-            )
-
-            result['disparity'] = disparity_result
-
-            if not disparity_result['success']:
-                raise RuntimeError("No se pudo calcular disparidad desde paths")
-
-            # === PASO 2b: Métricas cuantitativas 3D del cable ===
-            try:
-                from processing.wire_metrics import compute_wire_metrics
-                wire_metrics = compute_wire_metrics(
-                    matches           = disparity_result.get('matches', []),
-                    disparities       = disparity_result.get('disparities', []),
-                    calibration_data  = self.calibration_data,
-                    dt_profile_left   = track_left.get('dt_profile'),
-                    decision_points_2d= track_left.get('decision_points_2d'),
-                )
-                if wire_metrics is not None:
-                    result['wire_metrics'] = wire_metrics.summary()
-                    m = wire_metrics.summary()
-                    logger.info(f"📐 Métricas del cable:")
-                    logger.info(f"   Longitud 3D:    {m['total_length_m']*100:.1f} cm")
-                    logger.info(f"   Rectitud:       {m['straightness']:.3f}")
-                    logger.info(f"   Profundidad:    {m['min_depth_m']*100:.1f} – {m['max_depth_m']*100:.1f} cm")
-                    logger.info(f"   Diámetro medio: {m['mean_diameter_mm']:.2f} mm")
-                    if m['num_crossings']:
-                        logger.info(f"   Cruces 3D:      {m['num_crossings']} detectado(s)")
-            except Exception as _e_metrics:
-                logger.warning(f"⚠️ No se pudieron calcular métricas: {_e_metrics}")
-
-            # === PASO 3: Convertir disparidad a profundidad ===
-            if progress_callback:
-                progress_callback(60, "Calculando profundidad...")
-
-            logger.info("📏 PASO 3: Convirtiendo disparidad a profundidad...")
-
-            depth_result = self.disparity_to_depth(disparity_result['disparity_map'])
-            result['depth'] = depth_result
-
-            # === PASO 4: Generar nube de puntos 3D ===
-            if progress_callback:
-                progress_callback(80, "Generando nube de puntos 3D...")
-
-            logger.info("☁️ PASO 4: Generando nube de puntos 3D...")
-
-            point_cloud_result = self.generate_point_cloud(
-                left_img,
-                disparity_result['disparity_map'],
-                disparity_result['confidence_map'],
-                min_confidence=0.5
-            )
-
-            result['point_cloud'] = point_cloud_result
-
-            # === Finalizar ===
-            processing_time = (datetime.now() - processing_start).total_seconds()
-
-            result['success'] = True
-            result['processing_time_seconds'] = processing_time
-
-            logger.info("=" * 60)
-            logger.info(f"✅ PROCESAMIENTO COMPLETADO en {processing_time:.1f}s")
-            logger.info(f"   - Puntos 3D generados: {point_cloud_result.get('num_points', 0)}")
-            logger.info(f"   - Disparidad media: {disparity_result['mean_disparity']:.2f} px")
-            logger.info("=" * 60)
-
-            if progress_callback:
-                progress_callback(100, "Completado")
-
-        except Exception as e:
-            logger.error(f"❌ Error en procesamiento geométrico: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            result['error'] = str(e)
-
-        return result
 
     def compute_confidence_map(self, disparity: np.ndarray) -> np.ndarray:
         """
