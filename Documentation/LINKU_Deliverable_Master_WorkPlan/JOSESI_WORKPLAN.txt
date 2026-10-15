@@ -241,10 +241,15 @@ Done when: Puntos de anclaje, peso maximo, y dimensiones de la interfaz camaras+
       description: Movido antes en el plan -no tiene sentido esperar a fase 2 si el CAD va a estar listo tan pronto-. Diseno del CAD a cargo de Rodrigo (companero, gestionado dentro de este plan aunque el diseno en si no lo hago yo). Rigido, para no perder la geometria de calibracion estereo al moverlo a mano; solo el cable de alimentacion del CM5 queda colgando.
 
 Done when: Unidad camaras+CM5 armada, geometria estereo fija, y sujetable a mano para el experimento de movimiento erratico
+
+Cerrado el 13 oct: CAD disenado, revisado e impreso; tornillos M3 x 10 mm comprados; prototipo armado y verificado funcionando. Con esto queda disponible una geometria estereo rigida, que es la que conviene calibrar (ver nota en Sesion de calibracion a resolucion completa).
       priority: critical
+      status: done
+      progress: 100%
       hours: 6
       start: 2026-09-28
-      due: 2026-10-09
+      end: 2026-10-13
+      due: 2026-10-13
       assigned: 1
       task: Reunion con Rodrigo para cerrar diseno del CAD #3167
         description: Lunes 28 sep, 4:30pm-5:30pm. Incluye un experimento para verificar un detalle de las camaras; se cierran los parametros del diseno ahi mismo.
@@ -274,17 +279,34 @@ Done when: Unidad camaras+CM5 armada, geometria estereo fija, y sujetable a mano
         depends-on: Diseno del CAD de pruebas (Rodrigo)
       task: Enviar el CAD a imprimir #3165
         priority: critical
+        status: done
+        progress: 100%
         start: 2026-10-03
         end: 2026-10-04
         due: 2026-10-04
         assigned: 1
         depends-on: Revision del CAD por David
-      task: Recibir la pieza impresa y ensamblar el soporte integrado camaras+CM5 #3166
-        start: 2026-10-07
-        end: 2026-10-08
-        due: 2026-10-09
+      task: Comprar tornillos M3 x 10 mm
+        description: Unico material que faltaba para armar el soporte. Comprado el 12 oct.
+        priority: critical
+        status: done
+        progress: 100%
+        hours: 1
+        start: 2026-10-12
+        end: 2026-10-12
+        due: 2026-10-13
         assigned: 1
         depends-on: Enviar el CAD a imprimir
+      task: Recibir la pieza impresa y ensamblar el soporte integrado camaras+CM5 #3166
+        description: Prototipo armado y funcionando al 13 oct.
+        priority: critical
+        status: done
+        progress: 100%
+        start: 2026-10-07
+        end: 2026-10-13
+        due: 2026-10-13
+        assigned: 1
+        depends-on: Comprar tornillos M3 x 10 mm
     package: Compra efectiva de B0308 e IMX296 #1587
       description: El tiempo de envio es el riesgo principal para la fecha de finales de noviembre. Pedir apenas se confirme la lista, no esperar a cerrar el diseno completo de la interfaz.
 
@@ -303,14 +325,16 @@ phase: Fase 2 - Calibracion y validaciones nucleo #168
     package: Sesion de calibracion a resolucion completa #1529
       description: Con el IMX477 (4056x3040), no el B0308. Esta calibracion se repite con el B0308 cuando se compre, ver Migrar montaje y calibracion al sensor B0308 en Fase 4.
 
+DECISION PENDIENTE abierta el 13 oct: este paquete se escribio dependiendo de Montaje fisico en la caja oscura, es decir calibrar sobre el montaje viejo. Ahora que el soporte integrado camaras+CM5 ya esta armado y funcionando, calibrar el montaje viejo y despues pasar las camaras al soporte invalidaria la calibracion, porque cambia la geometria estereo. Lo coherente es calibrar directamente sobre el soporte integrado, que es la geometria con la que se va a correr el experimento, y dejar Montaje fisico en la caja oscura solo como el lugar donde se hace la sesion. Confirmar antes de capturar el tablero.
+
 Done when: calibration_data.json nuevo evaluado, is_good_quality true o motivo de falla identificado
       priority: critical
       hours: 5
-      start: 2026-10-09
-      due: 2026-10-11
+      start: 2026-10-13
+      due: 2026-10-14
       assigned: 1
       execution: serial
-      depends-on: Montaje fisico en la caja oscura
+      depends-on: Construccion del soporte integrado camaras+CM5
       task: Capturar entre 20 y 30 pares del tablero a resolucion completa, cubriendo todo el campo de vision, variando angulo y distancia #830
         start: 2026-10-09
         end: 2026-10-09
@@ -373,10 +397,12 @@ Done when: calibration_data.json con is_good_quality true
     description: NUEVO. Corre en paralelo al resto de fase 2, no al final. Depende de que el companero termine la estructura LINKU y los profesores confirmen el cuarto oscuro -dos bloqueos externos a marcar como riesgo, no controlados 100% por este plan-.
     package: Montaje del instrumento sobre la estructura LINKU del companero #1589
       description: Done when: Camaras + CM5 fijos sobre la estructura LINKU, geometria estereo verificada despues del montaje (recalibrar si se movio)
+
+Replanificado el 12 oct: arrancaba el 10 oct pero el ensamblaje del soporte sigue abierto por los tornillos M3. Queda comprimido contra el inicio del experimento (14 oct), sin holgura. Si los tornillos no se consiguen el 13 oct, esto y el experimento se corren juntos.
       priority: critical
       hours: 6
-      start: 2026-10-10
-      due: 2026-10-13
+      start: 2026-10-13
+      due: 2026-10-14
       assigned: 1
       depends-on: Construccion del soporte integrado camaras+CM5
     package: Coordinacion de fecha del cuarto oscuro con los profesores #1590
