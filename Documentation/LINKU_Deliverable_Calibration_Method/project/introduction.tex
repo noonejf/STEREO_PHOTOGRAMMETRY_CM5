@@ -1,0 +1,37 @@
+\chapter*{Introduction}
+\addcontentsline{toc}{chapter}{Introduction}
+
+\section*{The problem this document addresses}
+
+The LINKU camera system reconstructs the geometry of a thin tether from stereo imagery. Every number that pipeline produces is scaled and shaped by the calibration: the intrinsic parameters of each camera and the rigid transform between them. The project's calibration directory contains 23 attempts, none of which reached the quality target, and the current procedure offers no way to tell, during a session, whether the images being collected are improving the result or wasting time.
+
+That is not an unusual situation. The literature is explicit that calibration is hard to perform reliably without expert intuition, and that even researchers working in the field struggle to say what makes a good calibration image \cite{rojtberg2018pose}. What is unusual is to keep repeating the procedure without changing it. This document changes it.
+
+\section*{The two questions that started this}
+
+The immediate trigger was a pair of practical questions from the operator, both of which turn out to be well founded and both of which are answered in Chapter \ref{chap:failure}:
+
+\begin{itemize}
+    \item \textbf{Must every image be captured at the same resolution, and is the calibration invalid if the capture resolution differs from the calibration resolution?} Yes to both, and the reason is more subtle than a simple rescaling, because changing sensor mode on this camera mixes binning with cropping.
+    \item \textbf{The lens has an adjustable aperture and a manual focus ring. If either moves, does the calibration break?} Focus, yes, badly. Aperture, much less, but not innocently.
+\end{itemize}
+
+\section*{What is proposed}
+
+A calibration session should not be a fixed ritual of ``take 25 photos and hope''. It should be a closed loop that measures its own progress. The proposal, specified in Chapter \ref{chap:design}, has three parts:
+
+\begin{enumerate}
+    \item \textbf{Continuous capture with automatic gating.} The operator moves the board; the tool decides which frames to keep. Frames are rejected for blur, for incomplete detection, and for carrying no new information.
+    \item \textbf{A live verdict per frame.} Accepted, rejected and why, shown immediately, so the operator learns what the tool wants rather than guessing.
+    \item \textbf{A convergence indicator driven by parameter uncertainty.} Not a count of images, but an estimate of how far the current solution is from being well determined, with an explicit stopping criterion.
+\end{enumerate}
+
+All three are established techniques, not inventions of this document. Chapter \ref{chap:literature} identifies the four systems that implement them and what each contributes.
+
+\section*{Scope}
+
+This document covers the calibration \emph{method and tool}. It does not cover the illumination of the calibration session, which is specified in the companion deliverable \cite{linku_darkroom_illumination}, nor the reconstruction pipeline that consumes the calibration. The target hardware is the IMX477 stereo pair with the 8~mm Arducam C1508ZM04 lens currently fitted, as recorded in the camera system report.
+
+\section*{On sources}
+
+Eleven papers are cited and archived in \texttt{Sources/}. The broader set of material consulted but not cited is in \texttt{Documentation/Investigacion/Calibracion\_Estereo/}. Where a claim rests on the project's own code or data rather than on the literature, the text says so.

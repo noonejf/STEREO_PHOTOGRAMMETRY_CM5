@@ -1,0 +1,82 @@
+\chapter{How to Judge a Calibration Honestly}
+\label{chap:quality}
+
+The project currently decides whether a calibration is good by looking at the root-mean-square reprojection error. This chapter explains why that number cannot answer the question, and what to use instead.
+
+\section{Why reprojection error is not a quality metric}
+
+Equation \ref{eq:reprojection} is the quantity the optimiser minimises. Reporting it afterwards as a measure of quality is therefore reporting the training residual of the fit, and the literature is explicit that this is inadequate.
+
+Rojtberg and Kuijper put it directly: the reprojection error only measures the residual error and is subject to over-fitting; in particular $\varepsilon_{\mathrm{res}} = 0$ when exactly $N = 10.5$ point correspondences are used, and the actual objective is the estimation error, the distance between the solution and the unknown ground truth \cite{rojtberg2018pose}. Richardson et al. make the same argument: mean reprojection error and mean squared error are training errors, so if the training images are chosen poorly the reported error can be low while generalisation performance is very poor \cite{richardson2013aprilcal}. Hagemann et al. add that while residual errors reveal large systematic errors or failed optimisations, they cannot provide a full picture of calibration quality \cite{hagemann2021bias}.
+
+The practical failure mode is worth stating concretely. A set of images all taken with the board parallel to the sensor is degenerate: the focal length is unrecoverable (Section \ref{sec:degeneracy}). Yet such a set can be fitted with a very low reprojection error, because the optimiser is free to trade focal length against board distance to match the observations. \textbf{A low residual on a degenerate set is not evidence of a good calibration; it is evidence that the ambiguity was absorbed somewhere.}
+
+\section{Four metrics that do answer the question}
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Calibration quality metrics]{Metrics available for judging a calibration, and what each one costs to compute.}
+\label{tab:metrics}
+\begin{tabularx}{\textwidth}{p{0.15\textwidth} p{0.26\textwidth} p{0.17\textwidth} X}
+\toprule
+\textbf{Metric} & \textbf{What it measures} & \textbf{Cost} & \textbf{Use here} \\
+\midrule
+RMS reprojection error & Training residual & Free & Keep as a sanity check only. A large value means something is wrong; a small value means nothing \\
+Index of dispersion \cite{rojtberg2018pose} & Relative variance of each parameter, $\sigma_i^2/C_i$ & Reuses the Jacobian already computed & \textbf{Drives the live progress indicator and the per-parameter targeting} \\
+Max ERE \cite{richardson2013aprilcal} & Predicted testing error, in pixels, at the worst point of the image & Requires sampling the posterior and reprojecting & \textbf{The stopping criterion the operator sees}, because it is in pixels and comparable to an accuracy requirement \\
+Expected Mapping Error and bias ratio \cite{hagemann2021bias} & Model-independent uncertainty, and the fraction of residual that is systematic & Resampling, offline & \textbf{Post-session audit}, and the test of whether the camera model is adequate \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Max ERE, the metric the operator should see}
+
+AprilCal's Max Expected Reprojection Error is attractive here because it is expressed in pixels, which makes it directly comparable to an accuracy requirement, and because it estimates testing rather than training error without needing a separate test set \cite{richardson2013aprilcal}. The procedure is \cite{richardson2013aprilcal}:
+
+\begin{enumerate}
+    \item Obtain the marginal posterior over the model parameters by marginalising out the per-image board extrinsics from the joint distribution, approximated as multivariate Gaussian. In practice this amounts to dropping the extrinsic rows and columns from the covariance matrix, which is itself derived from the information matrix $I = J^{\top}\Sigma_z^{-1}J$.
+    \item Draw a set of sample calibrations from that posterior.
+    \item Define a fixed grid of 3D test points chosen so that their projections cover the image uniformly; the published implementation uses a 5$\times$5 grid.
+    \item For each test point, compute the mean distance between its projection under the mean calibration and under each sampled calibration. That is the expected reprojection error at that point.
+    \item The Max ERE is the maximum over the test points.
+\end{enumerate}
+
+Taking the maximum rather than the mean is the important design choice: it guarantees the calibration is well constrained \emph{everywhere} in the image, not merely on average. For a target that is one pixel wide, as the LINKU tether is, a calibration that is accurate in the centre and poor at the edges is not acceptable.
+
+\subsection{Bias ratio and Expected Mapping Error, for the post-session audit}
+
+Hagemann et al. separate the two fundamentally different error sources: systematic errors, which they call biases, and uncertainty, which is variance \cite{hagemann2021bias}. Their bias ratio quantifies what fraction of the calibration residual is systematic rather than random. A high bias ratio means the residual is structured, which indicates either that the camera model is inadequate for this lens or that the setup itself is imperfect, for instance a non-flat board. It is therefore the principled basis for model selection, and the right tool for the Hawk-eye question raised at the end of Chapter \ref{chap:literature}.
+
+Their Expected Mapping Error propagates the parameter covariance into image space to give an uncertainty metric that is independent of the camera model, which makes two calibrations comparable even when they use different models \cite{hagemann2021bias}. They also propose a resampling-based covariance estimator that works under non-ideal conditions where the classical estimator of Equation \ref{eq:covariance} does not.
+
+These are offline computations and do not belong in the live loop. They belong in the report produced at the end of a session.
+
+\subsection{A note on what reprojection error misses in 3D}
+
+A recent study makes the point sharply for applications like this one: reprojection error can be misleading for 3D reconstruction tasks, and intersection and reconstruction errors give a more direct and informative assessment \cite{ruppel2026beyond}. Since the deliverable of the LINKU pipeline is a 3D reconstruction of the tether, the ultimate validation is not a calibration metric at all but a measurement of a known object. That is treated in Chapter \ref{chap:design} as the final acceptance test.
+
+\section{The acceptance criterion proposed for LINKU}
+
+Combining the above, a calibration session should be declared successful only when all four of the following hold.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Proposed acceptance criteria]{Proposed acceptance criteria for a LINKU calibration. The thresholds marked as pending require the project to decide an accuracy budget first.}
+\label{tab:acceptance}
+\begin{tabularx}{\textwidth}{p{0.05\textwidth} p{0.28\textwidth} X}
+\toprule
+\textbf{\#} & \textbf{Criterion} & \textbf{Rationale} \\
+\midrule
+C1 & All parameters converged by the ratio test of Equation \ref{eq:ratio} & The session has stopped learning; more images of the same kind add nothing \cite{rojtberg2018pose} \\
+C2 & Max ERE below the accuracy budget & Predicted testing error, worst point in the image \cite{richardson2013aprilcal} \\
+C3 & Bias ratio low & The residual is noise, not unmodelled structure. If high, the model or the board is at fault \cite{hagemann2021bias} \\
+C4 & A known object measured to within tolerance after rectification & The only end-to-end check. Catches errors the first three cannot \cite{ruppel2026beyond} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Note that the RMS reprojection error appears nowhere in Table \ref{tab:acceptance}. It should still be logged, because an unexpectedly large value signals a gross failure, but it should not be what decides the outcome.
+
+\todo[inline]{Pending decision: fix the numeric thresholds for C2 and C3, and the tolerance and object for C4. These follow from the mission accuracy budget for tether reconstruction, which is not yet stated anywhere in the project documentation. Until they are fixed, the tool can report the metrics but cannot declare success automatically.}

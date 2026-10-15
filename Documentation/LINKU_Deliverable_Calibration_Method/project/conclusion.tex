@@ -1,0 +1,61 @@
+\chapter{Conclusion}
+
+\section{Direct answers to the questions asked}
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Answers to the operator questions]{The questions that prompted this document, and where each is answered.}
+\label{tab:answers}
+\begin{tabularx}{\textwidth}{p{0.29\textwidth} X p{0.10\textwidth}}
+\toprule
+\textbf{Question} & \textbf{Answer} & \textbf{Section} \\
+\midrule
+Do intrinsics and extrinsics come from different photographs? & No. Both are solved jointly from the same images. Tilting the board is what makes the \emph{intrinsics} observable & \ref{chap:failure}.1 \\
+Must all images share one resolution? & Yes, and the same sensor mode. Two of the IMX477 modes are cropped as well as binned, so a calibration cannot be rescaled into them & \ref{sec:resolution} \\
+Does moving the focus break the calibration? & Yes. It changes the focal length and therefore biases the scale of every reconstructed distance & \ref{chap:failure}.3 \\
+Does moving the aperture break it? & Much less. It shifts the principal point and distortion slightly, but it is not geometrically catastrophic. Calibrate at the working aperture & \ref{chap:failure}.4 \\
+Could capture be continuous, like video? & Yes for the interaction, no for the images. Guide on the preview stream, capture accepted poses as full-resolution stills & \ref{chap:design}.2 \\
+How do we filter frames that do not help? & Two gates: one for image quality, one for information gain against the current parameter uncertainty & \ref{chap:design}.3--4 \\
+Can we show a progress bar? & Yes, and it should be driven by parameter uncertainty and Max ERE, not by an image count & \ref{chap:design}.5 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{The central finding}
+
+Every failure mode catalogued in Table \ref{tab:failures} shares one property: more images do not fix it. A calibration session that is degenerate, defocused or captured in the wrong sensor mode will not converge no matter how long it runs, and the metric currently used to judge the result, the root-mean-square reprojection error, is structurally incapable of revealing any of them because it measures how well the model fits the data it was trained on.
+
+That is why the proposal is a feedback loop rather than a better checklist. The published systems all reach the same architecture independently \cite{richardson2013aprilcal,rojtberg2018pose,peng2019wizard,tan2025stereoposes}: estimate the covariance of the parameters while the session runs, use it to decide where the board should go next, and use it again to decide when to stop. With that loop in place, Rojtberg reports novice users completing a precise calibration in about two minutes \cite{rojtberg2019guidance}.
+
+\section{What should happen next}
+
+Stage S0 of Table \ref{tab:stages} has been run, and it settled the question: the failures are geometric, not optical. The board was held nearly flat in 91\% of the archived frames, which makes the focal length unrecoverable regardless of how many images are taken (Section \ref{sec:hypothesis}).
+
+That outcome reprioritises the plan. \textbf{Stage S4, pose guidance, is now the stage that fixes the actual problem}, and S1, the live quality gate, drops from prerequisite to useful hygiene. The fastest route to a usable calibration is in fact neither: it is to repeat a session with the board deliberately tilted across a wide angular range, between roughly 20 and 60 degrees, which costs one session and requires no software at all. S4 then makes that outcome repeatable rather than dependent on the operator remembering to tilt.
+
+\section{Confidence and limitations}
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Status of the claims in this document]{Where each part of the argument stands.}
+\label{tab:confidence}
+\begin{tabularx}{\textwidth}{p{0.30\textwidth} p{0.12\textwidth} X}
+\toprule
+\textbf{Claim} & \textbf{Status} & \textbf{Basis} \\
+\midrule
+Reprojection error is not a quality metric & Firm & Stated independently in \cite{rojtberg2018pose,richardson2013aprilcal,hagemann2021bias} \\
+Parallel-only views make the focal length unrecoverable & Firm & Derived in \cite{rojtberg2018pose} from the projection equations \\
+Resolution and sensor mode must match & Firm & Follows from Equation \ref{eq:fx}; mode table computed from published Raspberry Pi specifications \\
+Focus drift biases reconstruction scale & Firm & Direct consequence of Equation \ref{eq:fx} \\
+Aperture has a smaller geometric effect & Reasoned & Standard optical argument; no source in the reviewed set quantifies it for this lens class \\
+Degeneracy caused the failures & \textbf{Measured} & Stage S0 was run over the archive. Median board tilt 4.4\textdegree, no frame above 45\textdegree, 91\% of poses degenerate, and $f_x$ uncertain by 0.85\% at an RMS of 1.50~px (Sec. \ref{sec:hypothesis}) \\
+Defocus caused the failures & \textbf{Refuted} & The hypothesis of an earlier draft of this document. Sharpness over the board region is adequate and detection succeeds; the problem is geometric, not optical \\
+The proposed design will work here & Projected & Each component is published and validated elsewhere; the combination, and the stereo case specifically, has not been built for this rig \\
+Effort estimates in Table \ref{tab:stages} & Indicative & Not derived from measurement \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The most important line in that table is the sixth. The explanation offered for the 23 failed attempts is a well-supported hypothesis, not a finding, and this document should not be read as having diagnosed the problem. It has identified the most likely cause and specified the half-day experiment that would confirm it.

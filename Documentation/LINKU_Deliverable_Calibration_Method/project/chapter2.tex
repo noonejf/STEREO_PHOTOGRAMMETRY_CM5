@@ -1,0 +1,126 @@
+\chapter{What the Literature Says the Method Should Be}
+\label{chap:literature}
+
+\section{The baseline: Zhang's formulation}
+
+Essentially every practical calibration tool in use today, OpenCV's included, implements the method Zhang published in 2000 \cite{zhang2000flexible}. It requires only that the camera observe a planar pattern at a few different orientations, with neither the camera motion nor the board motion known. The procedure is a closed-form initial solution followed by a non-linear refinement that minimises the geometric reprojection error
+
+\begin{equation}
+\varepsilon_{\mathrm{res}} = \sum_{i}^{N}\sum_{j}^{M} \left\lVert p_{ij} - \pi(P_i; R_j, t_j, C) \right\rVert^2 ,
+\label{eq:reprojection}
+\end{equation}
+
+over all $N$ pattern points in all $M$ images, where $C$ is the intrinsic parameter vector and $(R_j, t_j)$ the pose of the board in image $j$ \cite{rojtberg2018pose,zhang2000flexible}.
+
+Zhang's own paper notes that at least two orientations are required and that the orientations must differ. What it does not provide, and what the subsequent thirty years of work is largely about, is a way for a non-expert to know \emph{which} orientations to use and \emph{when to stop}.
+
+\section{The gap that guided calibration fills}
+
+The published diagnosis is consistent. Calibration accuracy depends strongly on the choice of camera-to-pattern poses, yet there is little guidance available to the user; degenerate configurations lead to unreliable solutions; and the task cannot be performed reliably by inexperienced users, with even researchers in the field struggling to quantify what makes a good calibration image \cite{rojtberg2018pose,peng2019wizard,richardson2013aprilcal}.
+
+Four systems address this directly. They differ in how they choose the next pose and in what they use as a stopping criterion, but they share one architecture: \textbf{estimate the covariance of the calibration parameters as the session runs, and use it both to guide and to terminate.}
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Guided calibration systems]{The four guided-calibration systems reviewed, and what each contributes to the design proposed in Chapter \ref{chap:design}.}
+\label{tab:systems}
+\begin{tabularx}{\textwidth}{p{0.13\textwidth} p{0.11\textwidth} p{0.26\textwidth} X}
+\toprule
+\textbf{System} & \textbf{Year} & \textbf{How it picks the next pose} & \textbf{What this project takes from it} \\
+\midrule
+AprilCal \cite{richardson2013aprilcal} & 2013 & Suggests a target position from a library, verifying that user-specified accuracy requirements are met & The \textbf{Max ERE} metric: a sampling-based estimate of testing error, in pixels, usable as a stopping criterion \\
+Rojtberg and Kuijper \cite{rojtberg2018pose} & 2018 & Generates poses analytically from rules that avoid the known singularities; milliseconds rather than seconds & The \textbf{complete algorithm}: parameter split, pose rules, index of dispersion, convergence test. Open-source reference implementation \\
+Calibration Wizard \cite{peng2019wizard} & 2019 & Global optimisation for the pose that maximally reduces expected parameter uncertainty, including corner uncertainty & Confirmation that the uncertainty-driven criterion is the right objective, and the treatment of corner uncertainty \\
+Tan et al. \cite{tan2025stereoposes} & 2025 & Minimises the trace of the covariance matrix, jointly over relative and absolute extrinsics & The \textbf{stereo extension}: the criterion applied to the inter-camera transform, not just the intrinsics \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Rojtberg's later user study is worth noting for the practical target it sets: with on-screen guidance, novice users completed a precise calibration in about two minutes \cite{rojtberg2019guidance}. Against 23 failed attempts, that is the benchmark.
+
+\section{The algorithm in detail}
+
+The Rojtberg and Kuijper formulation is the one this document adopts, because it is complete, cheap enough to run live, and published with working code \cite{rojtberg2018pose}.
+
+\subsection{Splitting the parameter vector}
+
+The intrinsic vector $C = [f_x, f_y, c_x, c_y, k_1, k_2, k_3, p_1, p_2]$ is split into two groups that need opposite things:
+
+\begin{equation}
+C_K = [f_x, f_y, c_x, c_y], \qquad C_\delta = [k_1, k_2, k_3, p_1, p_2] .
+\label{eq:split}
+\end{equation}
+
+$C_K$ suffers the ambiguities of Section \ref{sec:degeneracy} and needs \textbf{angular spread}. $C_\delta$ has no such ambiguity and needs \textbf{coverage of the image regions where distortion is strong} \cite{rojtberg2018pose}.
+
+\subsection{Pose generation for the pinhole parameters}
+
+For $C_K$ the published rules are \cite{rojtberg2018pose}:
+
+\begin{enumerate}
+    \item Choose a distance at which the whole pattern is visible, maximising the number of observed points.
+    \item Tilt the pattern about the axis corresponding to the parameter being targeted, within roughly $\pm 70^\circ$, choosing the angle by binary subdivision of the range, that is $0.25, 0.75, 0.125, 0.375, \ldots$ This maximises angular spread as the session proceeds.
+    \item Rotate the resulting view by $22.5^\circ$ so that the pattern is not parallel to either image axis, which would prevent estimating the principal point along that axis.
+    \item When targeting $c_x$ or $c_y$, additionally shift the view along the corresponding image axis by 5\% of the image size, which the authors found speeds convergence.
+\end{enumerate}
+
+For initialisation the authors use a pose tilted $45^\circ$ about the $x$ axis, the angle suggested by Zhang, which sits between the extremes of $0^\circ$ where the focal length is undetermined and $90^\circ$ where the aspect ratio and principal point are undetermined \cite{rojtberg2018pose,zhang2000flexible}.
+
+\subsection{Pose generation for the distortion parameters}
+
+For $C_\delta$ the procedure is driven by a distortion map computed from the current estimate, encoding the displacement at each pixel \cite{rojtberg2018pose}:
+
+\begin{enumerate}
+    \item Threshold the map to find the region of strongest distortion.
+    \item Fit an axis-aligned bounding box to that region. This corresponds to a parallel view of the pattern, and the $C_K$ constraints deliberately do not apply.
+    \item Exclude that region from subsequent searches, so distorted regions are visited in order of severity.
+    \item Place the pattern aligned to the box, at a depth where its projection covers about one third of the image width.
+\end{enumerate}
+
+For the very first distortion view, with no prior knowledge, they use a pose parallel to the image plane covering the whole frame. It violates the $C_K$ rules but still adds information because it is not coplanar with the first pose \cite{rojtberg2018pose}.
+
+\subsection{Uncertainty, and the convergence test}
+
+This is the part that makes the progress indicator possible. Given the Jacobian $J$ of the projection with respect to the unknowns $v = [C, R_1, t_1, \ldots, R_M, t_M]$, and the covariance $\Sigma_p$ of the image points, the parameter covariance follows from the backward transport of covariance \cite{rojtberg2018pose}:
+
+\begin{equation}
+\Sigma_v = \left( J^{\top} \Sigma_p^{-1} J \right)^{+} , \qquad J = \frac{\partial \pi}{\partial v} ,
+\label{eq:covariance}
+\end{equation}
+
+where $(\cdot)^{+}$ is the pseudo-inverse. The diagonal of $\Sigma_v$ gives the variance of each estimated parameter. Two points make this practical: $J$ is already computed inside the Levenberg--Marquardt step of the standard calibration, so the extra cost is small; and in the absence of prior knowledge the authors simply assume a standard deviation of one pixel per coordinate, $\Sigma_p = I$ \cite{rojtberg2018pose}.
+
+Because the parameters have different units and magnitudes, they are compared through the \textbf{index of dispersion}
+
+\begin{equation}
+\mathrm{IOD}_i = \frac{\sigma_i^2}{C_i} ,
+\label{eq:iod}
+\end{equation}
+
+and the refinement loop targets whichever parameter currently has the largest value, the MaxIOD \cite{rojtberg2018pose}. Convergence is declared per parameter by a ratio test on successive variances,
+
+\begin{equation}
+r = \frac{\sigma^2_{i,n+1}}{\sigma^2_{i,n}} ,
+\label{eq:ratio}
+\end{equation}
+
+excluding a parameter from further refinement once the reduction $1 - r$ falls below a threshold, and terminating when all parameters have converged \cite{rojtberg2018pose}.
+
+Crucially for the purpose of a progress bar, the authors state that the parameter covariance \textbf{correlates with the testing error} and therefore serves as a convergence criterion \cite{rojtberg2018pose}. It is a measure of how well determined the answer is, not of how well it fits the data it was trained on.
+
+\section{The stereo case}
+
+All of the above concerns a single camera. Tan et al. extend the idea to stereo, which is what this project needs \cite{tan2025stereoposes}. They introduce a coupled optimisation term over the relative and absolute extrinsic parameters, so that the inter-camera transform is constrained jointly rather than as a by-product, and adopt the \textbf{minimisation of the trace of the covariance matrix} as the loss function for solving the next optimal pose. Their reported result is the one that matters here: fewer images and lower measurement error than random poses, with robustness across different fields of view, and a graphical interface that lets non-specialists achieve high-precision calibration \cite{tan2025stereoposes}.
+
+Minimising the trace of the covariance is the A-optimality criterion of experimental design, and it is the natural multi-parameter generalisation of the per-parameter variance test of Equation \ref{eq:ratio}.
+
+\section{Choice of target}
+
+The reviewed systems converge on self-identifying targets. Rojtberg and Kuijper state the reason plainly: for interactive user guidance, fast board detection is crucial, and ChArUco avoids the time-consuming step of ordering detected rectangles into a canonical topology that a plain chessboard requires \cite{rojtberg2018pose}. The underlying ArUco marker system is designed for reliable detection under occlusion, with dictionaries generated to maximise inter-marker distance \cite{garrido2014aruco}.
+
+For this project the practical consequences are three: detection survives the board being partly out of frame, which matters because the distortion strategy deliberately pushes the board to the edges; every corner is individually identified, so a partial view still contributes; and detection is fast enough to run on every frame of a live preview, which is a precondition for the design in Chapter \ref{chap:design}.
+
+\section{Camera model selection}
+
+One caveat from the wider literature. The standard pinhole-plus-radial model used above is appropriate for the field of view in question here, about 43 degrees horizontal with the fitted 8~mm lens. For wider optics the model itself becomes a design choice rather than a given, and the comparative review by Huai et al. covers the alternatives and how to choose between them \cite{huai2023wideangle}. Should the project move to the Hawk-eye, whose integrated optic gives about 71 degrees, the adequacy of the current model should be rechecked rather than assumed. The bias-detection method of Chapter \ref{chap:quality} is the tool for making that check.

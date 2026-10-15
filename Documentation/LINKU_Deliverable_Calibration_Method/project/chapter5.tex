@@ -1,0 +1,128 @@
+\chapter{Implementation Plan Against the Existing Code}
+\label{chap:plan}
+
+The proposal of Chapter \ref{chap:design} is not a rewrite. A survey of the current implementation shows that roughly half of the required machinery is already present and in the right place; what is missing is the feedback loop that connects it.
+
+\section{What already exists}
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Existing calibration code relevant to the proposal]{Components already present in \texttt{camera/camera\_calibration.py}, and how the proposal uses them.}
+\label{tab:existing}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.30\textwidth} p{0.13\textwidth} X}
+\toprule
+\textbf{Existing component} & \textbf{Status} & \textbf{Role in the proposal} \\
+\midrule
+\texttt{detect\_charuco\_corners} & Ready & Gate A detection. ChArUco is already the chosen target, matching \cite{rojtberg2018pose} \\
+\texttt{\_process\_charuco\_\allowbreak calibration} & Ready & The fit \\
+\texttt{execute\_stereo\_\allowbreak calibration\_charuco} & Ready & Stereo extrinsics \\
+\texttt{validate\_image\_quality} & \textbf{Needs work} & Already computes sharpness, contrast, coverage, board angle and illumination uniformity. But it runs after the session, not live, and two of its details are wrong (below) \\
+\texttt{validate\_calibration\_\allowbreak quality} & \textbf{Needs replacing} & Decides \texttt{is\_good\_quality} from the reprojection error alone, the metric Chapter \ref{chap:quality} rules out \\
+Session directories with per-pair metadata & Ready & Enables the retrospective study of Section \ref{sec:hypothesis} \\
+Explicit \texttt{-{}-mode} on calibration captures & Ready & Guarantees the sensor mode matches (Section \ref{sec:resolution}). Must be preserved \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Two defects in the existing quality check}
+
+\textbf{The sharpness measure is computed over the whole frame.} \texttt{validate\_image\_quality} takes the variance of the Laplacian over the entire image. In a dark room with a black background, most of the frame is empty, so the measure is dominated by the background and is largely insensitive to whether the \emph{board} is in focus. It should be computed over the bounding region of the detected corners, which the function already has available as an argument.
+
+\textbf{The sharpness threshold appears far too permissive.} The current rejection threshold is a Laplacian variance of 3.0. Values that low correspond to an almost featureless image; a sharply imaged chessboard typically produces values orders of magnitude higher. As written, the check will pass nearly every frame, including badly defocused ones. This is consistent with the hypothesis of Section \ref{sec:hypothesis} and should be recalibrated empirically against the archived sessions rather than guessed.
+
+\section{Staged plan}
+
+The stages are ordered so that each delivers something usable on its own, and so that the cheapest diagnostic comes first.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Staged implementation plan]{Proposed stages. Effort is indicative and assumes work against the existing codebase.}
+\label{tab:stages}
+\begin{tabularx}{\textwidth}{p{0.04\textwidth} p{0.26\textwidth} X p{0.09\textwidth}}
+\toprule
+\textbf{\#} & \textbf{Stage} & \textbf{Content} & \textbf{Effort} \\
+\midrule
+S0 & Retrospective diagnosis & \textbf{Done.} Gate A and Gate B measures run over the whole archive; result in Section \ref{sec:hypothesis}. Delivered as \texttt{camera/calibration\_guidance.py} and \texttt{tools/\allowbreak analyze\_calibration\_sessions.py} & 4 h \\
+S1 & Live Gate A & \textbf{Logic done, not wired.} The corrected measures and the per-frame verdict exist in \texttt{evaluate\_frame}; what remains is to call them from the preview loop of \texttt{gui/\allowbreak calibration\_dialog.py} and draw the result & 4 h left \\
+S2 & Honest metrics & \textbf{Done.} Parameter covariance via OpenCV's \texttt{stdDeviations\allowbreak Intrinsics}, index of dispersion, ratio-test convergence and an approximate Max ERE \cite{richardson2013aprilcal,rojtberg2018pose}. \texttt{validate\_calibration\_quality} still needs replacing in the old path & 2 h left \\
+S3 & Progress indicator & \textbf{Computed, not drawn.} \texttt{SessionStatus} reports coverage, convergence and an overall figure; the bars and the Max ERE readout are not yet in the interface & 4 h left \\
+S4 & Gate B and pose guidance & \textbf{Partial.} The non-degeneracy rules, the duplicate-pose test and tilt-bin coverage are implemented and enforced. The analytic pose generator of \cite{rojtberg2018pose}, binary subdivision of the tilt range with the 22.5\textdegree{} rotation and the distortion map, and the on-screen overlay of the target pose, are not & 12 h left \\
+S5 & Stereo extension & Binocular gating and the joint extrinsic criterion \cite{tan2025stereoposes} & 10 h \\
+S6 & Post-session audit & Bias ratio and Expected Mapping Error as an offline report \cite{hagemann2021bias} & 8 h \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{S0 has been run, and it reprioritised the rest}
+
+Stage S0 was the one stage that could be executed immediately, and it was. The reasoning for running it first was that the archive could show either of two things: inadequate sharpness, in which case S1 alone might suffice, or adequate sharpness with no angular spread, in which case the problem is degeneracy and S4 becomes the priority.
+
+The measurement, reported in Section \ref{sec:hypothesis}, gave the second answer unambiguously. Sharpness over the board is adequate and detection succeeds; the board was simply never tilted. The consequence for this table is that \textbf{S4 is the stage that addresses the cause}, and S1, while still worth having, no longer sits on the critical path.
+
+\subsection{What exists today}
+
+Four files have been written, none of which depends on a camera or on the interface, so all of them can be exercised offline against the archive.
+
+\begin{itemize}
+    \item \texttt{camera/calibration\_guidance.py}: the measures. Gate A frame quality, the degeneracy and novelty tests of Gate B, parameter uncertainty and the index of dispersion, the convergence ratio test, and an approximate Max ERE.
+    \item \texttt{camera/guided\_session.py}: the loop. Frames are offered continuously; a rejected frame does not consume one of the requested slots, so asking for 25 views yields 25 views that passed both gates. The session refuses to report itself complete until the accepted set covers the tilt bins of Table \ref{tab:bins}.
+    \item \texttt{tools/analyze\_calibration\_sessions.py}: the retrospective diagnosis of Section \ref{sec:hypothesis}.
+    \item \texttt{tools/replay\_guided\_session.py}: replays an archived session through the loop one frame at a time, which is how the loop is tested without hardware.
+\end{itemize}
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Tilt bins the accepted set must cover]{Pose-space coverage enforced by the session. The frontal bin serves the distortion coefficients, which need frontal views at the image edges; the tilted bins serve the pinhole parameters, which need angular spread \cite{rojtberg2018pose}. Three views per bin is the shipped default.}
+\label{tab:bins}
+\begin{tabular}{lll}
+\toprule
+\textbf{Bin} & \textbf{Tilt} & \textbf{Serves} \\
+\midrule
+frontal          & 0--10\textdegree  & distortion terms \\
+slightly tilted  & 15--30\textdegree & pinhole \\
+clearly tilted   & 30--45\textdegree & pinhole \\
+strongly tilted  & 45--70\textdegree & pinhole \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{What the loop does on the archived sessions}
+
+Replaying the three February 2026 sessions through the loop is the validation that it behaves as intended, and it reproduces the diagnosis independently. Results in Table \ref{tab:replay}.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Archived sessions replayed through the guided loop]{Each archived session replayed frame by frame. Every one is refused completion, and for the same reason: no session contains a single view above 45\textdegree{} of tilt.}
+\label{tab:replay}
+\begin{tabularx}{\textwidth}{l c c c X}
+\toprule
+\textbf{Session} & \textbf{Offered} & \textbf{Kept} & \textbf{Spread} & \textbf{Verdict} \\
+\midrule
+\texttt{...\_152124} & 25 & 3  & 1.1\textdegree  & Only the frontal bin filled; 18 frames refused as duplicate poses \\
+\texttt{...\_155926} & 25 & 12 & 41.0\textdegree & Three bins filled, 45--70\textdegree{} empty \\
+\texttt{...\_160735} & 20 & 9  & 29.4\textdegree & Three bins filled, 45--70\textdegree{} empty \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The first row is the clearest demonstration of the contract. Twenty-five frames were offered and three were kept, because the other twenty-two carried no information the first three had not already supplied. A procedure that counts photographs would have recorded that session as complete. The module carries no camera or interface dependency, so stages S1 to S5 can be built on top of it without rework.
+
+\subsection{A note on reusing published code}
+
+Rojtberg and Kuijper's method is published with a working implementation, \texttt{pose\_calib}, built on OpenCV and the same ChArUco functions this project already calls \cite{rojtberg2018pose}. Calibration Wizard is likewise published with demo code \cite{peng2019wizard}. Stages S2 and S4 should begin by reading those implementations rather than deriving the algorithms afresh. Neither is a drop-in dependency, because both are monocular and this project needs the stereo case, but the covariance and pose-generation logic transfers directly.
+
+\section{Interaction with the rest of the project}
+
+\begin{itemize}
+    \item \textbf{Illumination.} The calibration session must be lit well enough for the board to be sharp and unclipped. The requirements, and the depth-of-field figures used in Section \ref{sec:hypothesis}, are in the companion deliverable \cite{linku_darkroom_illumination}.
+    \item \textbf{Optical discipline.} The focus and aperture rings must be set and locked before the session, and not touched afterwards, for the reasons in Chapter \ref{chap:failure}. The companion deliverable specifies the locking and marking procedure.
+    \item \textbf{Geometry.} The calibration must be performed on the integrated camera support that will be used in the experiment, not on a different mount. Moving the cameras between calibration and use invalidates the stereo extrinsics.
+\end{itemize}
+
+\todo[inline]{Next: before building anything further, repeat one calibration session with the board deliberately tilted between roughly 20 and 60 degrees and at full sensor resolution. Section \ref{sec:hypothesis} shows that is the single change most likely to produce a usable calibration, and it needs no new software. Re-run \texttt{tools/analyze\_calibration\_sessions.py} on the result to confirm the angular spread before fitting.}

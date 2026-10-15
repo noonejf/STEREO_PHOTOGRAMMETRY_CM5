@@ -1,0 +1,149 @@
+\chapter{Proposed Design for the LINKU Calibration Tool}
+\label{chap:design}
+
+This chapter converts Chapters \ref{chap:literature} and \ref{chap:quality} into a specification. It is written to answer the design questions that prompted the document: whether capture should be continuous like a video, how frames that would harm the calibration are rejected, and what a meaningful progress indicator would show.
+
+\section{The loop}
+
+\begin{figure}[!ht]
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  box/.style={draw, rounded corners=2pt, align=center, inner sep=4pt, minimum height=8mm, text width=23mm},
+  gate/.style={box, fill=black!5},
+  keep/.style={box, fill=black!12},
+  >=Stealth, node distance=5mm]
+
+\node[box] (prev) {Preview stream\\(fast, low res)};
+\node[gate, right=7mm of prev] (det) {Detect ChArUco\\corners};
+\node[gate, right=7mm of det] (gate1) {Gate A\\sharpness,\\completeness,\\stability};
+\node[gate, below=9mm of gate1] (gate2) {Gate B\\information\\gain};
+\node[keep, left=7mm of gate2] (still) {Capture\\full-resolution\\still pair};
+\node[keep, left=7mm of still] (fit) {Re-fit and\\update $\Sigma_v$};
+
+\node[box, below=9mm of fit] (metric) {MaxIOD,\\Max ERE};
+\node[box, right=7mm of metric] (pose) {Generate next\\target pose};
+\node[box, right=7mm of pose] (ui) {Overlay +\\verdict +\\progress bar};
+
+\draw[->] (prev) -- (det);
+\draw[->] (det) -- (gate1);
+\draw[->] (gate1) -- node[right, font=\scriptsize] {pass} (gate2);
+\draw[->] (gate2) -- node[above, font=\scriptsize] {pass} (still);
+\draw[->] (still) -- (fit);
+\draw[->] (fit) -- (metric);
+\draw[->] (metric) -- (pose);
+\draw[->] (pose) -- (ui);
+
+% reject paths
+\draw[->, dashed, black!55] (gate1.north) -- ++(0,0.55) -| node[pos=0.25, above, font=\scriptsize] {reject} (prev.north);
+\draw[->, dashed, black!55] (gate2.east) -- ++(0.75,0) |- node[pos=0.25, right, font=\scriptsize] {reject} (ui.east);
+
+% feedback to operator: routed around the left of the column so it crosses nothing
+\coordinate (farleft) at ([xshift=-9mm]prev.west);
+\coordinate (d1) at ([yshift=-9mm]ui.south);
+\coordinate (d2) at (farleft |- d1);
+\draw[->, thick] (ui.south) -- (d1)
+      -- node[below, font=\scriptsize, pos=0.5] {operator moves the board} (d2)
+      -- (farleft) -- (prev.west);
+
+\end{tikzpicture}
+\caption[Architecture of the proposed calibration loop]{The proposed loop. The preview stream drives detection and guidance at interactive rates; only frames that pass both gates trigger a full-resolution capture. Everything below the dashed rejection paths runs once per accepted frame, not once per preview frame.}
+\label{fig:loop}
+\end{figure}
+
+\section{Video or stills? Both, for different jobs}
+
+The instinct to replace discrete photographs with a continuous stream is right, but a calibration cannot simply be run on a video, for a reason established in Section \ref{sec:resolution}: on this sensor the video modes are not the still mode. The 2028$\times$1080 and 1332$\times$990 modes are cropped as well as binned, so a calibration computed from them describes a different optical configuration than the 4056$\times$3040 captures the experiment will use (Table \ref{tab:modes}).
+
+The resolution is to use each stream for what it is good at:
+
+\begin{itemize}
+    \item \textbf{The preview stream drives interaction.} Detection, pose estimation, the live verdict and the guidance overlay all run on the low-resolution stream, which is fast enough to feel continuous. Nothing from this stream enters the calibration.
+    \item \textbf{Accepted poses trigger a full-resolution still pair.} Only frames that pass both gates cause a capture at 4056$\times$3040 with an explicit sensor mode. These are the only images that are fitted.
+\end{itemize}
+
+This keeps the operator experience continuous while guaranteeing that every image in the solution came from the mode the calibration will be used in. It also matches how the reviewed systems behave in practice: the operator is guided towards a pose and the image is taken when the pose is reached \cite{peng2019wizard,rojtberg2018pose}.
+
+\section{Gate A: is this frame usable at all?}
+
+Gate A rejects frames that are bad regardless of where the board is. It runs on every preview frame.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Gate A criteria]{Per-frame rejection criteria. These are cheap and run continuously.}
+\label{tab:gatea}
+\begin{tabularx}{\textwidth}{p{0.17\textwidth} p{0.30\textwidth} X}
+\toprule
+\textbf{Check} & \textbf{Test} & \textbf{Why} \\
+\midrule
+Completeness & Number of detected ChArUco corners above a floor & Too few points makes the per-view pose ill-conditioned. ChArUco tolerates partial views, which is why it is used \cite{garrido2014aruco,rojtberg2018pose} \\
+Sharpness & Focus measure over the detected board region, not the whole frame & A board outside the depth of field degrades corner localisation. This is the suspected cause of the previous failures (Section \ref{sec:hypothesis}) \\
+Stability & Corner displacement between consecutive preview frames below a threshold & Rejects motion blur and ensures the full-resolution capture that follows sees the same pose \\
+Exposure & No saturated or crushed regions on the board & Clipped corners localise poorly \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The sharpness check deserves emphasis. It is the cheapest single addition that addresses the hypothesis of Section \ref{sec:hypothesis}, and it is the one the current procedure most clearly lacks: at f/1.6 the usable depth is about one metre, and nothing in the present workflow warns the operator when the board leaves it.
+
+\section{Gate B: would this frame improve the calibration?}
+
+Gate A asks whether the image is good. Gate B asks the harder question, whether it is \emph{useful}. This is where the user's concern about frames that worsen the result is addressed.
+
+A frame can be perfectly sharp, fully detected and still worthless, because it duplicates a pose already captured. Worse, a set dominated by near-parallel views is actively misleading: it produces a low residual while leaving the focal length unconstrained (Section \ref{sec:degeneracy}).
+
+Gate B is therefore an information-gain test against the current state:
+
+\begin{enumerate}
+    \item Estimate the board pose from the preview detection.
+    \item Check it against the non-degeneracy rules of Section \ref{sec:degeneracy}: not parallel to the image plane, not parallel to either image axis, and not violating the reflection constraint with respect to the poses already held \cite{rojtberg2018pose}.
+    \item Check that it advances the currently targeted parameter, which is the one with the largest index of dispersion, the MaxIOD of Equation \ref{eq:iod}.
+    \item Accept only if it does both.
+\end{enumerate}
+
+Two implementation notes. First, the strict version of step 3 predicts the covariance that would result from adding this frame, which requires one extra Jacobian evaluation; the cheap version compares the pose against the target pose the tool is currently suggesting and accepts when it is close enough. The reviewed systems use the cheap version at interaction time \cite{peng2019wizard,rojtberg2018pose}. Second, a frame that is rejected by Gate B is not an error, and the interface should say so differently from a Gate A rejection: the board is fine, it is in the wrong place.
+
+\section{The verdict and the progress bar}
+
+\subsection{Per-frame verdict}
+
+The operator should see, on every preview frame, one of four states: \emph{board not found}, \emph{rejected and why} (blurred, moving, clipped, too few corners), \emph{good board but wrong pose, move here}, or \emph{captured}. The third state is the one that teaches, and it should be accompanied by the overlay of the suggested next pose, which is the mechanism Rojtberg's user study found sufficient to bring novices to a precise calibration in roughly two minutes \cite{rojtberg2019guidance}.
+
+\subsection{What the progress bar should actually show}
+
+A bar driven by a frame count is misleading, because it implies that the twentieth image is worth as much as the second. The bar should be driven by the convergence state of the parameters.
+
+Two complementary displays are proposed:
+
+\begin{itemize}
+    \item \textbf{Per-parameter bars}, one for each of the nine intrinsics plus the stereo transform, showing the index of dispersion of Equation \ref{eq:iod} against its convergence threshold. This tells the operator \emph{which} parameter is currently holding the session back, which is exactly the parameter the suggested pose is targeting. The authors report that this covariance correlates with testing error \cite{rojtberg2018pose}.
+    \item \textbf{A single overall figure in pixels}, the Max ERE of Section \ref{chap:quality}, shown against the accuracy budget. This is the number that answers ``is it good enough yet'' in units the operator can reason about \cite{richardson2013aprilcal}.
+\end{itemize}
+
+The session ends when all parameters pass the ratio test of Equation \ref{eq:ratio} and Max ERE is below budget, which is criteria C1 and C2 of Table \ref{tab:acceptance}. It does not end at a fixed image count.
+
+\section{The stereo extension}
+
+Everything above is per-camera. For the LINKU rig the inter-camera transform $R, T$ must also be constrained, and a pose that is informative for one camera's intrinsics is not automatically informative for the stereo pair. Two additions follow from Tan et al. \cite{tan2025stereoposes}:
+
+\begin{itemize}
+    \item Gate A gains a binocular condition: the board must be fully detected in \emph{both} cameras simultaneously for the frame to contribute to the stereo extrinsics.
+    \item The convergence state extends to cover $R$ and $T$, using the trace of the covariance as the scalar objective, with the relative and absolute extrinsics optimised jointly rather than separately.
+\end{itemize}
+
+Because the two cameras are rigidly coupled at a 100~mm baseline, the region where both see the board at a useful angle is smaller than either camera's field. The guidance must propose poses inside that intersection, otherwise it will repeatedly suggest poses that one camera cannot see.
+
+\section{What the tool must preserve from the current code}
+
+Three behaviours in the existing implementation are correct and must survive the rewrite:
+
+\begin{enumerate}
+    \item Calibration captures are forced to \texttt{capture\_resolution} with an explicit \texttt{-{}-mode}, so the sensor mode is not chosen silently (Section \ref{sec:resolution}).
+    \item Both cameras are captured as a synchronised pair with the time difference recorded in the session metadata.
+    \item Each session is written to its own timestamped directory with per-pair metadata, which is what makes the retrospective analysis of Section \ref{sec:hypothesis} possible at all.
+\end{enumerate}
+
+\section{What this does not solve}
+
+The tool improves the \emph{procedure}. It does not compensate for a lens whose focus ring has moved since the session, for a board that is not flat, or for a calibration applied at a different sensor mode. Those remain operational disciplines, and they are the content of Table \ref{tab:failures}. The tool can, however, detect the second of them after the fact, through the bias ratio of Section \ref{chap:quality}.

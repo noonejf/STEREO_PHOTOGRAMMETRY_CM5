@@ -1,0 +1,230 @@
+\chapter{What Invalidates a Calibration}
+\label{chap:failure}
+
+Before proposing a better tool it is worth being precise about what a calibration actually estimates, and about which physical changes destroy it. This chapter answers the two operator questions that prompted the document, then collects the other failure modes that bear on the 23 unsuccessful attempts.
+
+\section{What is being estimated, and from which images}
+
+A common misconception is that intrinsic and extrinsic parameters come from different photographs. They do not. Both are recovered from the \emph{same} set of images, in a single joint optimisation \cite{zhang2000flexible}. What differs is what each group describes.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Parameters recovered by a stereo calibration]{What a stereo calibration estimates. The per-view board poses are nuisance parameters: they are solved for because they must be, then discarded.}
+\label{tab:params}
+\begin{tabularx}{\textwidth}{p{0.17\textwidth} p{0.25\textwidth} X}
+\toprule
+\textbf{Group} & \textbf{Parameters} & \textbf{Scope} \\
+\midrule
+Intrinsics & $f_x, f_y, c_x, c_y$ and the distortion coefficients $k_1, k_2, k_3, p_1, p_2$ & One set per camera, shared by every image that camera took \\
+Stereo extrinsics & $R, T$ between the two cameras & One single transform for the whole rig, from the frames where both cameras see the board \\
+Board poses & $R_j, T_j$ per view & One per image; discarded after the fit \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Rotating and tilting the board is therefore not a step that serves the extrinsics. It is what makes the \emph{intrinsics} observable at all, for a reason made precise in Section \ref{sec:degeneracy}.
+
+\section{Resolution: it must match, and rescaling is not always possible}
+\label{sec:resolution}
+
+The intrinsics are expressed in pixels. Writing $p$ for the pixel pitch and $f$ for the focal length in millimetres,
+
+\begin{equation}
+f_x = \frac{f}{p_x}, \qquad f_y = \frac{f}{p_y} ,
+\label{eq:fx}
+\end{equation}
+
+so any change in the effective pixel pitch changes $f_x$ and $f_y$ directly. The distortion coefficients are defined on normalised image coordinates and are, to first order, resolution-independent; the four pinhole parameters are not.
+
+The temptation is to assume a calibration can always be rescaled by the resolution ratio. That holds only when the change is a pure scaling of the same field of view. Sensor modes mix two different operations:
+
+\begin{itemize}
+    \item \textbf{Binning or downscaling} keeps the field of view and enlarges the effective pixel. Then $f_x, f_y, c_x, c_y$ all divide by the same factor $s$, and the calibration can be rescaled exactly.
+    \item \textbf{Cropping} keeps the pixel pitch and discards part of the field. Then $f_x, f_y$ are unchanged while $c_x, c_y$ shift by the crop offset. A naive rescale by the resolution ratio is simply wrong.
+\end{itemize}
+
+Table \ref{tab:modes} applies this to the modes the IMX477 actually offers \cite{raspberrypi_camera_docs_placeholder}. Two of them are not rescalings at all.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[IMX477 modes and whether a calibration can be rescaled between them]{Scale factors from the full 4056$\times$3040 readout to each mode. When the horizontal and vertical factors differ, the mode involves a crop and the calibration cannot be transferred by a single ratio. Modes as published by Raspberry Pi; factors computed for this document.}
+\label{tab:modes}
+\begin{tabularx}{\textwidth}{l c c X}
+\toprule
+\textbf{Mode} & \textbf{$s_x$} & \textbf{$s_y$} & \textbf{Interpretation} \\
+\midrule
+4056$\times$3040 & 1.000 & 1.000 & Full readout. The reference, and what this project captures at. \\
+2028$\times$1520 & 2.000 & 2.000 & Pure 2$\times$2 binning, same field. Rescalable exactly. \\
+2028$\times$1080 & 2.000 & 2.815 & Binned \emph{and} cropped: about 29\% of the vertical field is discarded. Not rescalable. \\
+1332$\times$990  & 3.045 & 3.071 & Scaled and slightly cropped. Not rescalable. \\
+1920$\times$1440 & 2.1125 & 2.1111 & The project's preview resolution. Close to a pure rescale, but the 0.066\% mismatch in aspect ratio shows a residual crop or anisotropic scale. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Answer to the operator's question.} Yes, every calibration image must be captured at the same resolution \emph{and the same sensor mode} as the images the calibration will be applied to. In principle a pure-binning change can be compensated analytically, but the project's own code already notes that without an explicit \texttt{-{}-mode} argument libcamera may silently choose a mode and then scale or crop, which makes the transfer untrustworthy in practice. The existing code is correct on this point: it forces calibration captures to the full \texttt{capture\_resolution} and passes \texttt{-{}-mode} explicitly. That behaviour must be preserved by any new tool.
+
+\section{Focus: this one breaks the calibration}
+
+On a manual C-mount lens such as the fitted C1508ZM04, focusing physically displaces the optical group relative to the sensor. That changes the effective focal length, and by Equation \ref{eq:fx} it changes $f_x$ and $f_y$ in direct proportion. The effect is known as focus breathing and it is not small on short-focal-length lenses.
+
+The consequence for this project is a \emph{scale error on every reconstructed distance}. A relative error $\epsilon$ in the focal length propagates to a relative error $\epsilon$ in the triangulated depth, so a 1\% focus drift becomes a 10~mm bias on a 1~m measurement. That is a systematic bias, not noise: averaging more frames does not remove it.
+
+\textbf{If the focus ring moves after calibration, the calibration is invalid.} This is the failure mode to guard against, and it is aggravated here because the experiment deliberately moves the rig by hand.
+
+\section{Aperture: milder, but not free}
+
+Changing the aperture is geometrically much more benign:
+
+\begin{itemize}
+    \item The focal length is nominally unchanged, so $f_x$ and $f_y$ are preserved.
+    \item The principal point can shift slightly, because stopping down changes which cone of rays reaches each pixel and real irises are not perfectly centred on the optical axis.
+    \item The measured distortion changes slightly, for the same reason: different apertures sample different zones of the lens.
+    \item Depth of field, diffraction and aberrations change substantially. This is the dominant practical effect, and it is an \emph{image quality} effect rather than a geometric one.
+\end{itemize}
+
+The standard practice that follows is to calibrate at the aperture the system will be used at, and not to touch the ring afterwards. The companion illumination deliverable gives the light cost of each aperture and shows why this project should stay wide open at f/1.6 \cite{linku_darkroom_illumination}.
+
+\section{Degenerate pose configurations}
+\label{sec:degeneracy}
+
+This is the failure mode that cannot be fixed by taking more pictures, and it is the reason guided calibration exists.
+
+Writing out the projection for a board held parallel to the image plane, with the distortion set aside, gives
+
+\begin{equation}
+p = \begin{bmatrix} f_x (X + t_x)/(Z + t_z) + c_x \\[2pt] f_y (Y + t_y)/(Z + t_z) + c_y \end{bmatrix} ,
+\label{eq:ambiguity}
+\end{equation}
+
+which exposes two exact ambiguities \cite{rojtberg2018pose}:
+
+\begin{enumerate}
+    \item Between the focal length $f$ and the board distance $t_z$. A larger focal length at a greater distance produces an identical image.
+    \item Between the in-plane board translation $[t_x, t_y]$ and the principal point $[c_x, c_y]$.
+\end{enumerate}
+
+Both are resolved only by \textbf{tilting} the board, which forces a single $t$ to explain all the pattern points simultaneously. If the board is parallel to the sensor in every view, the focal length is not merely poorly estimated, it is unrecoverable \cite{rojtberg2018pose}. Triggs found that an angular spread above roughly five degrees is needed; Sturm and Maybank catalogued the singular configurations and related them to individual parameters, as summarised in \cite{rojtberg2018pose}.
+
+Rojtberg and Kuijper translate those results into three rules that a pose must satisfy to usefully constrain the pinhole parameters \cite{rojtberg2018pose}:
+
+\begin{itemize}
+    \item The pattern must not be parallel to the image plane.
+    \item The pattern must not be parallel to either image axis.
+    \item For any two patterns, the vanishing lines must not be reflections of each other about both a horizontal and a vertical line in the image.
+\end{itemize}
+
+The distortion coefficients behave differently. They have no comparable ambiguity, because the mapping is non-linear; what they need is \emph{measurement where the distortion is strong}, which means the board must reach the edges and corners of the frame \cite{rojtberg2018pose}. This is why the two parameter groups require two different capture strategies, a point developed in Chapter \ref{chap:literature}.
+
+\section{The calibration target itself}
+
+Two target properties matter and neither is usually verified.
+
+\textbf{Flatness.} Zhang's method assumes the target is planar. Strobl and Hirzinger show that real printed targets deviate from flatness enough to bias the result, and that modelling the deviation improves accuracy over assuming perfect planarity \cite{strobl2011imperfect}. A board printed on paper and taped to a backing is exactly the case they describe. OpenCV exposes \texttt{calibrateCameraRO}, which releases the object points and can absorb part of this error \cite{opencv_calib3d}.
+
+\textbf{Detectability.} A plain chessboard requires the detector to order the recovered corners into a canonical topology, which fails when the board is partially out of frame or partially occluded. A self-identifying target such as ChArUco, built on the ArUco marker system \cite{garrido2014aruco}, labels every corner individually. Rojtberg and Kuijper adopt ChArUco specifically because detection is fast enough for interactive guidance and tolerates partial views \cite{rojtberg2018pose}. Their board is 9$\times$6 squares, which is the same geometry this project already uses.
+
+\section{What actually went wrong}
+\label{sec:hypothesis}
+
+An earlier draft of this document hypothesised that defocus was the cause, reasoning that at f/1.6 the usable depth is only about one metre \cite{linku_darkroom_illumination} and that calibration requires varying the board distance. That hypothesis was tested and is \textbf{not} what the data shows. The measurements below were produced by \texttt{tools/analyze\_calibration\_sessions.py}, which applies the Gate A and Gate B measures of Chapter \ref{chap:design} to every archived pair.
+
+\subsection{Coverage of the archive}
+
+Of 27 directories under \texttt{data/calibration/}, 25 contain images, for 424 frames in total. The board is detected in 218 of them, 51\%. The failures are not distributed evenly: the seven sessions from November 2025 yield \textbf{zero} ChArUco detections across 174 images, which is consistent with those sessions predating the switch to the ChArUco target and having used the older plain chessboard. The five sessions from February 2026 detect at 96 to 100\%. Only those five are informative about the current setup.
+
+\subsection{The finding}
+
+Table \ref{tab:tilt-measured} gives the distribution of board tilt, the angle between the board plane and the sensor plane, over the 214 frames in which a pose could be recovered.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Measured board tilt across the archived sessions]{Distribution of board tilt over the archived sessions. Triggs found an angular spread above roughly 5\textdegree{} necessary for the focal length to be determined; Rojtberg and Kuijper generate poses across $\pm$70\textdegree{} \cite{rojtberg2018pose}. Measured by \texttt{tools/analyze\_calibration\_sessions.py}.}
+\label{tab:tilt-measured}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Board tilt} & \textbf{Frames} & \textbf{Share} \\
+\midrule
+$>$ 2\textdegree  & 198 & 92.5\% \\
+$>$ 5\textdegree  & 84  & 39.3\% \\
+$>$ 10\textdegree & 52  & 24.3\% \\
+$>$ 15\textdegree & 46  & 21.5\% \\
+$>$ 20\textdegree & 43  & 20.1\% \\
+$>$ 30\textdegree & 18  & 8.4\% \\
+$>$ 45\textdegree & \textbf{0} & \textbf{0\%} \\
+\midrule
+\multicolumn{3}{l}{median 4.4\textdegree, mean 9.3\textdegree, maximum 43.9\textdegree} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{The board was held nearly flat against the sensor plane.} The median tilt is 4.4\textdegree, below the threshold Triggs identified; only 39\% of frames exceed it at all; and not one frame in the entire archive reaches 45\textdegree, while the published pose generator spans $\pm$70\textdegree. Applying the admissibility rules of Section \ref{sec:degeneracy}, 199 of the 218 detected frames, that is 91\%, are flagged as degenerate for the pinhole parameters.
+
+This is the textbook degeneracy of Equation \ref{eq:ambiguity}. The focal length was never recoverable from these sets, and no amount of additional images of the same kind would have changed that.
+
+\subsection{Defocus was not the problem}
+
+The sharpness measured over the detected board region has a median of 5908 in the Tenengrad units of the implementation, with the 5th percentile at 2001, and detection succeeded in essentially every February 2026 frame. There is no evidence of a widespread focus failure. The hypothesis was wrong.
+
+The measurement does, however, confirm the defect noted in Chapter \ref{chap:plan}: the same measure computed over the whole frame, which is what the existing \texttt{validate\_image\_quality} does, has a median of 1902, roughly a third of the value over the board. In a dark room the background dominates and dilutes the signal, so the existing check is measuring mostly empty space.
+
+\subsection{Two further observations}
+
+\textbf{No session used the full sensor resolution.} Every archived pair records a capture resolution of 1920$\times$1440, never 4056$\times$3040. Given Section \ref{sec:resolution}, a calibration obtained at that resolution does not transfer to full-resolution captures unless the mode is a pure rescale, which Table \ref{tab:modes} shows it very nearly is but not exactly.
+
+\textbf{The parameters are badly determined, and the residual does not show it.} Calibrating the best-spread session, 20 usable views, gives an RMS reprojection error of 1.50~px, which the existing code would classify merely as high rather than catastrophic. The parameter uncertainties tell a different story, and they are given in Table \ref{tab:measured-uncertainty}.
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Measured parameter uncertainty on an archived session]{Intrinsics and their standard deviations for session \texttt{calibration\_20260216\_160735}, 20 views, from OpenCV's \texttt{calibrateCameraCharucoExtended}. The index of dispersion is $\sigma^2/C$ \cite{rojtberg2018pose}.}
+\label{tab:measured-uncertainty}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Parameter} & \textbf{Value} & \textbf{$\sigma$} & \textbf{IOD} \\
+\midrule
+$f_x$ & 2651.79 & 22.42 & 0.190 \\
+$f_y$ & 2673.03 & 22.97 & 0.197 \\
+$c_x$ & 926.49  & 21.11 & 0.481 \\
+$c_y$ & 701.30  & 15.67 & 0.350 \\
+$k_1$ & $-0.182$ & 0.043 & 0.010 \\
+$k_2$ & $-0.321$ & 0.721 & 1.619 \\
+$p_1$ & $-0.0019$ & 0.0014 & 0.001 \\
+$p_2$ & $-0.0020$ & 0.0015 & 0.001 \\
+$k_3$ & \textbf{3.129} & \textbf{3.714} & \textbf{4.408} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two readings matter. The focal length carries a relative uncertainty of \textbf{0.85\%}, which by the argument of Section \ref{chap:failure}.3 is a 0.85\% scale error on every reconstructed distance, or 8.5~mm on a one-metre measurement. And the higher-order distortion terms are not estimated at all: $k_3$ has a standard deviation larger than its own value, and $k_2$ nearly so. They are fitting noise.
+
+An RMS of 1.50~px does not reveal any of this. That is the argument of Chapter \ref{chap:quality}, demonstrated on the project's own data.
+
+\todo[inline]{Pending: the fitted $f_x$ of 2652~px is about 8.5\% above the 2443~px predicted by scaling an exactly 8.00~mm lens to this resolution. Two explanations are consistent with it and this analysis cannot separate them: the lens may not be exactly 8.00~mm, nominal focal lengths commonly deviate by several percent, or the 1920$\times$1440 mode may crop more of the sensor than the pure rescale assumed in Table \ref{tab:modes}. Resolve it by calibrating once at full resolution and comparing.}
+
+\section{Summary}
+
+\begin{table}[!ht]
+\centering
+\small
+\caption[Failure modes and their effect]{What each failure mode does to the calibration, and whether more images can fix it.}
+\label{tab:failures}
+\begin{tabularx}{\textwidth}{p{0.21\textwidth} p{0.27\textwidth} X}
+\toprule
+\textbf{Failure mode} & \textbf{Effect} & \textbf{Fixable by more images?} \\
+\midrule
+Resolution or sensor-mode change & $f_x, f_y, c_x, c_y$ wrong by the scale factor, or by a crop offset & No. Recalibrate in the mode you will use \\
+Focus ring moves & Scale bias on every distance & No. Recalibrate \\
+Aperture ring moves & Small shift in principal point and distortion & Partly, but avoid it \\
+All views parallel to the sensor & Focal length unrecoverable & \textbf{No.} This is the degeneracy that motivates guided capture \\
+Board never reaches the frame edges & Distortion coefficients unconstrained & No, not without edge coverage \\
+Board not flat & Systematic bias & No. Use a rigid board, or \texttt{calibrateCameraRO} \\
+Board out of focus & Corner localisation degrades, residual stays high & No, if the whole set is affected \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Every entry in the last column is ``no''. That is the central argument of this document: the current procedure can be repeated indefinitely without converging, because the thing that is missing is not effort but feedback.
