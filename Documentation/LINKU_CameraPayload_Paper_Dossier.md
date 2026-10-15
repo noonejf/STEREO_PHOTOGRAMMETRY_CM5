@@ -3,6 +3,7 @@
 **Author of the payload and of this dossier:** Jose Sifuentes, Pontificia Universidad Católica del Perú
 **Project:** LINKU, APSCO, Work Package WP-2200
 **Date of this compilation:** 15 October 2026
+**Last revised:** 15 October 2026, revision 2 (see Changelog below)
 **Status of the payload:** laboratory prototype, pre-PDR. Not flight qualified.
 
 ---
@@ -336,20 +337,24 @@ Reported: **F1 = 0.97, precision 0.94, recall 0.99**.
 
 > **DEFECT, and this one has already propagated into three of our documents.** The evaluation predicts on `X_tr`, the same array passed to `fit`, five lines earlier. There is no train/test split, no cross-validation, no held-out set anywhere. **These are training scores and are optimistic by construction.** Our own work plan already flags it and prescribes the fix: split **by capture session, not by augmented image**, otherwise augmented copies of the same photograph leak between train and validation.
 
-> **DEFECT, more serious, verified end to end.** The AI mask **never reaches the downstream pipeline.** The production entry point does this:
+> **DEFECT, FIXED in commit `ae6b412`.** Until that commit the AI mask **never reached the downstream pipeline.** The production entry point did this:
 >
 > ```python
 > tuner.original_img = left_img
 > tuner._prepare_preview()
-> tuner.update_detection()        # recomputes the CLASSICAL mask
+> tuner.update_detection()        # recomputed the CLASSICAL mask
 > mask_left = tuner.get_current_mask()
 > ```
 >
-> and `update_detection()` unconditionally reassigns `self.mask_result` with the classical result. The same happens in `apply_and_close()`, which calls `update_detection()` on its first line. So if an operator clicks "apply AI model" and sees the Random Forest mask on screen, that mask is discarded on exit. What endpoint detection receives is always the top-hat mask.
+> and `update_detection()` unconditionally reassigns `self.mask_result` with the classical result. The same happened in `apply_and_close()`. So an operator could click "apply AI model", see the Random Forest mask on screen, and have it discarded on exit. What endpoint detection received was always the top-hat mask.
 >
-> The model is trained and can be previewed. It is **not** integrated into the path that produces results. Our documents currently describe it as *"Implemented & trained... Integrated as a selectable inference mode in the segmentation tuner."* The first half is true. The second half is not, in the shipped code path. The fix is a few lines; until it is made, the claim should not appear in the paper.
+> **What changed.** The tuner now holds an explicit `_ai_mode` flag and a single dispatcher, `refresh_mask()`, which chooses between the classical method and the model. Inference was extracted into `_infer_ai_mask()` so it can run headless over both images. Touching any classical parameter leaves AI mode. All four exit paths call the dispatcher.
+>
+> Verified headless against the real model: the AI mask (2217 px) survives `refresh_mask()`, `update_detection()` still discards it in favour of the classical mask (3809 px), and a parameter change returns to the classical result.
+>
+> **For the paper:** the claim *"integrated as a selectable inference mode"* is now accurate. It was not accurate in any version of the system that produced the archived results, so **no reconstruction in `data/` was made with an AI mask.**
 
-A second consequence worth noting: in the one workflow where the AI mask does survive (single-image mode, click AI then save to dataset without triggering a recompute), the AI output can be fed back in as a training label with no human verification step. That is a self-training loop and it should be closed deliberately.
+A second consequence, also addressed: the AI output could be fed back in as a training label with no human verification, which is a self-training loop. Saving to the dataset while in AI mode now asks for confirmation. The alternative, silently saving a classical mask different from what the operator saw, was judged worse.
 
 **Dataset on disk.** Two independent stores managed by the same class:
 
@@ -538,7 +543,11 @@ Formats: PLY, XYZ, PCD, OBJ. In production only PLY is written, as `point_cloud.
 
 **No format records the unit.** The `metadata` mechanism is the only place a unit could be written and the GUI never populates it.
 
-> **DEFECT, verified numerically.** The exporter assumes colours in [0, 1] and does `(colors * 255).astype(np.uint8)`. The production cloud from `generate_point_cloud_from_matches` returns colours already as **uint8 in 0 to 255**. On a uint8 array `colors * 255` wraps modulo 256. Reproduced: an RGB of (120, 200, 30) is written to the PLY as **(136, 56, 226)**. Geometry is unaffected; **every colour in every exported geometric-path cloud is wrong.** The dense SGBM branch divides by 255 and is consistent with the exporter, so it does not have this bug.
+> **DEFECT, FIXED in commit `ae6b412`.** The exporters assumed colours in [0, 1] and did `(colors * 255).astype(np.uint8)`. The production cloud from `generate_point_cloud_from_matches` returns colours already as **uint8 in 0 to 255**, and on a uint8 array that multiplication wraps modulo 256. Reproduced: an RGB of (120, 200, 30) was written to the PLY as **(136, 56, 226)**. Geometry was unaffected; every colour in every exported geometric-path cloud was wrong. The dense SGBM branch divides by 255 and was consistent with the exporter, so it never had the bug.
+>
+> **What changed.** `PointCloudExporter._colors_as_uint8` and `_colors_as_float01` detect the incoming range from dtype and magnitude, and PLY, XYZ, PCD and OBJ all route through them. Verified that both ranges now round-trip exactly.
+>
+> **For the paper:** any PLY exported before `ae6b412`, including anything already shared or used in a figure, carries wrong colours. Re-export before using one.
 
 > **DEFECT, verified numerically.** In the dense branch, `np.where(valid_mask)[0]` on a 2D boolean mask takes the **row indices**, not flattened linear indices, and they are then decoded as linear indices with `// img_width` and `% img_width`. Reproduced on a toy mask: `np.where` returns `(array([2,3]), array([3,5]))` while the true linear indices are `[15, 23]`. Colours and confidences in the dense cloud are therefore sampled from essentially row 0. Production is unaffected because it uses the geometric branch.
 
@@ -1117,7 +1126,7 @@ Everything this payload has actually produced, with nothing upgraded.
 | 12 | Sensor power 269 to 382 mW per camera at 30 fps, 540 to 760 mW for the pair | **DERIVED** |
 | 13 | A thread 1 mm wide is sub-pixel at 100 m for all nine configurations examined, by about two orders of magnitude | **DERIVED** |
 | 14 | Megapixel count is nearly irrelevant to thin-target resolution; pixel pitch times focal length governs | **DERIVED**, cross-checked two ways |
-| 15 | Random Forest pixel segmentation, F1 0.97 | **MEASURED but on the training set, and not in the production path** |
+| 15 | Random Forest pixel segmentation, F1 0.97 | **MEASURED but on the training set.** Reaches the pipeline only from `ae6b412` onward, so no archived result used it |
 
 **What has not been measured at all:** any real-versus-render comparison; any experimental angular rate; any dark-room illumination value; CM5 power; JPEG file size and therefore images per pass; any end-to-end accuracy figure against a known physical object.
 
@@ -1142,14 +1151,14 @@ Collected so nothing here reaches the paper by accident. Every item was verified
 | 7 | **Config 2 module name** | Table pairs "Raspberry Pi Camera Module 3" with "Omnivision OV64A40". Module 3 carries IMX708; the OV64A40 is the Arducam Hawkeye. The numbers match the Hawkeye, so the module name is wrong |
 | 8 | **Blender bug status** | LaTeX chapters record the dark-tether bug as open; the work plan records it resolved (`scale.z = 0`) |
 | 9 | **Symbol reuse** | `μ` defined as the gravitational parameter, then reused as object distance two equations later |
-| 10 | **Calibration conclusion text** | The confidence table says the degeneracy is "Measured", but the paragraph below it still says "a well-supported hypothesis, not a finding" and that the document "should not be read as having diagnosed the problem". Left over from before the measurement was run |
+| 10 | **Calibration conclusion text** | ~~The confidence table says the degeneracy is "Measured", but the paragraph below it still says "a well-supported hypothesis, not a finding".~~ **FIXED in `ae6b412`.** Rewritten to match the table: the cause is measured; what remains unconfirmed is the remedy, since no archived session reaches 45 degrees of tilt |
 
 ### 11.2 Software defects, verified
 
 | # | Defect | Impact |
 |---|---|---|
-| 1 | **AI mask never reaches the pipeline.** `update_detection()` recomputes the classical mask and overwrites it on both exit paths | The trained model is a preview only. Three documents describe it as integrated |
-| 2 | **PLY colours wrap modulo 256.** The exporter assumes [0,1] and multiplies by 255; the production cloud is already uint8 0 to 255. Reproduced: (120,200,30) → (136,56,226) | Every colour in every exported geometric-path cloud is wrong. Geometry is unaffected |
+| 1 | ~~**AI mask never reaches the pipeline.**~~ **FIXED in `ae6b412`** with an explicit `_ai_mode` flag and a `refresh_mask()` dispatcher | Was a preview only. No archived reconstruction used an AI mask |
+| 2 | ~~**PLY colours wrap modulo 256.**~~ **FIXED in `ae6b412`** by range-detecting normalisers shared by all four exporters | Clouds exported before that commit carry wrong colours. Re-export before using one in a figure |
 | 3 | **Dense-branch colour indexing.** `np.where(mask2d)[0]` returns row indices, then decoded as linear indices | Colours and confidences sampled from essentially row 0. Production unaffected |
 | 4 | **F1 computed on the training set.** `predict(X_tr)` after `fit(X_tr)`, no split anywhere | The 0.97 is optimistic by construction and appears in three documents |
 | 5 | **Five different depth gates** across the pipeline, and metrics use the widest | Reported length, straightness and curvature describe a superset of the exported cloud |
@@ -1360,8 +1369,6 @@ For most of the project the recurring blocker was "mount the finalised camera se
 | Rolling shutter Phase 1, synthetic | None. The easiest item to pull forward |
 | Laboratory render and 2D comparison against the reference pair | Light characterisation |
 | Wire the guided calibration loop into the GUI | None, about 4 hours |
-| Fix the AI mask so it reaches the pipeline | None, a few lines |
-| Fix the PLY colour overflow | None, one line |
 
 ### 14.4 Deferred to 2027
 
@@ -1373,4 +1380,20 @@ B0308 purchase and migration (new calibration at 4608 × 2592). Model 2, the lea
 
 ---
 
-*Compiled 15 October 2026. Every number here is traceable to a source file, a datasheet, a primary standard or a measurement still on disk. Where it is not, it is labelled ASSUMED or PLANNED. If you need the underlying data for anything, the paths are in the text.*
+## 15. Changelog
+
+**Revision 2, 15 October 2026.** Three of the defects reported in revision 1 were fixed in commit `ae6b412` and their entries are updated in place, struck through rather than deleted so the record of what the archived data was produced with stays visible:
+
+| Was | Now |
+|---|---|
+| AI mask never reached the pipeline (5.2, 11.2 row 1) | Fixed. `_ai_mode` flag plus a `refresh_mask()` dispatcher. No archived reconstruction used an AI mask |
+| Exported point cloud colours wrapped modulo 256 (5.8, 11.2 row 2) | Fixed. Range-detecting normalisers shared by all four exporters. **Clouds exported before `ae6b412` carry wrong colours** |
+| The calibration deliverable contradicted itself on the degeneracy (11.1 row 10) | Fixed. Conclusion rewritten to match its own confidence table |
+
+Everything else is unchanged from revision 1.
+
+**Revision 1, 15 October 2026.** First compilation.
+
+---
+
+*Every number here is traceable to a source file, a datasheet, a primary standard or a measurement still on disk. Where it is not, it is labelled ASSUMED or PLANNED. If you need the underlying data for anything, the paths are in the text.*
