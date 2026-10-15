@@ -253,7 +253,11 @@ class PhotogrammetryDashboard(QMainWindow):
         logger.info(
             f"Dashboard initialized (cameras={'available' if cameras_available else 'unavailable'})"
         )
-        self.showMaximized()
+        # No se muestra la ventana aqui. Quien la crea decide el estado y la
+        # muestra una sola vez (ver main.py). Llamar a showMaximized() en el
+        # constructor y despues a show() desde fuera deja el resultado a
+        # merced del gestor de ventanas: en el compositor de la Raspberry la
+        # segunda llamada la restauraba a tamano normal.
 
     # ── Build UI ──────────────────────────────────────────────────────────────
 

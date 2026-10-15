@@ -139,7 +139,9 @@ def main():
     # Crear ventana principal
     try:
         main_window = MainWindow(camera_config, cameras_available=cameras_available)
-        main_window.show()
+        # Maximizada, no normal: es el unico punto donde se muestra, asi que
+        # el estado queda definido sin depender del gestor de ventanas.
+        main_window.showMaximized()
         logger.info("Ventana principal creada y mostrada")
     except Exception as e:
         msg = QMessageBox()

@@ -20,7 +20,7 @@ from PyQt5.QtWidgets import (
     QGridLayout, QMessageBox, QSpinBox,
     QDoubleSpinBox, QFrame, QSplitter, QScrollArea,
 )
-from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
+from PyQt5.QtCore import QEvent, QThread, pyqtSignal, QTimer, Qt
 from PyQt5.QtGui import QFont
 
 from camera.camera_calibration import CameraCalibrator
@@ -191,8 +191,11 @@ class CalibrationPage(QWidget):
         controls_scroll.setFrameShape(QFrame.NoFrame)
         controls_scroll.setStyleSheet(f"background-color: {BG_DEEP};")
         controls_scroll.setWidget(self._build_controls_panel())
+        self._controls_scroll = controls_scroll
         splitter.addWidget(controls_scroll)
-        splitter.setSizes([480, 520])
+        # Mas espacio para las vistas que para los controles: durante la
+        # captura lo que se mira es la imagen y el aviso grande.
+        splitter.setSizes([620, 480])
 
         root.addWidget(splitter, 1)
 
@@ -210,7 +213,19 @@ class CalibrationPage(QWidget):
             f"color: {ACCENT_CYAN}; font-weight: bold; font-size: 13px; background: transparent;"
         )
         title.setAlignment(Qt.AlignCenter)
+        self._preview_title = title
         v.addWidget(title)
+
+        # Aviso compacto para el modo ampliado. Al ocultar los controles se
+        # ocultaba tambien el aviso grande, que es justo lo que el operador
+        # necesita leer mientras posiciona el tablero, asi que la instruccion
+        # se replica aqui con lo imprescindible: que hacer, inclinacion
+        # actual y cuanto lleva.
+        self.preview_banner = QLabel("")
+        self.preview_banner.setAlignment(Qt.AlignCenter)
+        self.preview_banner.setWordWrap(True)
+        self.preview_banner.setVisible(False)
+        v.addWidget(self.preview_banner)
 
         self.left_preview = CameraPreviewWidget(
             "Left Camera (CAM0)", 0, self.camera_config
@@ -218,8 +233,21 @@ class CalibrationPage(QWidget):
         self.right_preview = CameraPreviewWidget(
             "Right Camera (CAM1)", 1, self.camera_config
         )
-        v.addWidget(self.left_preview, 1)
-        v.addWidget(self.right_preview, 1)
+
+        # Las dos vistas en un splitter cuya orientacion cambia con la forma
+        # del panel. Apiladas en vertical la altura disponible se parte en
+        # dos y limita la imagen, de modo que una imagen 4:3 deja la mitad
+        # del ancho vacio: medido, 280x210 en una ventana de 1280x720. Lado a
+        # lado cada vista usa toda la altura y la imagen crece bastante.
+        # Ademas el splitter deja al operador repartir el espacio a mano.
+        self._preview_split = QSplitter(Qt.Vertical)
+        self._preview_split.setChildrenCollapsible(False)
+        self._preview_split.setHandleWidth(4)
+        self._preview_split.setStyleSheet(
+            f"QSplitter::handle {{ background-color: {BORDER_SUBTLE}; }}")
+        self._preview_split.addWidget(self.left_preview)
+        self._preview_split.addWidget(self.right_preview)
+        v.addWidget(self._preview_split, 1)
 
         # Preview toggle buttons
         btn_row = QHBoxLayout()
@@ -238,13 +266,28 @@ class CalibrationPage(QWidget):
         self.btn_preview_stop.clicked.connect(self.stop_preview_for_capture)
         self.btn_preview_stop.setEnabled(False)
 
+        self.btn_expand = QPushButton("⬌  Ampliar vistas")
+        self.btn_expand.setCheckable(True)
+        self.btn_expand.setToolTip(
+            "Ocultar el panel de controles para que las vistas ocupen toda la "
+            "ventana. Util mientras posicionas el tablero. El aviso grande "
+            "sigue visible arriba."
+        )
+        self.btn_expand.setStyleSheet(
+            f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY}; }}"
+            f"QPushButton:hover {{ background-color: #3B4B60; }}"
+            f"QPushButton:checked {{ background-color: {ACCENT_CYAN}; color: #06202A;"
+            f"font-weight: bold; }}"
+        )
+        self.btn_expand.toggled.connect(self._toggle_expanded_preview)
+
         btn_row.addWidget(self.btn_preview_start)
         btn_row.addWidget(self.btn_preview_stop)
+        btn_row.addWidget(self.btn_expand)
         v.addLayout(btn_row)
 
         hint = QLabel(
-            "Position the chessboard so it is clearly visible\n"
-            "in BOTH cameras before each capture."
+            "El tablero tiene que verse completo en LAS DOS camaras."
         )
         hint.setStyleSheet(
             f"color: {TEXT_DIM}; font-size: 11px; background: transparent;"
@@ -253,7 +296,74 @@ class CalibrationPage(QWidget):
         hint.setWordWrap(True)
         v.addWidget(hint)
 
+        self._preview_panel = panel
+        panel.installEventFilter(self)
         return panel
+
+    def eventFilter(self, obj, event):
+        """Reorientar las vistas cuando cambia la forma del panel."""
+        if (obj is getattr(self, "_preview_panel", None)
+                and event.type() == QEvent.Resize):
+            self._reflow_previews(event.size())
+        return super().eventFilter(obj, event)
+
+    def _reflow_previews(self, size):
+        """
+        Apilar o poner lado a lado segun la forma del panel.
+
+        Apiladas, la altura se parte en dos y es ella la que limita la
+        imagen, asi que una imagen 4:3 deja la mitad del ancho vacio. Si el
+        panel es mas ancho que alto, lado a lado cada vista usa toda la
+        altura y la imagen sale bastante mayor.
+        """
+        wanted = (Qt.Horizontal if size.width() > size.height() * 1.15
+                  else Qt.Vertical)
+        if self._preview_split.orientation() == wanted:
+            return
+        self._preview_split.setOrientation(wanted)
+        half = (size.width() if wanted == Qt.Horizontal else size.height()) // 2
+        self._preview_split.setSizes([half, half])
+
+    def _toggle_expanded_preview(self, expanded: bool):
+        """Dar toda la ventana a las vistas, o devolver el panel de controles."""
+        scroll = getattr(self, "_controls_scroll", None)
+        if scroll is None:
+            return
+        scroll.setVisible(not expanded)
+        self._preview_title.setVisible(not expanded)
+        self.preview_banner.setVisible(expanded)
+        self.btn_expand.setText(
+            "⬌  Volver a los controles" if expanded
+            else "⬌  Ampliar vistas")
+
+    def _set_preview_banner(self, title, subtitle, kind, tilt=None, st=None):
+        """Reflejar el aviso principal en la franja del modo ampliado."""
+        palette = {
+            "idle":    (TEXT_SECONDARY, BG_CARD),
+            "search":  (YELLOW_WARN, "#3A2E08"),
+            "reject":  (RED_OFF, "#450A0A"),
+            "pose":    (ACCENT_CYAN, "#0E3A44"),
+            "hold":    (GREEN_ON, "#052E16"),
+            "capture": (ACCENT_BLUE, "#1E3A5F"),
+            "done":    (GREEN_ON, "#052E16"),
+        }
+        color, bg = palette.get(kind, palette["idle"])
+        bits = []
+        if tilt is not None:
+            bits.append(f"{tilt:.0f}°")
+        if st is not None:
+            bits.append(f"{st.accepted}/{st.target} vistas")
+            done = sum(1 for c in st.bin_counts.values() if c >= 3)
+            bits.append(f"{done}/4 rangos")
+        right = "  ·  ".join(bits)
+        self.preview_banner.setText(
+            f"<span style='font-size:26px; font-weight:bold'>{title}</span>"
+            f"&nbsp;&nbsp;<span style='font-size:14px'>{subtitle}</span>"
+            + (f"<br><span style='font-size:15px; font-weight:bold'>{right}</span>"
+               if right else ""))
+        self.preview_banner.setStyleSheet(
+            f"background-color:{bg}; color:{color}; border:2px solid {color};"
+            f"border-radius:8px; padding:8px;")
 
     def _build_controls_panel(self):
         panel = QWidget()
@@ -810,6 +920,8 @@ class CalibrationPage(QWidget):
         elif status == "no_board":
             self.guided_panel.set_banner(
                 "Muestra el tablero", res.get("message", ""), "search")
+            self._set_preview_banner("Muestra el tablero",
+                                     res.get("message", ""), "search", tilt, st)
         elif status == "rejected_quality":
             sub = self._friendly_reason(res.get("message", ""))
             mv, mx = res.get("motion_px"), res.get("max_motion_px")
@@ -819,6 +931,7 @@ class CalibrationPage(QWidget):
                 sub = (f"En movimiento: {mv:.1f} px, hace falta bajar de "
                        f"{mx:.1f}. Mantenlo quieto un segundo")
             self.guided_panel.set_banner("Ajusta", sub, "reject")
+            self._set_preview_banner("Ajusta", sub, "reject", tilt, st)
         elif status == "rejected_pose":
             # El detalle de que falta ya aparece en la caja de ayuda, debajo.
             # Repetirlo aqui solo gastaba espacio.
@@ -826,6 +939,7 @@ class CalibrationPage(QWidget):
             sub = ("Esta pose ya la tienes" if "duplicate" in msg.lower()
                    else "Esa inclinacion no entra en ningun rango util")
             self.guided_panel.set_banner("Cambia la pose", sub, "pose")
+            self._set_preview_banner("Cambia la pose", sub, "pose", tilt, st)
 
     @staticmethod
     def _friendly_reason(message: str) -> str:
@@ -905,6 +1019,8 @@ class CalibrationPage(QWidget):
         self._analysis_timer.stop()
         self.guided_panel.set_banner(
             "QUIETO", "Tomando la foto, no muevas el tablero", "hold")
+        self._set_preview_banner(
+            "QUIETO", "Tomando la foto, no muevas el tablero", "hold")
         self.stop_preview_for_capture()
         QTimer.singleShot(350, self._guided_execute_capture)
 
@@ -947,6 +1063,8 @@ class CalibrationPage(QWidget):
                 hint = self._translate_hint(self.guided_worker.session.hint())
             self.guided_panel.set_banner(
                 f"Muevete  {self._rearm_left}", hint, "capture")
+            self._set_preview_banner(
+                f"Muevete  {self._rearm_left}", hint, "capture")
             self._rearm_left -= 1
         else:
             self._rearm_timer.stop()
@@ -962,6 +1080,7 @@ class CalibrationPage(QWidget):
         if self.guided_worker and self.guided_worker.session:
             hint = self._translate_hint(self.guided_worker.session.hint())
         self.guided_panel.set_banner("Buscando pose", hint, "search")
+        self._set_preview_banner("Buscando pose", hint, "search")
 
     def finish_guided_early(self):
         """
@@ -1019,6 +1138,8 @@ class CalibrationPage(QWidget):
         """Cerrar el bucle y pasar la sesion al ajuste a resolucion completa."""
         self._stop_guided_machinery()
         self.guided_panel.set_banner(
+            "Capturas completas", "Calculando la calibracion", "done")
+        self._set_preview_banner(
             "Capturas completas", "Calculando la calibracion", "done")
 
         if self.guided_worker and self.guided_worker.session:
