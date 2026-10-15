@@ -195,7 +195,12 @@ class CameraPreviewWidget(QWidget):
         # tamano de despliegue; el frame capturado real no cambia, solo el
         # QPixmap escalado que se muestra (ver on_frame_ready).
         self.video_label.setMinimumSize(160, 120)
-        self.video_label.setMaximumSize(500, 400)  # Mejor proporción
+        # Sin tope de ancho: el tope de 500 px dejaba un hueco muerto a la
+        # derecha en paneles mas anchos y encogia la vista justo cuando mas
+        # falta hace, que es mientras se posiciona el tablero. El pixmap se
+        # escala al tamano del label conservando el aspecto (on_frame_ready)
+        # y el label centra su contenido, asi que al expandirse la imagen
+        # queda centrada y lo mas grande que el espacio permita.
         self.video_label.setScaledContents(False)  # ← NO ESTIRAR
         self.video_label.setAlignment(Qt.AlignCenter)
         self.video_label.setStyleSheet("""

@@ -329,7 +329,8 @@ class GuidedStatusPanel(QWidget):
             f"font-size:30px; font-weight:bold; padding:4px;")
         row.addWidget(self.tilt_label)
 
-        self.hint_label = QLabel("")
+        self.hint_label = QLabel(
+            "Aqui aparece que inclinacion falta mientras calibras.")
         self.hint_label.setWordWrap(True)
         self.hint_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         self.hint_label.setStyleSheet(
@@ -368,28 +369,35 @@ class GuidedStatusPanel(QWidget):
 
         # Metricas
         lay.addWidget(self._section("Datos de la sesion"))
+        # Dos columnas de pares: la misma informacion en la mitad de alto,
+        # que es lo que permite que los botones principales quepan sin
+        # desplazar en pantallas de 720 px.
         grid = QGridLayout()
-        grid.setSpacing(4)
+        grid.setHorizontalSpacing(14)
+        grid.setVerticalSpacing(3)
         self._metrics = {}
         rows = [
             ("kept", "Vistas aceptadas"),
-            ("seen", "Fotogramas vistos"),
-            ("spread", "Rango de inclinacion"),
             ("fx", "Incertidumbre de fx"),
-            ("ere", "Error esperado (Max ERE)"),
-            ("worst", "Parametro peor determinado"),
+            ("seen", "Fotogramas vistos"),
+            ("ere", "Max ERE"),
+            ("spread", "Rango de inclinacion"),
+            ("worst", "Peor determinado"),
         ]
-        for r, (key, title) in enumerate(rows):
+        for i, (key, title) in enumerate(rows):
+            r, c = divmod(i, 2)
             k = QLabel(title)
             k.setStyleSheet(
-                f"color:{TEXT_SECONDARY}; font-size:12px; background:transparent;")
+                f"color:{TEXT_SECONDARY}; font-size:11px; background:transparent;")
             v = QLabel("--")
             v.setStyleSheet(
                 f"color:{TEXT_PRIMARY}; font-size:12px; font-weight:bold;"
                 f"background:transparent;")
-            grid.addWidget(k, r, 0)
-            grid.addWidget(v, r, 1, alignment=Qt.AlignRight)
+            grid.addWidget(k, r, c * 2)
+            grid.addWidget(v, r, c * 2 + 1, alignment=Qt.AlignRight)
             self._metrics[key] = v
+        grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(3, 1)
         lay.addLayout(grid)
 
         self.set_banner("Listo para empezar", "Pulsa Iniciar calibracion guiada", "idle")

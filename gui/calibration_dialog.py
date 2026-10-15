@@ -262,13 +262,17 @@ class CalibrationPage(QWidget):
         v.setContentsMargins(10, 10, 10, 10)
         v.setSpacing(6)
 
+        # Orden: primero lo que se pulsa durante una sesion, despues lo
+        # que solo se consulta. Antes los botones principales quedaban por
+        # debajo del borde visible en pantallas de 720 px de alto.
         v.addWidget(self._create_guided_group())
+        v.addLayout(self._create_buttons())
+        v.addWidget(self._create_current_status_group())
         v.addWidget(self._create_board_info_group())
         v.addWidget(self._create_capture_config_group())
-        v.addWidget(self._create_current_status_group())
         v.addWidget(self._create_progress_group())
         v.addWidget(self._create_log_group())
-        v.addLayout(self._create_buttons())
+        v.addStretch()
 
         return panel
 
@@ -328,17 +332,33 @@ class CalibrationPage(QWidget):
         return group
 
     def _create_board_info_group(self):
-        group = QGroupBox("Checkerboard Requirements")
+        group = QGroupBox("Tablero de calibracion")
         v = QVBoxLayout(group)
-        board_size  = self.camera_config.stereo.calibration_board_size
-        square_size = self.camera_config.stereo.calibration_square_size_mm
-        info_label = QLabel(
-            f"<b>Board:</b> {board_size[0]} × {board_size[1]} inner corners"
-            f"  ({board_size[0] * board_size[1]} total)<br>"
-            f"<b>Square size:</b> {square_size} mm<br>"
-            f"<b>Tip:</b> Use the preview on the left to position the board "
-            f"and move it to different angles between shots."
-        )
+        st = self.camera_config.stereo
+
+        # Mostrar el tablero que el sistema usa de verdad. Este panel
+        # describia el tablero de ajedrez antiguo (9x6, 24 mm) aunque la
+        # deteccion pasa por ChArUco desde hace tiempo, asi que indicaba
+        # imprimir un tablero que el software no reconoce.
+        if getattr(st, "use_charuco", False):
+            info_label = QLabel(
+                f"<b>Tipo:</b> ChArUco (genera con generate_charuco.py)<br>"
+                f"<b>Cuadros:</b> {st.charuco_squares_x} x {st.charuco_squares_y}"
+                f"  &nbsp;<b>Diccionario:</b> {st.charuco_dict_name}<br>"
+                f"<b>Lado del cuadro:</b> {st.charuco_square_size_mm} mm"
+                f"  &nbsp;<b>Marcador:</b> {st.charuco_marker_size_mm} mm<br>"
+                f"<b>Importante:</b> el tablero debe estar plano y rigido. "
+                f"Una hoja pegada con cinta introduce un sesgo que ninguna "
+                f"cantidad de fotos corrige."
+            )
+        else:
+            bs = st.calibration_board_size
+            info_label = QLabel(
+                f"<b>Tipo:</b> ajedrez clasico<br>"
+                f"<b>Esquinas internas:</b> {bs[0]} x {bs[1]} "
+                f"({bs[0] * bs[1]} en total)<br>"
+                f"<b>Lado del cuadro:</b> {st.calibration_square_size_mm} mm"
+            )
         info_label.setWordWrap(True)
         info_label.setStyleSheet(
             f"background-color: {BG_CARD}; color: {TEXT_SECONDARY};"
@@ -432,20 +452,26 @@ class CalibrationPage(QWidget):
         row = QHBoxLayout()
         row.setSpacing(8)
 
-        self.btn_start = QPushButton("▶  Start Calibration")
-        self.btn_start.setFixedHeight(40)
+        self.btn_start = QPushButton("Flujo antiguo (cuenta regresiva)")
+        self.btn_start.setFixedHeight(36)
+        self.btn_start.setToolTip(
+            "Flujo anterior: dispara cada N segundos sin mirar la pose. Es el "
+            "que produjo los 23 intentos fallidos. Se conserva por si hace "
+            "falta, pero usa la calibracion guiada de arriba."
+        )
         self.btn_start.setStyleSheet(
-            f"QPushButton {{ background-color: {ACCENT_GREEN}; color: white;"
-            f"font-weight: bold; font-size: 14px; border-radius: 6px; }}"
-            f"QPushButton:hover {{ background-color: #15803D; }}"
+            f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_SECONDARY};"
+            f"border: 1px solid {BORDER_SUBTLE}; font-size: 12px;"
+            f"border-radius: 6px; }}"
+            f"QPushButton:hover {{ background-color: #3B4B60; color: {TEXT_PRIMARY}; }}"
             f"QPushButton:disabled {{ background-color: {BG_CARD}; color: {TEXT_DIM}; }}"
         )
         self.btn_start.clicked.connect(self.start_calibration)
         self.btn_start.setEnabled(self.cameras_available)
         row.addWidget(self.btn_start)
 
-        self.btn_process_existing = QPushButton("📂  Process Existing Session")
-        self.btn_process_existing.setFixedHeight(40)
+        self.btn_process_existing = QPushButton("Procesar sesion existente")
+        self.btn_process_existing.setFixedHeight(36)
         self.btn_process_existing.setStyleSheet(
             f"QPushButton {{ background-color: {ACCENT_BLUE}; color: white;"
             f"font-weight: bold; font-size: 13px; border-radius: 6px; }}"
@@ -454,8 +480,8 @@ class CalibrationPage(QWidget):
         self.btn_process_existing.clicked.connect(self.process_existing_session)
         row.addWidget(self.btn_process_existing)
 
-        self.btn_cancel = QPushButton("✕  Cancel")
-        self.btn_cancel.setFixedHeight(40)
+        self.btn_cancel = QPushButton("Cancelar")
+        self.btn_cancel.setFixedHeight(36)
         self.btn_cancel.setStyleSheet(
             f"QPushButton {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY};"
             f"border-radius: 6px; }}"
@@ -794,8 +820,11 @@ class CalibrationPage(QWidget):
                        f"{mx:.1f}. Mantenlo quieto un segundo")
             self.guided_panel.set_banner("Ajusta", sub, "reject")
         elif status == "rejected_pose":
-            sub = (self._translate_hint(st.hint) if st is not None
-                   else res.get("message", ""))
+            # El detalle de que falta ya aparece en la caja de ayuda, debajo.
+            # Repetirlo aqui solo gastaba espacio.
+            msg = res.get("message", "")
+            sub = ("Esta pose ya la tienes" if "duplicate" in msg.lower()
+                   else "Esa inclinacion no entra en ningun rango util")
             self.guided_panel.set_banner("Cambia la pose", sub, "pose")
 
     @staticmethod
