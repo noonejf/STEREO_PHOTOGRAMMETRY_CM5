@@ -9,6 +9,27 @@
 **Entorno de Operación:** Oscuridad total con iluminación mínima controlada
 **Estado del Proyecto:** Sistema funcional - Calibración y reconstrucción 3D operativas
 
+**Fecha del contenido:** 16 de febrero de 2026 (creado el 5 de enero de 2026)
+**Estado documental:** instantánea histórica. No refleja el trabajo posterior a febrero de 2026.
+
+---
+
+> ### ⚠️ Aviso de vigencia
+>
+> Este documento describe el proyecto **tal como estaba el 16 de febrero de 2026** y se conserva como registro de la evolución del trabajo. Varias de sus afirmaciones han sido **superadas o contradichas por mediciones posteriores**. No lo cites como estado actual.
+>
+> **Documento vigente:** [`LINKU_CameraPayload_Paper_Dossier.md`](LINKU_CameraPayload_Paper_Dossier.md), 15 de octubre de 2026.
+>
+> **Afirmaciones concretas que ya no son válidas:**
+>
+> | Sección | Dice | Medición posterior |
+> |---|---|---|
+> | 8.1.1 | "Calibración Estable y Correcta. Error de reproyección consistente <1.0 píxeles" | La calibración activa da **1.53 px** y su propio metadato la marca `is_good_quality: false`. El centro óptico salió desplazado 265 px. Hay 23 intentos fallidos |
+> | 8.1.1 | "Parámetros intrínsecos bien caracterizados" | `fx` tiene 0.85 % de incertidumbre relativa y `k3` tiene una sigma **mayor que su propio valor**. El 91 % de las poses archivadas son geométricamente degeneradas |
+> | 3.4.1 | Error de reproyección 0.5 a 0.8 px | Corresponde a la Fase 1 sobre objetos volumétricos, no al hilo ni a la calibración actual |
+>
+> **Temas ausentes porque son posteriores a esta fecha:** decisión del sensor de vuelo (IMX708 B0308), lente Arducam C1508ZM04 de 8 mm, segmentación por Random Forest y dataset de IA, diagnóstico de degeneración en calibración y procedimiento guiado, especificación fotométrica del cuarto oscuro, análisis de rolling shutter y rotación, y validación de la simulación en Blender.
+
 ---
 
 ## ÍNDICE
