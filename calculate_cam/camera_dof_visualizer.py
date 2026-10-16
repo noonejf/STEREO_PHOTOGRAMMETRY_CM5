@@ -295,7 +295,7 @@ def thread_pixels(sensor_width_mm, resolution_h, focal_mm, distance_m, thread_di
 
 class DoFCanvas(FigureCanvas):
     def __init__(self, parent=None):
-        self.fig = Figure(figsize=(10, 5), facecolor='#1e1e2e')
+        self.fig = Figure(figsize=(10, 5), facecolor='#0F172A')
         super().__init__(self.fig)
         self.setParent(parent)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -304,13 +304,13 @@ class DoFCanvas(FigureCanvas):
 
     def _style_ax(self):
         ax = self.ax
-        ax.set_facecolor('#181825')
+        ax.set_facecolor('#0B1120')
         for spine in ax.spines.values():
-            spine.set_color('#45475a')
-        ax.tick_params(colors='#cdd6f4', labelsize=9)
-        ax.xaxis.label.set_color('#cdd6f4')
-        ax.yaxis.label.set_color('#cdd6f4')
-        ax.title.set_color('#cdd6f4')
+            spine.set_color('#334155')
+        ax.tick_params(colors='#E2E8F0', labelsize=9)
+        ax.xaxis.label.set_color('#E2E8F0')
+        ax.yaxis.label.set_color('#E2E8F0')
+        ax.title.set_color('#E2E8F0')
         self.fig.tight_layout(pad=2)
 
     def plot(self, near_m, far_m, focus_m, hyperfocal_m,
@@ -326,53 +326,53 @@ class DoFCanvas(FigureCanvas):
 
         # ── Out-of-focus zone (full background) ──
         ax.barh(0, MAX_DIST, left=0, height=0.5,
-                color='#313244', alpha=0.6, zorder=1)
+                color='#1E293B', alpha=0.6, zorder=1)
 
         # ── In-focus zone ──
         dof_start = max(near_m, 0)
         dof_end   = far_plot
         ax.barh(0, dof_end - dof_start, left=dof_start, height=0.5,
-                color='#a6e3a1', alpha=0.85, zorder=2, label='In-focus zone')
+                color='#22C55E', alpha=0.85, zorder=2, label='In-focus zone')
 
         # ── Focus point line ──
-        ax.axvline(focus_m, color='#f38ba8', linewidth=2.5,
+        ax.axvline(focus_m, color='#EF4444', linewidth=2.5,
                    zorder=5, label=f'Focus: {focus_m:.2f} m')
 
         # ── DoF limits ──
-        ax.axvline(near_m, color='#fab387', linewidth=1.5,
+        ax.axvline(near_m, color='#F59E0B', linewidth=1.5,
                    linestyle='--', zorder=4, label=f'Near: {near_m:.3f} m')
         if far_m != float('inf'):
-            ax.axvline(far_m, color='#89dceb', linewidth=1.5,
+            ax.axvline(far_m, color='#22D3EE', linewidth=1.5,
                        linestyle='--', zorder=4, label=f'Far: {far_m:.3f} m')
         else:
-            ax.axvline(MAX_DIST, color='#89dceb', linewidth=1.5,
+            ax.axvline(MAX_DIST, color='#22D3EE', linewidth=1.5,
                        linestyle='--', zorder=4, label='Far: ∞')
 
         # ── Hyperfocal ──
         if hyperfocal_m <= MAX_DIST:
-            ax.axvline(hyperfocal_m, color='#cba6f7', linewidth=1.2,
+            ax.axvline(hyperfocal_m, color='#A78BFA', linewidth=1.2,
                        linestyle=':', zorder=3, label=f'Hyperfocal: {hyperfocal_m:.1f} m')
 
         # ── Origin (camera) ──
         ax.annotate('Camera\n(origin)', xy=(0, 0), xytext=(2, 0.35),
-                    color='#cdd6f4', fontsize=8,
-                    arrowprops=dict(arrowstyle='->', color='#cdd6f4', lw=1))
+                    color='#E2E8F0', fontsize=8,
+                    arrowprops=dict(arrowstyle='->', color='#E2E8F0', lw=1))
 
         # ── Pixel labels ──
-        info_color = '#f9e2af'
+        info_color = '#EAB308'
         y_text = -0.28
 
         if near_px is not None:
             ax.text(near_m, y_text,
                     f'{near_px:.2f} px\n(near)',
                     color=info_color, fontsize=7.5, ha='center', va='top',
-                    bbox=dict(boxstyle='round,pad=0.2', fc='#1e1e2e', alpha=0.7))
+                    bbox=dict(boxstyle='round,pad=0.2', fc='#0F172A', alpha=0.7))
 
         if far_px is not None:
             ax.text(min(far_m, MAX_DIST), y_text,
                     f'{far_px:.2f} px\n(far)',
                     color=info_color, fontsize=7.5, ha='center', va='top',
-                    bbox=dict(boxstyle='round,pad=0.2', fc='#1e1e2e', alpha=0.7))
+                    bbox=dict(boxstyle='round,pad=0.2', fc='#0F172A', alpha=0.7))
 
         # ── Axes and labels ──
         ax.set_xlim(0, MAX_DIST)
@@ -389,12 +389,12 @@ class DoFCanvas(FigureCanvas):
 
         ax.xaxis.set_major_locator(ticker.MultipleLocator(10))
         ax.xaxis.set_minor_locator(ticker.MultipleLocator(5))
-        ax.grid(axis='x', which='major', color='#45475a', linewidth=0.6, alpha=0.5)
-        ax.grid(axis='x', which='minor', color='#313244', linewidth=0.3, alpha=0.4)
+        ax.grid(axis='x', which='major', color='#334155', linewidth=0.6, alpha=0.5)
+        ax.grid(axis='x', which='minor', color='#1E293B', linewidth=0.3, alpha=0.4)
 
         ax.legend(loc='upper right', fontsize=7.5,
-                  facecolor='#1e1e2e', edgecolor='#45475a',
-                  labelcolor='#cdd6f4', framealpha=0.9)
+                  facecolor='#0F172A', edgecolor='#334155',
+                  labelcolor='#E2E8F0', framealpha=0.9)
 
         self.fig.tight_layout(pad=2)
         self.draw()
@@ -406,60 +406,60 @@ class DoFCanvas(FigureCanvas):
 
 DARK_STYLE = """
 QMainWindow, QWidget {
-    background-color: #1e1e2e;
-    color: #cdd6f4;
+    background-color: #0F172A;
+    color: #E2E8F0;
     font-family: 'Segoe UI', 'Ubuntu', sans-serif;
 }
 QGroupBox {
-    border: 1px solid #45475a;
+    border: 1px solid #334155;
     border-radius: 6px;
     margin-top: 10px;
     font-weight: bold;
     font-size: 11px;
-    color: #89b4fa;
+    color: #3B82F6;
 }
 QGroupBox::title {
     subcontrol-origin: margin;
     left: 10px;
     padding: 0 4px;
 }
-QLabel { color: #cdd6f4; font-size: 11px; }
+QLabel { color: #E2E8F0; font-size: 11px; }
 QComboBox {
-    background-color: #313244;
-    color: #cdd6f4;
-    border: 1px solid #45475a;
+    background-color: #1E293B;
+    color: #E2E8F0;
+    border: 1px solid #334155;
     border-radius: 4px;
     padding: 4px 8px;
     min-height: 24px;
 }
 QComboBox::drop-down { border: none; }
 QComboBox QAbstractItemView {
-    background-color: #313244;
-    color: #cdd6f4;
-    selection-background-color: #45475a;
+    background-color: #1E293B;
+    color: #E2E8F0;
+    selection-background-color: #334155;
 }
 QDoubleSpinBox, QSpinBox {
-    background-color: #313244;
-    color: #cdd6f4;
-    border: 1px solid #45475a;
+    background-color: #1E293B;
+    color: #E2E8F0;
+    border: 1px solid #334155;
     border-radius: 4px;
     padding: 3px 6px;
     min-height: 24px;
 }
 QSlider::groove:horizontal {
     height: 6px;
-    background: #313244;
+    background: #1E293B;
     border-radius: 3px;
 }
 QSlider::handle:horizontal {
-    background: #89b4fa;
+    background: #3B82F6;
     width: 16px;
     height: 16px;
     margin: -5px 0;
     border-radius: 8px;
 }
-QSlider::sub-page:horizontal { background: #89b4fa; border-radius: 3px; }
-QFrame[frameShape="4"] { color: #45475a; }
+QSlider::sub-page:horizontal { background: #3B82F6; border-radius: 3px; }
+QFrame[frameShape="4"] { color: #334155; }
 """
 
 
@@ -468,7 +468,7 @@ class ResultLabel(QLabel):
     def __init__(self, text="—"):
         super().__init__(text)
         self.setFont(QFont("Consolas", 11, QFont.Bold))
-        self.setStyleSheet("color: #a6e3a1; background: #313244; "
+        self.setStyleSheet("color: #22C55E; background: #1E293B; "
                            "border-radius: 4px; padding: 4px 8px;")
         self.setAlignment(Qt.AlignCenter)
 
@@ -506,7 +506,7 @@ class MainWindow(QMainWindow):
         self.cb_camera.addItems(CAMERAS.keys())
         self.lbl_cam_desc = QLabel()
         self.lbl_cam_desc.setWordWrap(True)
-        self.lbl_cam_desc.setStyleSheet("color: #6c7086; font-size: 9px;")
+        self.lbl_cam_desc.setStyleSheet("color: #64748B; font-size: 9px;")
         gc.addWidget(QLabel("Model:"), 0, 0)
         gc.addWidget(self.cb_camera, 0, 1)
         gc.addWidget(self.lbl_cam_desc, 1, 0, 1, 2)
@@ -519,7 +519,7 @@ class MainWindow(QMainWindow):
         self.cb_lens = QComboBox()
         self.lbl_lens_desc = QLabel()
         self.lbl_lens_desc.setWordWrap(True)
-        self.lbl_lens_desc.setStyleSheet("color: #6c7086; font-size: 9px;")
+        self.lbl_lens_desc.setStyleSheet("color: #64748B; font-size: 9px;")
 
         self.lbl_fn = QLabel("Aperture F/:")
         self.sb_fn = QDoubleSpinBox()
@@ -543,7 +543,7 @@ class MainWindow(QMainWindow):
         self.sl_fl.setRange(28, 120)   # ×10
         self.sl_fl.setValue(28)
         self.lbl_fov_info = QLabel()
-        self.lbl_fov_info.setStyleSheet("color: #89dceb; font-size: 9px;")
+        self.lbl_fov_info.setStyleSheet("color: #22D3EE; font-size: 9px;")
 
         gl.addWidget(QLabel("Lens:"), 0, 0)
         gl.addWidget(self.cb_lens, 0, 1)
@@ -573,7 +573,7 @@ class MainWindow(QMainWindow):
         self.sl_focus.setValue(500)
 
         self.lbl_focus_info = QLabel()
-        self.lbl_focus_info.setStyleSheet("color: #fab387; font-size: 9px;")
+        self.lbl_focus_info.setStyleSheet("color: #F59E0B; font-size: 9px;")
         self.lbl_focus_info.setWordWrap(True)
 
         gf.addWidget(QLabel("Focus distance:"), 0, 0)

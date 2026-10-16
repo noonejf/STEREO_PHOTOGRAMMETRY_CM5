@@ -187,50 +187,64 @@ class CountdownThread(QThread):
 # ── Sidebar button ────────────────────────────────────────────────────────────
 
 class _SidebarButton(QPushButton):
+    """
+    One navigation entry, in either of the two rail widths.
+
+    Collapsed it is an icon alone, so the rail stays narrow and the pages
+    get the width. Expanded it shows the label to the right of the icon,
+    which is what makes the destinations readable to someone who has not
+    learned the icons yet.
+    """
+
+    COLLAPSED_W = 56
+    EXPANDED_W = 188
+
     def __init__(self, icon_name: str, label: str, parent=None):
         super().__init__(parent)
         self._icon_name = icon_name
-        self.setText(label)
-        self.setFixedSize(88, 76)
-        self.setIconSize(QSize(22, 22))
+        self._label = label
+        self._active = False
+        self.setIconSize(QSize(20, 20))
         self.setCursor(Qt.PointingHandCursor)
-        self._set_active(False)
+        self.setToolTip(label)
+        self.set_collapsed(True)
+
+    def set_collapsed(self, collapsed: bool):
+        self._collapsed = collapsed
+        self.setText("" if collapsed else f"   {self._label}")
+        self.setFixedSize(self.COLLAPSED_W if collapsed else self.EXPANDED_W, 44)
+        self._set_active(self._active)
 
     def _set_active(self, active: bool):
-        # The icon colour follows the active state, so the selected page
-        # reads at a glance and not only from the left border.
+        self._active = active
         self.setIcon(get_icon(self._icon_name,
-                              ACCENT_CYAN if active else TEXT_DIM, 22))
-        if active:
-            self.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {BG_PANEL};
-                    color: {ACCENT_CYAN};
-                    border: none;
-                    border-left: 3px solid {ACCENT_CYAN};
-                    border-radius: 0;
-                    font-weight: bold;
-                    font-size: 11px;
-                    padding: 4px 2px;
-                }}
-            """)
-        else:
-            self.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: transparent;
-                    color: {TEXT_DIM};
-                    border: none;
-                    border-left: 3px solid transparent;
-                    border-radius: 0;
-                    font-weight: 600;
-                    font-size: 11px;
-                    padding: 4px 2px;
-                }}
-                QPushButton:hover {{
-                    background-color: rgba(128,128,128,0.08);
-                    color: {TEXT_PRIMARY};
-                }}
-            """)
+                              ACCENT_CYAN if active else TEXT_DIM, 20))
+        fg = ACCENT_CYAN if active else TEXT_SECONDARY
+        bg = BG_PANEL if active else "transparent"
+        # The left border marks the active page. It is kept at a constant
+        # width in both states so the icons do not shift sideways when the
+        # selection moves.
+        edge = ACCENT_CYAN if active else "transparent"
+        align = "center" if self._collapsed else "left"
+        pad = "0" if self._collapsed else "0 10px"
+        self.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {bg};
+                color: {fg};
+                border: none;
+                border-left: 3px solid {edge};
+                border-radius: 0;
+                font-weight: 600;
+                font-size: 13px;
+                text-align: {align};
+                padding: {pad};
+            }}
+            QPushButton:hover {{
+                background-color: rgba(128,128,128,0.10);
+                color: {TEXT_PRIMARY};
+            }}
+        """)
+
 
 
 # ── Main window ───────────────────────────────────────────────────────────────
@@ -338,15 +352,44 @@ class PhotogrammetryDashboard(QMainWindow):
         root.addWidget(bar)
 
     def _build_sidebar(self, body):
+        """
+        Navigation rail, collapsible.
+
+        It starts narrow, as a column of icons flush to the left edge, and
+        opens to show the labels. The previous version was a fixed 88 px
+        with the label stacked under the icon, which was too wide to be a
+        rail and too narrow to read comfortably.
+        """
+        self._sidebar_collapsed = True
+
         sidebar = QFrame()
-        sidebar.setFixedWidth(88)
+        sidebar.setFixedWidth(_SidebarButton.COLLAPSED_W)
         sidebar.setStyleSheet(
             f"QFrame {{ background-color: {BG_SIDEBAR};"
             f"border-right: 1px solid {BORDER_SUBTLE}; }}"
         )
+        self._sidebar = sidebar
+
         v = QVBoxLayout(sidebar)
-        v.setContentsMargins(0, 8, 0, 8)
-        v.setSpacing(0)
+        v.setContentsMargins(0, 6, 0, 8)
+        v.setSpacing(2)
+
+        # Toggle, at the top like the sidebars this follows
+        self.btn_sidebar_toggle = QPushButton()
+        self.btn_sidebar_toggle.setIcon(get_icon("panel", TEXT_DIM, 18))
+        self.btn_sidebar_toggle.setIconSize(QSize(18, 18))
+        self.btn_sidebar_toggle.setFixedSize(_SidebarButton.COLLAPSED_W, 36)
+        self.btn_sidebar_toggle.setCursor(Qt.PointingHandCursor)
+        self.btn_sidebar_toggle.setToolTip("Show or hide the page names")
+        self._style_sidebar_toggle()
+        self.btn_sidebar_toggle.clicked.connect(self.toggle_sidebar)
+        v.addWidget(self.btn_sidebar_toggle)
+
+        sep = QFrame()
+        sep.setFixedHeight(1)
+        sep.setStyleSheet(f"background-color: {BORDER_SUBTLE}; border: none;")
+        v.addWidget(sep)
+        v.addSpacing(6)
 
         nav_items = [
             ("dashboard",   "Dashboard"),
@@ -363,11 +406,49 @@ class PhotogrammetryDashboard(QMainWindow):
             v.addWidget(btn)
 
         v.addStretch()
-        ver = QLabel("v2.0")
-        ver.setAlignment(Qt.AlignCenter)
-        ver.setStyleSheet(f"color: {TEXT_DIM}; font-size: 10px; padding: 4px; background: transparent;")
-        v.addWidget(ver)
-        body.addWidget(sidebar)
+        self._version_label = QLabel("v2.0")
+        self._version_label.setAlignment(Qt.AlignCenter)
+        self._version_label.setStyleSheet(
+            f"color: {TEXT_DIM}; font-size: 10px; padding: 4px;"
+            f"background: transparent;")
+        v.addWidget(self._version_label)
+
+        # Flush to the left edge, no stretch before it
+        body.addWidget(sidebar, 0, Qt.AlignLeft)
+
+    def _style_sidebar_toggle(self):
+        """Keep the toggle lined up with the navigation icons below it."""
+        collapsed = self._sidebar_collapsed
+        self.btn_sidebar_toggle.setText("" if collapsed else "   Collapse")
+        align = "center" if collapsed else "left"
+        pad = "0" if collapsed else "0 10px"
+        self.btn_sidebar_toggle.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                color: {TEXT_DIM};
+                border: none;
+                border-left: 3px solid transparent;
+                text-align: {align};
+                padding: {pad};
+                font-size: 12px;
+            }}
+            QPushButton:hover {{
+                background-color: rgba(128,128,128,0.10);
+                color: {TEXT_SECONDARY};
+            }}
+        """)
+
+    def toggle_sidebar(self):
+        """Switch the rail between icons only and icons with labels."""
+        self._sidebar_collapsed = not self._sidebar_collapsed
+        width = (_SidebarButton.COLLAPSED_W if self._sidebar_collapsed
+                 else _SidebarButton.EXPANDED_W)
+        self._sidebar.setFixedWidth(width)
+        self.btn_sidebar_toggle.setFixedWidth(width)
+        self._style_sidebar_toggle()
+        for btn in self._sidebar_buttons:
+            btn.set_collapsed(self._sidebar_collapsed)
+
 
     def _build_dashboard_page(self):
         """Construye la página de dashboard (preview + controles + log)."""

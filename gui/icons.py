@@ -86,6 +86,11 @@ _BODIES: Dict[str, str] = {
         '<path d="M12 9.5v5"/><circle cx="12" cy="17.6" r="0.3" fill="{c}"/>'
     ),
     "clock": '<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5.3l3.4 2"/>',
+    # Panel con una barra lateral: el conmutador de la columna
+    "panel": (
+        '<rect x="3" y="4" width="18" height="16" rx="2"/>'
+        '<path d="M9.5 4v16"/>'
+    ),
     "board": (
         '<rect x="3.5" y="3.5" width="17" height="17" rx="1.5"/>'
         '<path d="M9.17 3.5v17M14.83 3.5v17M3.5 9.17h17M3.5 14.83h17"/>'
