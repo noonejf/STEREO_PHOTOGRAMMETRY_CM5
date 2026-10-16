@@ -920,16 +920,6 @@ class ProcessingPage(QWidget):
         )
         bb = QHBoxLayout(back_bar)
         bb.setContentsMargins(12, 0, 12, 0)
-
-        btn_back = QPushButton("  Dashboard")
-        btn_back.setIcon(get_icon("back", TEXT_SECONDARY, 16))
-        btn_back.setStyleSheet(
-            f"QPushButton {{ background-color: transparent; color: {ACCENT_CYAN};"
-            f"border: none; font-weight: bold; font-size: 13px; }}"
-            f"QPushButton:hover {{ color: white; }}"
-        )
-        btn_back.clicked.connect(self._go_back)
-        bb.addWidget(btn_back)
         bb.addStretch()
 
         page_title = QLabel("3D Processing: Model Generation")

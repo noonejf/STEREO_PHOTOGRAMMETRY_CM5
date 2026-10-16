@@ -251,17 +251,6 @@ class AIPage(QWidget):
         )
         bb = QHBoxLayout(back_bar)
         bb.setContentsMargins(8, 0, 8, 0)
-        btn_back = QPushButton("  Dashboard")
-        btn_back.setIcon(get_icon("back", TEXT_DIM, 16))
-        btn_back.setStyleSheet(
-            f"background:transparent; color:{ACCENT_CYAN}; font-weight:bold;"
-            f" border:none; font-size:13px;"
-        )
-        btn_back.clicked.connect(
-            lambda: self.window().navigate_to(0)
-            if hasattr(self.window(), "navigate_to") else None
-        )
-        bb.addWidget(btn_back)
         bb.addStretch()
         page_title = QLabel("Inteligencia Artificial — Entrenamiento de Modelos")
         page_title.setStyleSheet(

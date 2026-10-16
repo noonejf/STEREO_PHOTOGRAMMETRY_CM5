@@ -25,7 +25,7 @@ from gui.calibration_dialog import CalibrationPage
 from gui.processing_dialog import ProcessingPage
 from gui.ai_page import AIPage
 from gui.optics_page import OpticsPage
-from gui.icons import get_icon
+from gui.icons import get_icon, icon_pixmap
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -295,8 +295,6 @@ class PhotogrammetryDashboard(QMainWindow):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        self._build_title_bar(root)
-
         body = QHBoxLayout()
         body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(0)
@@ -371,19 +369,48 @@ class PhotogrammetryDashboard(QMainWindow):
         self._sidebar = sidebar
 
         v = QVBoxLayout(sidebar)
-        v.setContentsMargins(0, 6, 0, 8)
+        v.setContentsMargins(0, 0, 0, 8)
         v.setSpacing(2)
 
-        # Toggle, at the top like the sidebars this follows
+        # Header: brand, project name, and the rail toggle. This is where the
+        # application identifies itself now, which is why the separate top bar
+        # is gone: it repeated what the window title already says.
+        hdr = QFrame()
+        hdr.setFixedHeight(52)
+        hdr.setStyleSheet("background: transparent; border: none;")
+        hl = QHBoxLayout(hdr)
+        hl.setContentsMargins(13, 0, 13, 0)
+        hl.setSpacing(9)
+        self._sidebar_header_layout = hl
+
+        self._brand_icon = QLabel()
+        self._brand_icon.setPixmap(icon_pixmap("linku", ACCENT_CYAN, 22))
+        self._brand_icon.setFixedSize(22, 22)
+        self._brand_icon.setStyleSheet("background: transparent;")
+        self._brand_icon.setVisible(False)
+        hl.addWidget(self._brand_icon)
+
+        self._brand_name = QLabel("LINKU")
+        self._brand_name.setStyleSheet(
+            f"color: {ACCENT_CYAN}; font-weight: bold; font-size: 16px;"
+            f"letter-spacing: 1px; background: transparent;")
+        self._brand_name.setVisible(False)
+        hl.addWidget(self._brand_name)
+        hl.addStretch()
+
         self.btn_sidebar_toggle = QPushButton()
         self.btn_sidebar_toggle.setIcon(get_icon("panel", TEXT_DIM, 18))
         self.btn_sidebar_toggle.setIconSize(QSize(18, 18))
-        self.btn_sidebar_toggle.setFixedSize(_SidebarButton.COLLAPSED_W, 36)
+        self.btn_sidebar_toggle.setFixedSize(30, 30)
         self.btn_sidebar_toggle.setCursor(Qt.PointingHandCursor)
         self.btn_sidebar_toggle.setToolTip("Show or hide the page names")
-        self._style_sidebar_toggle()
+        self.btn_sidebar_toggle.setStyleSheet(
+            f"QPushButton {{ background: transparent; border: none;"
+            f"border-radius: 4px; }}"
+            f"QPushButton:hover {{ background-color: rgba(128,128,128,0.14); }}")
         self.btn_sidebar_toggle.clicked.connect(self.toggle_sidebar)
-        v.addWidget(self.btn_sidebar_toggle)
+        hl.addWidget(self.btn_sidebar_toggle)
+        v.addWidget(hdr)
 
         sep = QFrame()
         sep.setFixedHeight(1)
@@ -416,40 +443,20 @@ class PhotogrammetryDashboard(QMainWindow):
         # Flush to the left edge, no stretch before it
         body.addWidget(sidebar, 0, Qt.AlignLeft)
 
-    def _style_sidebar_toggle(self):
-        """Keep the toggle lined up with the navigation icons below it."""
-        collapsed = self._sidebar_collapsed
-        self.btn_sidebar_toggle.setText("" if collapsed else "   Collapse")
-        align = "center" if collapsed else "left"
-        pad = "0" if collapsed else "0 10px"
-        self.btn_sidebar_toggle.setStyleSheet(f"""
-            QPushButton {{
-                background: transparent;
-                color: {TEXT_DIM};
-                border: none;
-                border-left: 3px solid transparent;
-                text-align: {align};
-                padding: {pad};
-                font-size: 12px;
-            }}
-            QPushButton:hover {{
-                background-color: rgba(128,128,128,0.10);
-                color: {TEXT_SECONDARY};
-            }}
-        """)
-
     def toggle_sidebar(self):
         """Switch the rail between icons only and icons with labels."""
         self._sidebar_collapsed = not self._sidebar_collapsed
-        width = (_SidebarButton.COLLAPSED_W if self._sidebar_collapsed
-                 else _SidebarButton.EXPANDED_W)
-        self._sidebar.setFixedWidth(width)
-        self.btn_sidebar_toggle.setFixedWidth(width)
-        self._style_sidebar_toggle()
+        collapsed = self._sidebar_collapsed
+        self._sidebar.setFixedWidth(_SidebarButton.COLLAPSED_W if collapsed
+                                    else _SidebarButton.EXPANDED_W)
+        # Collapsed there is only room for one thing in the header and the
+        # toggle has to be it, otherwise the rail could not be opened again.
+        self._brand_icon.setVisible(not collapsed)
+        self._brand_name.setVisible(not collapsed)
+        self._sidebar_header_layout.setContentsMargins(
+            *( (13, 0, 13, 0) if collapsed else (16, 0, 8, 0) ))
         for btn in self._sidebar_buttons:
-            btn.set_collapsed(self._sidebar_collapsed)
-
-
+            btn.set_collapsed(collapsed)
     def _build_dashboard_page(self):
         """Construye la página de dashboard (preview + controles + log)."""
         self.dash_page = QWidget()
@@ -683,6 +690,16 @@ class PhotogrammetryDashboard(QMainWindow):
         )
         h.addWidget(self.status_camera_label)
         h.addStretch()
+
+        # El dato de hardware vivia en la barra superior, que se quito por
+        # repetir el titulo de la ventana. Aqui sigue consultable sin gastar
+        # una franja entera de la pantalla.
+        hw = QLabel("Arducam HQ 477  ·  IMX477 12 MP  ·  Dual Camera")
+        hw.setStyleSheet(
+            f"color: {TEXT_DIM}; font-size: 12px; background: transparent;")
+        h.addWidget(hw)
+        h.addStretch()
+
         self.status_calibration_label = QLabel("Calibration: --")
         self.status_calibration_label.setStyleSheet(
             f"color: {TEXT_SECONDARY}; font-size: 12px; background: transparent;"

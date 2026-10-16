@@ -156,19 +156,10 @@ class CalibrationPage(QWidget):
             f"border-bottom: 1px solid {BORDER_SUBTLE}; }}"
         )
         bb = QHBoxLayout(back_bar)
-        bb.setContentsMargins(12, 0, 12, 0)
+        bb.setContentsMargins(16, 0, 16, 0)
 
-        btn_back = QPushButton("  Dashboard")
-        btn_back.setIcon(get_icon("back", TEXT_SECONDARY, 16))
-        btn_back.setStyleSheet(
-            f"QPushButton {{ background-color: transparent; color: {ACCENT_CYAN};"
-            f"border: none; font-weight: bold; font-size: 13px; }}"
-            f"QPushButton:hover {{ color: white; }}"
-        )
-        btn_back.clicked.connect(self._go_back)
-        bb.addWidget(btn_back)
-        bb.addStretch()
-
+        # No back button: the rail on the left already has Dashboard, and a
+        # second control for the same destination only adds noise.
         page_title = QLabel("Stereo Camera Calibration")
         page_title.setStyleSheet(
             f"color: {TEXT_PRIMARY}; font-weight: bold; font-size: 15px;"
@@ -180,6 +171,8 @@ class CalibrationPage(QWidget):
 
         # ── Main split: left preview | right controls ─────────────────────────
         splitter = QSplitter(Qt.Horizontal)
+        splitter.setChildrenCollapsible(True)
+        self._splitter = splitter
         splitter.setStyleSheet(f"background-color: {BG_DEEP};")
 
         splitter.addWidget(self._build_preview_panel())
@@ -193,6 +186,7 @@ class CalibrationPage(QWidget):
         controls_scroll.setFrameShape(QFrame.NoFrame)
         controls_scroll.setStyleSheet(f"background-color: {BG_DEEP};")
         controls_scroll.setWidget(self._build_controls_panel())
+        controls_scroll.setMinimumWidth(0)
         self._controls_scroll = controls_scroll
         splitter.addWidget(controls_scroll)
         # Mas espacio para las vistas que para los controles: durante la
@@ -300,6 +294,14 @@ class CalibrationPage(QWidget):
         hint.setWordWrap(True)
         v.addWidget(hint)
 
+        # Explicit minimum. Without it the panel's own minimum grows when the
+        # views go side by side (two labels plus a three-button row), and the
+        # splitter could then no longer shrink it back: leaving the enlarged
+        # mode returned the controls as a 100 px sliver.
+        panel.setMinimumWidth(300)
+        for b in (self.btn_preview_start, self.btn_preview_stop, self.btn_expand):
+            b.setMinimumWidth(0)
+
         self._preview_panel = panel
         panel.installEventFilter(self)
         return panel
@@ -336,7 +338,23 @@ class CalibrationPage(QWidget):
         scroll = getattr(self, "_controls_scroll", None)
         if scroll is None:
             return
-        scroll.setVisible(not expanded)
+        # Hiding a pane makes the splitter forget its share, and on the way
+        # back it restored the controls as a sliver with scrollbars. Save the
+        # split before hiding and put it back afterwards.
+        # Collapse the pane to zero width rather than hiding it. Hiding a
+        # widget inside a QSplitter makes the splitter forget its share, and
+        # the relayout that follows the re-show overwrote whatever sizes were
+        # set afterwards: the controls came back as a sliver. Width zero
+        # produces the same visual result and keeps the split intact.
+        if expanded:
+            self._saved_split = self._splitter.sizes()
+            self._splitter.setSizes([sum(self._saved_split), 0])
+        else:
+            saved = getattr(self, "_saved_split", None)
+            if not (saved and len(saved) == 2 and saved[1] > 40):
+                total = max(self._splitter.width(), 800)
+                saved = [int(total * 0.56), int(total * 0.44)]
+            self._splitter.setSizes(saved)
         self._preview_title.setVisible(not expanded)
         self.preview_banner.setVisible(expanded)
         self.btn_expand.setText(

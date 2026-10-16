@@ -88,6 +88,11 @@ def main():
     
     # Configurar estilo de aplicación
     app.setStyle("Fusion")
+    # Paleta comun, aplicada antes de cualquier dialogo: los avisos de
+    # arranque salen antes de que exista la ventana principal y heredaban el
+    # estilo del sistema, que no se parece en nada al resto.
+    from gui.theme import APP_QSS
+    app.setStyleSheet(APP_QSS)
     
     # Verificar requisitos del sistema
     missing_req, warnings = check_system_requirements()
