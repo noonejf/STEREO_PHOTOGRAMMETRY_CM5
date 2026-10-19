@@ -223,6 +223,10 @@ def rejection_category(reason: str) -> str:
                        ("duplicat", "duplicate pose"),
                        ("outside the useful range", "tilt outside useful range"),
                        ("not found", "board not found"),
+                       # Before the generic "pose" rule below, which would
+                       # otherwise swallow it and report frames the operator
+                       # simply had not lined up yet as a solver failure.
+                       ("on the target", "not on the target pose"),
                        ("pose", "pose not recoverable")):
         if key in r:
             return label

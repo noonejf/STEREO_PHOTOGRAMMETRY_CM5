@@ -957,7 +957,11 @@ class CalibrationPage(QWidget):
 
         if status == "accepted":
             self.add_log_message(f"View kept: {res.get('message')}", "INFO")
-            self._guided_capture()
+            # Name what was just satisfied. Without it the operator sees the
+            # outline jump to a new place and has to infer that the previous
+            # one worked.
+            done = self._describe_accept(res, st)
+            self._guided_capture(done)
         elif status == "no_board":
             self.guided_panel.set_banner(
                 "Show the board", res.get("message", ""), "search")
@@ -1066,15 +1070,31 @@ class CalibrationPage(QWidget):
             return "Done: tilt ranges covered and target reached"
         return hint
 
-    def _guided_capture(self):
+    @staticmethod
+    def _describe_accept(res, st) -> str:
+        """One line naming the requirement the accepted view just filled."""
+        tilt = res.get("tilt_deg")
+        msg = res.get("message", "")
+        bin_label = ""
+        if "(" in msg:
+            bin_label = msg.split("(", 1)[1].split(",")[0]
+        left = max(0, st.target - st.accepted) if st is not None else 0
+        bits = []
+        if tilt is not None:
+            bits.append(f"{tilt:.0f} deg")
+        if bin_label:
+            bits.append(bin_label)
+        head = ", ".join(bits) if bits else "view kept"
+        return f"{head}. {left} more to go" if left else head
+
+    def _guided_capture(self, done_text: str = ""):
         """Pose buena: congelar el analisis y tomar el par a resolucion completa."""
         self._guided_busy = True
         self.guided_worker.set_paused(True)
         self._analysis_timer.stop()
-        self.guided_panel.set_banner(
-            "HOLD STILL", "Taking the shot, do not move the board", "hold")
-        self._set_preview_banner(
-            "HOLD STILL", "Taking the shot, do not move the board", "hold")
+        sub = done_text or "Taking the shot, do not move the board"
+        self.guided_panel.set_banner("GOT IT", sub, "hold")
+        self._set_preview_banner("GOT IT", sub, "hold")
         self.stop_preview_for_capture()
         QTimer.singleShot(350, self._guided_execute_capture)
 
@@ -1116,9 +1136,9 @@ class CalibrationPage(QWidget):
             if self.guided_worker and self.guided_worker.session:
                 hint = self._translate_hint(self.guided_worker.session.hint())
             self.guided_panel.set_banner(
-                f"Move  {self._rearm_left}", hint, "capture")
+                f"Next pose in {self._rearm_left}", hint, "capture")
             self._set_preview_banner(
-                f"Move  {self._rearm_left}", hint, "capture")
+                f"Next pose in {self._rearm_left}", hint, "capture")
             self._rearm_left -= 1
         else:
             self._rearm_timer.stop()

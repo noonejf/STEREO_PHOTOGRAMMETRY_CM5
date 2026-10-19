@@ -268,10 +268,22 @@ class GuidedAnalysisWorker(QThread):
             })
             return
 
-        res = self.session.submit(gray_l, corners_l, ids_l)
-        st = self.session.status()
+        # The target has to be worked out BEFORE the frame is offered, so the
+        # session can judge the frame against the pose it is currently asking
+        # for. Computing it afterwards would score the frame against the next
+        # target instead of the one the operator was looking at.
         pts = np.asarray(corners_l, np.float32).reshape(-1, 2)
-        target = self._target_overlays(st, pts)
+        target = self._target_overlays(self.session.status(), pts)
+
+        res = self.session.submit(gray_l, corners_l, ids_l,
+                                  match_score=target.get("match"))
+        st = self.session.status()
+        if res.accepted:
+            # Recompute so the overlay jumps straight to the next pose
+            # instead of lingering one frame on the one just satisfied.
+            target = self._target_overlays(st, pts)
+            target["match"] = 0.0
+            target["match_hint"] = ""
 
         motion = None
         if res.verdict is not None and res.verdict.metrics is not None:

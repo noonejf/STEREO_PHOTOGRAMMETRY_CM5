@@ -96,6 +96,10 @@ class SessionStatus:
     max_ere_px: Optional[float] = None
     complete: bool = False
     hint: str = ""
+    #: Frames in a row with a usable board that did not match the target.
+    unmatched_streak: int = 0
+    #: True once the match requirement was dropped for the current target.
+    relaxed: bool = False
 
     def overall_progress(self) -> float:
         """Single 0..1 figure for a progress bar.
@@ -121,7 +125,9 @@ class GuidedCalibrationSession:
                  min_per_bin: int = DEFAULT_MIN_PER_BIN,
                  refit_every: int = 1,
                  min_views_to_fit: int = 6,
-                 compute_max_ere: bool = False):
+                 compute_max_ere: bool = False,
+                 min_match: float = 0.75,
+                 relax_after: int = 120):
         self.board = board
         self.image_size = image_size
         self.target_views = int(target_views)
@@ -131,6 +137,24 @@ class GuidedCalibrationSession:
         self.refit_every = max(int(refit_every), 1)
         self.min_views_to_fit = int(min_views_to_fit)
         self.compute_max_ere = bool(compute_max_ere)
+
+        #: How close the board has to be to the pose being asked for.
+        #:
+        #: Without this the overlay was decorative: the session accepted any
+        #: pose it happened to find useful, so the outline on screen could sit
+        #: untouched while frames were captured elsewhere. The operator had no
+        #: way to tell whether they had done what was asked.
+        self.min_match = float(min_match)
+
+        #: Frames with a usable board but no match before the requirement is
+        #: dropped for the current target. A pose can be out of reach: the
+        #: room is small, the arm is short, the tripod is in the way. Blocking
+        #: forever on one unreachable pose would be worse than taking a useful
+        #: view that was not the one asked for, so after about fifteen seconds
+        #: of trying the session takes what it can get and says so.
+        self.relax_after = int(relax_after)
+        self._unmatched_streak = 0
+        self._relaxed = False
 
         self.corners_on_board = len(board.getChessboardCorners())
 
@@ -231,8 +255,15 @@ class GuidedCalibrationSession:
     def submit(self,
                gray: np.ndarray,
                corners: Optional[np.ndarray],
-               ids: Optional[np.ndarray]) -> SubmitResult:
-        """Offer one frame. The session decides whether to keep it."""
+               ids: Optional[np.ndarray],
+               match_score: Optional[float] = None) -> SubmitResult:
+        """Offer one frame. The session decides whether to keep it.
+
+        ``match_score`` is how close the board is to the pose currently being
+        asked for, from :func:`camera.pose_guidance.pose_match`. When it is
+        supplied the frame has to be on target to be kept, so that what the
+        operator is shown and what the session does are the same thing.
+        """
         self.seen += 1
 
         verdict = evaluate_frame(gray, corners, self.corners_on_board,
@@ -257,9 +288,24 @@ class GuidedCalibrationSession:
             return SubmitResult("rejected_pose", "pose could not be estimated",
                                 verdict, accepted_total=len(self._corners))
 
-        # Gate B. A frame in an under-filled tilt bin is wanted even if it
-        # resembles an existing pose, because bin coverage is the binding
-        # constraint; elsewhere, duplicates are refused.
+        # Is the board where it was asked to be? Checked before the
+        # information-gain test, because "you are not on the target" is a more
+        # useful thing to tell someone than "that pose is a duplicate".
+        if (self.min_match > 0.0 and match_score is not None
+                and not self._relaxed):
+            if match_score < self.min_match:
+                self._unmatched_streak += 1
+                if self._unmatched_streak >= self.relax_after:
+                    self._relaxed = True
+                    logger.info("target unreachable after %d frames, "
+                                "accepting useful poses instead",
+                                self._unmatched_streak)
+                else:
+                    self._count("not on the target pose")
+                    return SubmitResult(
+                        "rejected_pose", "not on the target pose yet",
+                        verdict, pose, len(self._corners))
+
         bin_label = self._bin_of(pose.tilt_deg)
         if bin_label is None:
             self._count("tilt outside the useful range")
@@ -279,12 +325,19 @@ class GuidedCalibrationSession:
         self._corners.append(np.asarray(corners, np.float32).reshape(-1, 1, 2))
         self._ids.append(np.asarray(ids, np.int32).reshape(-1, 1))
         self._poses.append(pose)
+        # Each new target gets a fresh allowance: being unable to reach one
+        # pose says nothing about the next.
+        was_relaxed = self._relaxed
+        self._unmatched_streak = 0
+        self._relaxed = False
 
         if len(self._corners) % self.refit_every == 0:
             self._refit()
 
+        note = "" if not was_relaxed else ", target was out of reach"
         return SubmitResult("accepted",
-                            f"kept ({bin_label}, tilt {pose.tilt_deg:.0f} deg)",
+                            f"kept ({bin_label}, tilt {pose.tilt_deg:.0f} deg"
+                            f"{note})",
                             verdict, pose, len(self._corners))
 
     def _count(self, reason: str) -> None:
@@ -304,6 +357,7 @@ class GuidedCalibrationSession:
 
         return SessionStatus(
             accepted=len(self._corners), target=self.target_views, seen=self.seen,
+            unmatched_streak=self._unmatched_streak, relaxed=self._relaxed,
             bin_counts=counts, bins_satisfied=satisfied,
             coverage_progress=coverage, uncertainty=self._uncertainty,
             converged_flags=dict(self._converged), convergence_progress=conv,
