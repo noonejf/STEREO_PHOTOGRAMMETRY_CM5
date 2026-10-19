@@ -125,6 +125,7 @@ class CalibrationPage(QWidget):
         self._last_left = None
         self._last_right = None
         self._rearm_left = 0
+        self._match_hint = ""
 
         # Pide fotogramas al ritmo de la interfaz, no al de la camara. El
         # worker descarta lo que no alcanza a procesar, asi que subir esto no
@@ -374,6 +375,8 @@ class CalibrationPage(QWidget):
         }
         color, bg = palette.get(kind, palette["idle"])
         bits = []
+        if self._match_hint:
+            bits.append(self._match_hint.upper())
         if tilt is not None:
             bits.append(f"{tilt:.0f}°")
         if st is not None:
@@ -483,9 +486,10 @@ class CalibrationPage(QWidget):
                 f"  &nbsp;<b>Dictionary:</b> {st.charuco_dict_name}<br>"
                 f"<b>Square side:</b> {st.charuco_square_size_mm} mm"
                 f"  &nbsp;<b>Marker:</b> {st.charuco_marker_size_mm} mm<br>"
-                f"<b>Important:</b> the board must be flat and rigid. A sheet taped "
-                f"to a backing introduces a bias that no number of "
-                f"photographs removes."
+                f"<b>In use:</b> the ChArUco PDF printed and mounted on a "
+                f"rigid folder. Zhang's method assumes the target is planar, "
+                f"so if accuracy ever falls short of the budget, check the "
+                f"mounting before suspecting the software."
             )
         else:
             bs = st.calibration_board_size
@@ -940,6 +944,14 @@ class CalibrationPage(QWidget):
                 f"({st.seen} frames seen)")
         self.guided_panel.set_tilt(tilt, active_bin)
 
+        # Pintar el objetivo en las DOS vistas. El worker lo calcula sobre
+        # la imagen reducida de deteccion, asi que hay que llevarlo a la
+        # escala del preview; si no, la guia quedaria desplazada respecto de
+        # lo que el operador ve.
+        self._match_hint = ("" if res.get("match", 0.0) >= 0.80
+                            else res.get("match_hint", ""))
+        self._apply_target_overlays(res)
+
         if self._guided_busy:
             return
 
@@ -969,6 +981,23 @@ class CalibrationPage(QWidget):
                    else "That tilt is outside every useful range")
             self.guided_panel.set_banner("Change the pose", sub, "pose")
             self._set_preview_banner("Change the pose", sub, "pose", tilt, st)
+
+    def _apply_target_overlays(self, res):
+        """Draw the pose to match on both previews, at preview scale."""
+        tl, tr = res.get("target_left"), res.get("target_right")
+        frame = self._last_left
+        if tl is None or frame is None:
+            self.left_preview.clear_overlay()
+            self.right_preview.clear_overlay()
+            return
+
+        scale = frame.shape[1] / float(DETECT_WIDTH)
+        matched = res.get("match", 0.0) >= 0.80
+        label = "hold it there" if matched else res.get("match_hint", "")
+
+        self.left_preview.set_overlay(tl * scale, matched, label)
+        if tr is not None:
+            self.right_preview.set_overlay(tr * scale, matched, "")
 
     @staticmethod
     def _friendly_reason(message: str) -> str:
@@ -1199,6 +1228,13 @@ class CalibrationPage(QWidget):
                 pass
         self._last_left = None
         self._last_right = None
+        for prev in (getattr(self, "left_preview", None),
+                     getattr(self, "right_preview", None)):
+            if prev is not None:
+                try:
+                    prev.clear_overlay()
+                except Exception:
+                    pass
 
     def _process_calibration_images(self):
         self.add_log_message("Starting calibration processing...", "INFO")

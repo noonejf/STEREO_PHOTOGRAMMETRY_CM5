@@ -396,6 +396,145 @@ def converged(previous: UncertaintyState,
 # Max ERE
 # --------------------------------------------------------------------------
 
+def intrinsics_covariance(object_points: List[np.ndarray],
+                          image_points: List[np.ndarray],
+                          rvecs: List[np.ndarray],
+                          tvecs: List[np.ndarray],
+                          camera_matrix: np.ndarray,
+                          dist_coeffs: np.ndarray,
+                          rms: float = 1.0) -> Optional[np.ndarray]:
+    """Full covariance of the intrinsics, with the per-view poses marginalised.
+
+    OpenCV only returns ``stdDeviationsIntrinsics``, which is the square root
+    of the diagonal. Sampling from independent Gaussians built from it ignores
+    the correlations, and the strongest correlations in a calibration are
+    exactly the ones that matter: focal length against board distance, and
+    principal point against in-plane board translation. Treating those as
+    independent produces calibration samples that could never arise from the
+    data, which is why the sampled error came out far too large.
+
+    This builds the real thing. For each view the Jacobian of the projection
+    is split into the intrinsic block ``A`` and the per-view extrinsic block
+    ``B``, and the extrinsics are marginalised out with a Schur complement:
+
+        I_C = sum_j ( A_j^T A_j - A_j^T B_j (B_j^T B_j)^-1 B_j^T A_j )
+
+    The covariance is then ``sigma^2 I_C^-1``, with ``sigma`` taken as the
+    reprojection RMS of the fit.
+
+    Returns a 9x9 matrix ordered as :data:`INTRINSIC_NAMES`, or None if the
+    information matrix is singular, which happens when the views do not
+    constrain every parameter.
+    """
+    K = np.asarray(camera_matrix, np.float64)
+    d = np.asarray(dist_coeffs, np.float64).reshape(-1)
+    n_int = 4 + len(d)
+    info = np.zeros((n_int, n_int))
+
+    for obj, img, rvec, tvec in zip(object_points, image_points, rvecs, tvecs):
+        obj = np.asarray(obj, np.float64).reshape(-1, 3)
+        if len(obj) < 4:
+            continue
+        _, jac = cv2.projectPoints(obj, rvec, tvec, K, d)
+        # Columns: rvec(3), tvec(3), f(2), c(2), dist(n)
+        B = jac[:, 0:6]
+        A = jac[:, 6:6 + n_int]
+        BtB = B.T @ B
+        try:
+            BtB_inv = np.linalg.inv(BtB)
+        except np.linalg.LinAlgError:
+            continue
+        info += A.T @ A - (A.T @ B) @ BtB_inv @ (B.T @ A)
+
+    try:
+        cov = np.linalg.inv(info)
+    except np.linalg.LinAlgError:
+        return None
+    if not np.all(np.isfinite(cov)):
+        return None
+    return cov * float(rms) ** 2
+
+
+def rescale_to_opencv_sigmas(covariance: np.ndarray,
+                             std_intrinsics: np.ndarray) -> Optional[np.ndarray]:
+    """Keep the correlations computed here, take the scale from OpenCV.
+
+    Comparing the two on an archived session showed the diagonal of this
+    covariance to be a constant 1.311 times OpenCV's ``stdDeviations``, the
+    same factor for all nine parameters. A constant ratio means the shape is
+    identical and only the noise scale differs, which comes down to how the
+    residual variance is estimated: per 2D point here, per coordinate with a
+    degrees-of-freedom correction in OpenCV.
+
+    Rather than guess which convention is intended, the correlation matrix is
+    taken from the Schur complement, which is what OpenCV does not provide,
+    and the standard deviations from OpenCV, which are well tested. The result
+    is a covariance whose diagonal matches ``stdDeviations`` exactly and whose
+    off-diagonal terms are the real correlations.
+    """
+    cov = np.asarray(covariance, np.float64)
+    sd_here = np.sqrt(np.clip(np.diag(cov), 1e-300, None))
+    corr = cov / np.outer(sd_here, sd_here)
+    sd_cv = np.asarray(std_intrinsics, np.float64).reshape(-1)[:len(cov)]
+    if not np.all(np.isfinite(sd_cv)) or np.any(sd_cv <= 0):
+        return cov
+    out = corr * np.outer(sd_cv, sd_cv)
+    return 0.5 * (out + out.T)
+
+
+def max_ere_from_covariance(camera_matrix: np.ndarray,
+                            dist_coeffs: np.ndarray,
+                            covariance: np.ndarray,
+                            image_size: Tuple[int, int],
+                            n_samples: int = 120,
+                            grid: int = 5,
+                            depth_mm: float = 2000.0,
+                            rng: Optional[np.random.Generator] = None,
+                            ) -> float:
+    """Max ERE of Richardson, Strom and Olson, using the full covariance.
+
+    Same procedure as :func:`max_ere` but the sampled calibrations come from
+    the correlated posterior, which is what the published metric specifies.
+    """
+    rng = rng or np.random.default_rng(0)
+    K = np.asarray(camera_matrix, np.float64)
+    d = np.asarray(dist_coeffs, np.float64).reshape(-1)
+    w, h = image_size
+
+    us = np.linspace(0.08 * w, 0.92 * w, grid)
+    vs = np.linspace(0.08 * h, 0.92 * h, grid)
+    uu, vv = np.meshgrid(us, vs)
+    uv = np.stack([uu.ravel(), vv.ravel()], axis=1).astype(np.float64)
+    normalized = cv2.undistortPoints(uv.reshape(-1, 1, 2), K, d).reshape(-1, 2)
+    pts3d = np.concatenate(
+        [normalized * depth_mm, np.full((len(normalized), 1), depth_mm)], axis=1)
+
+    zero = np.zeros(3)
+    base, _ = cv2.projectPoints(pts3d, zero, zero, K, d)
+    base = base.reshape(-1, 2)
+
+    mean = np.concatenate([[K[0, 0], K[1, 1], K[0, 2], K[1, 2]], d])
+    n = len(mean)
+    cov = np.asarray(covariance, np.float64)[:n, :n]
+    # Symmetrise and nudge onto the positive semi-definite cone; numerical
+    # asymmetry of the order of 1e-12 is enough to make the sampler refuse.
+    cov = 0.5 * (cov + cov.T)
+    try:
+        samples = rng.multivariate_normal(mean, cov, size=n_samples,
+                                          method="eigh")
+    except (np.linalg.LinAlgError, ValueError):
+        return float("nan")
+
+    acc = np.zeros(len(pts3d))
+    for s in samples:
+        Ks = K.copy()
+        Ks[0, 0], Ks[1, 1], Ks[0, 2], Ks[1, 2] = s[0], s[1], s[2], s[3]
+        proj, _ = cv2.projectPoints(pts3d, zero, zero, Ks, s[4:])
+        acc += np.linalg.norm(proj.reshape(-1, 2) - base, axis=1)
+
+    return float(np.max(acc / n_samples))
+
+
 def max_ere(camera_matrix: np.ndarray,
             dist_coeffs: np.ndarray,
             std_intrinsics: np.ndarray,

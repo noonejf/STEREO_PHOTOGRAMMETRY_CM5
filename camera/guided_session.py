@@ -38,7 +38,9 @@ import numpy as np
 
 from camera.calibration_guidance import (
     DISTORTION_PARAMS, FrameVerdict, GateAThresholds, PINHOLE_PARAMS, PoseInfo,
-    UncertaintyState, analyze_pose, converged, evaluate_frame, max_ere,
+    UncertaintyState, analyze_pose, converged, evaluate_frame,
+    intrinsics_covariance, max_ere, max_ere_from_covariance,
+    rescale_to_opencv_sigmas,
     pose_novelty, rejection_category, uncertainty_from_std,
 )
 
@@ -145,6 +147,9 @@ class GuidedCalibrationSession:
         self._max_ere: Optional[float] = None
         self._K: Optional[np.ndarray] = None
         self._d: Optional[np.ndarray] = None
+        self._rvecs: List[np.ndarray] = []
+        self._tvecs: List[np.ndarray] = []
+        self._covariance: Optional[np.ndarray] = None
 
     # -- internals --------------------------------------------------------
 
@@ -190,18 +195,36 @@ class GuidedCalibrationSession:
         if len(self._corners) < self.min_views_to_fit:
             return
         try:
-            rms, K, d, _, _, sdI, _, _ = cv2.aruco.calibrateCameraCharucoExtended(
+            (rms, K, d, rvecs, tvecs, sdI, _,
+             _) = cv2.aruco.calibrateCameraCharucoExtended(
                 self._corners, self._ids, self.board, self.image_size, None, None)
         except cv2.error as exc:
             logger.warning("refit failed: %s", exc)
             return
         self._K, self._d = K, d
+        self._rvecs, self._tvecs = list(rvecs), list(tvecs)
         self._previous_uncertainty = self._uncertainty
         self._uncertainty = uncertainty_from_std(K, d, sdI, rms, len(self._corners))
         if self._previous_uncertainty is not None:
             self._converged = converged(self._previous_uncertainty, self._uncertainty)
+
         if self.compute_max_ere:
-            self._max_ere = max_ere(K, d, sdI, self.image_size, n_samples=60)
+            # Full covariance when it can be built, which is the published
+            # metric. The diagonal-only fallback overstates the error badly,
+            # because it throws away the focal-length/distance and principal-
+            # point/translation correlations.
+            objs = [self.board.getChessboardCorners()[np.asarray(i).flatten()]
+                    for i in self._ids]
+            cov = intrinsics_covariance(objs, self._corners, rvecs, tvecs,
+                                        K, d, rms)
+            if cov is not None:
+                cov = rescale_to_opencv_sigmas(cov, sdI)
+            self._covariance = cov
+            if cov is not None:
+                self._max_ere = max_ere_from_covariance(
+                    K, d, cov, self.image_size, n_samples=80)
+            else:
+                self._max_ere = max_ere(K, d, sdI, self.image_size, n_samples=60)
 
     # -- public API -------------------------------------------------------
 

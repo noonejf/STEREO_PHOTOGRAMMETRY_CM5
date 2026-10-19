@@ -35,6 +35,8 @@ from PyQt5.QtWidgets import (
 )
 
 from camera.calibration_guidance import GateAThresholds
+from camera.pose_guidance import (next_target_pose, pose_match,
+                                  project_board_outline, stereo_counterpart)
 from camera.guided_session import DEFAULT_MIN_PER_BIN, GuidedCalibrationSession
 
 # Paleta, igual que el resto de la aplicacion
@@ -125,6 +127,12 @@ class GuidedAnalysisWorker(QThread):
         # dispararia nunca. 3.5 px deja pasar la mano quieta y sigue
         # rechazando el tablero en movimiento.
         self.max_motion_px = float(max_motion_px)
+        # Baseline del rig, para situar el objetivo en la camara derecha.
+        try:
+            cal = getattr(camera_config, 'calibration_data', None) or {}
+            self.baseline_m = float(cal.get('baseline_meters') or 0.1)
+        except Exception:
+            self.baseline_m = 0.1
 
         self._mutex = QMutex()
         self._wait = QWaitCondition()
@@ -177,6 +185,52 @@ class GuidedAnalysisWorker(QThread):
             except Exception as exc:                      # noqa: BLE001
                 self.failed.emit(str(exc))
 
+    def _target_overlays(self, st, current_pts):
+        """
+        Where the board should go next, in both cameras.
+
+        Returns the two polygons plus a match score. The right-hand polygon is
+        the same physical pose seen from the other camera, so the operator can
+        satisfy both at once: a pose that only lines up in one view is of no
+        use to a stereo calibration.
+        """
+        empty = {"target_left": None, "target_right": None,
+                 "target_reason": "", "match": 0.0, "match_hint": ""}
+        try:
+            K = self.session._provisional_K()
+            d = (self.session._d if self.session._d is not None
+                 else np.zeros(5))
+
+            missing = None
+            for lo, hi, label in self.session.tilt_bins:
+                if st.bin_counts.get(label, 0) < self.session.min_per_bin:
+                    missing = (lo, hi, label)
+                    break
+            worst = None
+            if st.uncertainty is not None:
+                worst, _ = st.uncertainty.max_iod()
+
+            tp = next_target_pose(
+                self.session.board, K, self.session.image_size,
+                missing_bin=missing, worst_param=worst,
+                taken_tilts=[p.tilt_deg for p in self.session._poses])
+
+            left = project_board_outline(self.session.board, tp.rvec, tp.tvec, K, d)
+            rv, tv = stereo_counterpart(tp.rvec, tp.tvec,
+                                        baseline_m=self.baseline_m)
+            right = project_board_outline(self.session.board, rv, tv, K, d)
+
+            score, hint = (0.0, "show the board")
+            if current_pts is not None and len(current_pts) >= 4:
+                score, hint = pose_match(current_pts, left,
+                                         self.session.image_size)
+            return {"target_left": left, "target_right": right,
+                    "target_reason": tp.reason, "match": score,
+                    "match_hint": hint}
+        except Exception as exc:                          # noqa: BLE001
+            self.failed.emit(f"target pose: {exc}")
+            return empty
+
     def _process(self, gray_l: np.ndarray, gray_r: np.ndarray) -> None:
         if self.session is None:
             h, w = gray_l.shape[:2]
@@ -204,6 +258,7 @@ class GuidedAnalysisWorker(QThread):
         if corners_l is None or not seen_right:
             st = self.session.status()
             self.analysis.emit({
+                **self._target_overlays(st, None),
                 "status": "no_board",
                 "message": ("board not visible" if corners_l is None
                             else "the right camera cannot see it"),
@@ -216,12 +271,13 @@ class GuidedAnalysisWorker(QThread):
         res = self.session.submit(gray_l, corners_l, ids_l)
         st = self.session.status()
         pts = np.asarray(corners_l, np.float32).reshape(-1, 2)
+        target = self._target_overlays(st, pts)
 
         motion = None
         if res.verdict is not None and res.verdict.metrics is not None:
             motion = res.verdict.metrics.motion_px
 
-        self.analysis.emit({
+        payload = {
             "status": res.status,
             "message": res.message,
             "tilt_deg": None if res.pose is None else res.pose.tilt_deg,
@@ -229,7 +285,9 @@ class GuidedAnalysisWorker(QThread):
             "max_motion_px": self.max_motion_px,
             "corners": pts,
             "status_obj": st,
-        })
+        }
+        payload.update(target)
+        self.analysis.emit(payload)
 
 
 # ── Widgets ──────────────────────────────────────────────────────────────────

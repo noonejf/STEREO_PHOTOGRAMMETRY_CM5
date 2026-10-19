@@ -153,6 +153,13 @@ class CameraPreviewWidget(QWidget):
         self.current_frame = None
         self.is_previewing = False
         self.config = camera_config
+        # Solapado de guia: poligono objetivo en coordenadas de la imagen
+        # de preview. Se dibuja sobre el fotograma antes de escalarlo, asi
+        # que acompana a la imagen y nunca queda descuadrado respecto de
+        # ella por mucho que cambie el tamano de la ventana.
+        self._overlay_poly = None
+        self._overlay_matched = False
+        self._overlay_label = ""
         
         self.init_ui()
         
@@ -366,11 +373,27 @@ class CameraPreviewWidget(QWidget):
         if (w, h) != (self.video_label.width(), self.video_label.height()):
             self.video_label.setFixedSize(w, h)
 
+    def set_overlay(self, polygon=None, matched: bool = False, label: str = ""):
+        """Fijar el poligono objetivo, en coordenadas de la imagen de preview."""
+        self._overlay_poly = polygon
+        self._overlay_matched = bool(matched)
+        self._overlay_label = label or ""
+
+    def clear_overlay(self):
+        self.set_overlay(None)
+
     def on_frame_ready(self, frame):
         """Callback cuando un frame está listo"""
         try:
             self.current_frame = frame
             
+            # Dibujar la guia sobre una copia, antes de escalar, para que
+            # el trazo escale con la imagen y no se desplace respecto de ella.
+            if self._overlay_poly is not None:
+                from camera.pose_guidance import draw_target
+                frame = draw_target(frame.copy(), self._overlay_poly,
+                                    self._overlay_matched, self._overlay_label)
+
             # Convertir numpy array a QImage
             height, width, channel = frame.shape
             bytes_per_line = 3 * width
