@@ -101,3 +101,8 @@ Thumbs.db
 !SIMULATION/Simulacion_DarkBox.blend1
 !SIMULATION/Untitled.blend1
 !SIMULATION/Untitled_12MP.blend1
+
+# Borat: the log is local to this machine. The memory under
+# .claude/borat/memory/ is knowledge and should be committed.
+.claude/borat/events.jsonl
+.claude/borat/state.json

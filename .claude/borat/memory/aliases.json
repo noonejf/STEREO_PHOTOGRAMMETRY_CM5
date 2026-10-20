@@ -1,0 +1,552 @@
+{
+  "_": [
+    "Lo que se tipea a la izquierda, lo que el codigo y los documentos llaman a la derecha.",
+    "Aqui se pregunta en espanol y el repo esta en ingles: ese salto lo cubre esta tabla.",
+    "Agrega una linea cada vez que no encuentre algo que deberia haber encontrado.",
+    "Las tildes se pliegan antes de buscar, asi que las claves van sin tilde."
+  ],
+  "avance": [
+    "estado",
+    "avance",
+    "plan",
+    "workplan"
+  ],
+  "barra": [
+    "sidebar",
+    "riel",
+    "status"
+  ],
+  "blender": [
+    "blender",
+    "simulation",
+    "laptop"
+  ],
+  "boton": [
+    "gui",
+    "boton",
+    "pagina"
+  ],
+  "cable": [
+    "wire",
+    "cable",
+    "tether"
+  ],
+  "caja": [
+    "darkroom",
+    "box"
+  ],
+  "calibracion": [
+    "calibration",
+    "charuco",
+    "intrinsics"
+  ],
+  "calibrar": [
+    "calibration",
+    "charuco",
+    "intrinsics"
+  ],
+  "camara": [
+    "camera",
+    "imx477",
+    "sensor"
+  ],
+  "camaras": [
+    "camera",
+    "imx477",
+    "sensor"
+  ],
+  "captura": [
+    "capture",
+    "preview",
+    "vista"
+  ],
+  "captura_pantalla": [
+    "offscreen",
+    "grab",
+    "render"
+  ],
+  "coincidencia": [
+    "match",
+    "pose",
+    "objetivo"
+  ],
+  "coincidir": [
+    "match",
+    "pose",
+    "objetivo"
+  ],
+  "color": [
+    "ply",
+    "color",
+    "exportar"
+  ],
+  "colores": [
+    "ply",
+    "color",
+    "exportar"
+  ],
+  "comentario": [
+    "comment",
+    "member",
+    "state"
+  ],
+  "commit": [
+    "commits",
+    "firmar",
+    "claude"
+  ],
+  "commitea": [
+    "commits",
+    "firmar",
+    "claude"
+  ],
+  "commiteamos": [
+    "commits",
+    "firmar",
+    "claude"
+  ],
+  "commitear": [
+    "commits",
+    "firmar",
+    "claude"
+  ],
+  "contorno": [
+    "overlay",
+    "pose",
+    "objetivo"
+  ],
+  "correlacion": [
+    "covarianza",
+    "correlaciones"
+  ],
+  "covarianza": [
+    "covarianza",
+    "correlaciones",
+    "sigma",
+    "opencv"
+  ],
+  "cuerda": [
+    "wire",
+    "cable",
+    "tether"
+  ],
+  "degeneracion": [
+    "degeneracion",
+    "tilt",
+    "focal"
+  ],
+  "degenerada": [
+    "degeneracion",
+    "tilt",
+    "focal"
+  ],
+  "diagrama": [
+    "diagrama",
+    "mecanismo",
+    "tablas"
+  ],
+  "disparidad": [
+    "disparity",
+    "depth"
+  ],
+  "enfocar": [
+    "focus",
+    "focal",
+    "lens"
+  ],
+  "enfoque": [
+    "focus",
+    "focal",
+    "lens"
+  ],
+  "entregable": [
+    "deliverable",
+    "documentation",
+    "submitted"
+  ],
+  "entregables": [
+    "deliverable",
+    "documentation",
+    "submitted"
+  ],
+  "entregado": [
+    "submitted",
+    "apsco",
+    "deliverable"
+  ],
+  "entrego": [
+    "submitted",
+    "apsco",
+    "deliverable"
+  ],
+  "entrenamiento": [
+    "train",
+    "randomforest",
+    "dataset"
+  ],
+  "entrenar": [
+    "train",
+    "randomforest",
+    "model"
+  ],
+  "enviamos": [
+    "submitted",
+    "apsco",
+    "entregable"
+  ],
+  "enviar": [
+    "submitted",
+    "apsco",
+    "entregable"
+  ],
+  "ere": [
+    "covarianza",
+    "correlaciones",
+    "max"
+  ],
+  "estado": [
+    "estado",
+    "avance",
+    "plan",
+    "workplan"
+  ],
+  "exportar": [
+    "ply",
+    "export",
+    "nube"
+  ],
+  "fase": [
+    "workplan",
+    "plan",
+    "fase"
+  ],
+  "grafico": [
+    "diagrama",
+    "tablas"
+  ],
+  "guia": [
+    "guided",
+    "pose",
+    "objetivo",
+    "overlay"
+  ],
+  "guiado": [
+    "guided",
+    "pose",
+    "objetivo",
+    "overlay"
+  ],
+  "hawkeye": [
+    "sensores",
+    "calculo",
+    "optico"
+  ],
+  "hilo": [
+    "wire",
+    "cable",
+    "tether"
+  ],
+  "historial": [
+    "commits",
+    "firmar",
+    "reescribir"
+  ],
+  "ia": [
+    "randomforest",
+    "model",
+    "ai"
+  ],
+  "icono": [
+    "icons",
+    "svg",
+    "glifo"
+  ],
+  "iconos": [
+    "icons",
+    "svg",
+    "glifo"
+  ],
+  "iluminacion": [
+    "illumination",
+    "darkroom",
+    "lux"
+  ],
+  "imx296": [
+    "sensores",
+    "calculo",
+    "optico",
+    "obturador"
+  ],
+  "imx477": [
+    "sensores",
+    "calculo",
+    "optico"
+  ],
+  "incertidumbre": [
+    "covarianza",
+    "sigma",
+    "fx",
+    "correlaciones"
+  ],
+  "inclinacion": [
+    "tilt",
+    "pose",
+    "degeneracion"
+  ],
+  "inclinar": [
+    "tilt",
+    "pose"
+  ],
+  "interfaz": [
+    "gui",
+    "pagina",
+    "riel",
+    "widget"
+  ],
+  "iran": [
+    "member",
+    "state",
+    "comment",
+    "apsco"
+  ],
+  "iranies": [
+    "member",
+    "state",
+    "comment",
+    "apsco"
+  ],
+  "lente": [
+    "lens",
+    "focal",
+    "optico"
+  ],
+  "lentes": [
+    "lens",
+    "focal",
+    "optico"
+  ],
+  "longitud": [
+    "length",
+    "arc",
+    "metrics"
+  ],
+  "luz": [
+    "illumination",
+    "darkroom",
+    "lux"
+  ],
+  "mandamos": [
+    "submitted",
+    "apsco",
+    "entregable"
+  ],
+  "mando": [
+    "submitted",
+    "apsco",
+    "entregable"
+  ],
+  "mascara": [
+    "mask",
+    "segmentation",
+    "tuner"
+  ],
+  "mascaras": [
+    "mask",
+    "segmentation",
+    "tuner"
+  ],
+  "medida": [
+    "metrics",
+    "length",
+    "scalars"
+  ],
+  "medidas": [
+    "metrics",
+    "length",
+    "scalars"
+  ],
+  "mensaje": [
+    "commits",
+    "firmar"
+  ],
+  "modelo": [
+    "model",
+    "randomforest",
+    "pkl"
+  ],
+  "nube": [
+    "point",
+    "cloud",
+    "ply"
+  ],
+  "objetivo": [
+    "pose",
+    "target",
+    "overlay",
+    "objetivo"
+  ],
+  "obturador": [
+    "shutter",
+    "rolling",
+    "global"
+  ],
+  "oscuro": [
+    "darkroom",
+    "illumination"
+  ],
+  "pantalla": [
+    "gui",
+    "pagina",
+    "preview",
+    "vista"
+  ],
+  "patron": [
+    "charuco",
+    "board"
+  ],
+  "pendiente": [
+    "estado",
+    "avance",
+    "plan"
+  ],
+  "pixel": [
+    "optico",
+    "calculo",
+    "sensores"
+  ],
+  "pixeles": [
+    "optico",
+    "calculo",
+    "sensores"
+  ],
+  "plan": [
+    "workplan",
+    "plan",
+    "fase"
+  ],
+  "pose": [
+    "pose",
+    "objetivo",
+    "tilt",
+    "inclinacion"
+  ],
+  "poses": [
+    "pose",
+    "objetivo",
+    "tilt",
+    "inclinacion"
+  ],
+  "probar": [
+    "verificar",
+    "offscreen",
+    "render"
+  ],
+  "profe": [
+    "profesor",
+    "sensores",
+    "tres"
+  ],
+  "profesor": [
+    "profesor",
+    "sensores",
+    "tres"
+  ],
+  "profundidad": [
+    "depth",
+    "disparity",
+    "range"
+  ],
+  "puntos": [
+    "point",
+    "cloud",
+    "ply"
+  ],
+  "push": [
+    "commits",
+    "firmar",
+    "claude"
+  ],
+  "pushea": [
+    "commits",
+    "firmar",
+    "claude"
+  ],
+  "revisor": [
+    "comment",
+    "member",
+    "state"
+  ],
+  "riel": [
+    "sidebar",
+    "riel",
+    "navegacion"
+  ],
+  "rodante": [
+    "shutter",
+    "rolling"
+  ],
+  "segmentar": [
+    "mask",
+    "segmentation"
+  ],
+  "sensor": [
+    "imx477",
+    "imx296",
+    "hawkeye"
+  ],
+  "sensores": [
+    "imx477",
+    "imx296",
+    "hawkeye"
+  ],
+  "sigma": [
+    "covarianza",
+    "sigma",
+    "opencv"
+  ],
+  "simulacion": [
+    "blender",
+    "simulation",
+    "validation"
+  ],
+  "simular": [
+    "blender",
+    "simulation"
+  ],
+  "solapado": [
+    "overlay",
+    "pose",
+    "objetivo"
+  ],
+  "tabla": [
+    "tablas",
+    "cualitativas",
+    "diagrama"
+  ],
+  "tablas": [
+    "tablas",
+    "cualitativas",
+    "diagrama"
+  ],
+  "tablero": [
+    "charuco",
+    "board",
+    "dict_6x6_250"
+  ],
+  "verificar": [
+    "verificar",
+    "offscreen",
+    "render",
+    "import"
+  ],
+  "vista": [
+    "preview",
+    "vista",
+    "camara"
+  ],
+  "vistas": [
+    "preview",
+    "vista",
+    "camara"
+  ]
+}

@@ -46,14 +46,25 @@ tail -f logs/stereo_photogrammetry.log
 
 ## Application structure
 
-One PyQt5 window, a 4-item sidebar, a `QStackedWidget` ([gui/main_window.py](gui/main_window.py)):
+One PyQt5 window, a collapsible icon rail (56 px closed, 188 px open), a
+`QStackedWidget` ([gui/main_window.py](gui/main_window.py)):
 
 | # | Page | Class | File |
 |---|------|-------|------|
-| 0 | Dashboard | built inline | `gui/main_window.py:357` |
-| 1 | Calibration | `CalibrationPage` | `gui/calibration_dialog.py:91` |
-| 2 | Processing | `ProcessingPage` | `gui/processing_dialog.py:881` |
+| 0 | Dashboard | built inline | `gui/main_window.py` |
+| 1 | Calibration | `CalibrationPage` | `gui/calibration_dialog.py` |
+| 2 | Processing | `ProcessingPage` | `gui/processing_dialog.py` |
 | 3 | AI | `AIPage` | `gui/ai_page.py` |
+| 4 | Optics | `OpticsPage` | `gui/optics_page.py` |
+
+The Optics page embeds `calculate_cam/camera_dof_visualizer.py` by reparenting
+that window's central widget, so the optics maths has one implementation.
+
+**UI conventions.** Icons are SVG paths in `gui/icons.py`, never Unicode
+glyphs: several of the glyphs this app used have no coverage in the fonts
+shipped with Raspberry Pi OS and rendered as empty boxes on the target machine.
+`gui/theme.py` holds the palette and a stylesheet applied to the QApplication in
+`main.py` before any dialog can appear. The interface is in English.
 
 ## The cable measurement pipeline (the main path)
 
@@ -179,22 +190,41 @@ distance produces an identical image. More frames of the same pose would never
 have fixed it.
 
 Reprojection RMS is **not** a quality metric. It is the training residual the
-optimizer just minimised. Use the parameter covariance instead
-(`stdDeviationsIntrinsics`).
+optimizer just minimised. Use the parameter covariance instead. OpenCV's
+`stdDeviationsIntrinsics` gives only its diagonal, so
+`calibration_guidance.intrinsics_covariance` rebuilds the full matrix from the
+`projectPoints` Jacobian with the per-view poses marginalised out by a Schur
+complement, and takes the scale from OpenCV.
 
-### The guided replacement (built, not yet wired)
+### The guided flow, which is now the primary one
 
-| File | Status |
-|------|--------|
-| `camera/calibration_guidance.py` | Done. Per-frame gates, degeneracy and novelty tests, parameter uncertainty, convergence, approximate Max ERE |
-| `camera/guided_session.py` | Done. The continuous-capture loop: a rejected frame does **not** consume a slot, so asking for 25 views yields 25 that passed both gates |
-| `tools/analyze_calibration_sessions.py` | Done. Retrospective diagnosis |
-| `tools/replay_guided_session.py` | Done. Replays archived sessions frame by frame, no hardware |
-| **Wiring into `gui/calibration_dialog.py`** | **Not done.** The GUI still runs the countdown flow |
+| File | What it holds |
+|------|---------------|
+| `camera/calibration_guidance.py` | Per-frame gates, degeneracy and novelty tests, parameter uncertainty, convergence, and Max ERE from the full covariance |
+| `camera/guided_session.py` | The capture loop. A rejected frame does **not** consume a slot, so asking for 25 views yields 25 that passed every gate |
+| `camera/pose_guidance.py` | Generates the pose to ask for next and projects it into both cameras |
+| `gui/guided_calibration.py` | The worker thread and the status panel |
+| `tools/analyze_calibration_sessions.py` | Retrospective diagnosis over the archive |
+| `tools/replay_guided_session.py` | Replays archived sessions frame by frame, no hardware |
 
-Neither module imports a camera or PyQt, by design, so both can be exercised
-offline. The session refuses to report itself complete until the accepted views
-cover four tilt bins (0-10°, 15-30°, 30-45°, 45-70°) with at least 3 each.
+The three `camera/` modules import neither a camera nor PyQt, by design, so all
+of them can be exercised offline.
+
+**How the loop decides.** Detection and the refit run in a worker thread on a
+960 px copy of the preview, never on the UI thread; the worker drops stale
+frames rather than queueing them. A frame is kept only when it is sharp over
+the board region, momentarily still, visible to **both** cameras, and **on the
+pose currently being asked for**. That last gate is what keeps the drawn
+overlay and the capture the same thing: without it the session kept whatever it
+found useful while the outline sat untouched on screen.
+
+Accepted poses trigger a full-resolution still pair; the preview is only ever
+used for guidance. The session refuses to report itself complete until the
+accepted views cover four tilt bins (0-10°, 15-30°, 30-45°, 45-70°) with at
+least 3 each, and `Finish with the views collected` is the deliberate way out
+when a pose cannot be reached.
+
+The legacy countdown flow is still present behind `Legacy flow (countdown)`.
 
 ## Things that will trip you up
 
@@ -281,6 +311,16 @@ LaTeX deliverables under `Documentation/`, compiled with the repo-root script:
 Cited sources go in each deliverable's `Sources/` folder and into its
 `bibs/sample.bib`. Papers still being read live in
 `Documentation/Investigacion/`.
+
+Two markdown documents sit beside the LaTeX ones:
+
+- `LINKU_CameraPayload_Paper_Dossier.md` is the current consolidated source
+  document, written for co-authors of a joint paper. Every claim carries a
+  status tag (MEASURED, DERIVED, ASSUMED, PLANNED, DEFECT), and section 11
+  lists the contradictions between our own deliverables.
+- `INFORME_TECNICO_PROYECTO_LINKU.md` is a snapshot dated 16 February 2026,
+  kept as a record of how the work evolved. Its header lists the claims later
+  measurement contradicted. Do not cite it as current state.
 
 ## Technology stack
 
