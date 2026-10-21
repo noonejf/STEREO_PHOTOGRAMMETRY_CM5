@@ -5,16 +5,49 @@
     "Agrega una linea cada vez que no encuentre algo que deberia haber encontrado.",
     "Las tildes se pliegan antes de buscar, asi que las claves van sin tilde."
   ],
+  "adcs": [
+    "rotation",
+    "requisito",
+    "grados por segundo",
+    "apuntamiento"
+  ],
+  "agx": [
+    "agx",
+    "view transform",
+    "tone mapping",
+    "blender",
+    "standard"
+  ],
+  "ajedrez": [
+    "chessboard",
+    "charuco",
+    "tablero",
+    "board"
+  ],
   "avance": [
     "estado",
     "avance",
     "plan",
     "workplan"
   ],
+  "balasto": [
+    "ballast",
+    "arri",
+    "hmi",
+    "flicker",
+    "parpadeo"
+  ],
   "barra": [
     "sidebar",
     "riel",
     "status"
+  ],
+  "bin": [
+    "bins",
+    "tilt",
+    "inclinacion",
+    "cupo",
+    "tilt_bins"
   ],
   "blender": [
     "blender",
@@ -64,6 +97,12 @@
     "offscreen",
     "grab",
     "render"
+  ],
+  "cizalla": [
+    "shear",
+    "rolling shutter",
+    "rotacion",
+    "obturador rodante"
   ],
   "coincidencia": [
     "match",
@@ -115,6 +154,12 @@
     "pose",
     "objetivo"
   ],
+  "contradiccion": [
+    "contradiction",
+    "inconsistencia",
+    "conflicto",
+    "discrepancia"
+  ],
   "correlacion": [
     "covarianza",
     "correlaciones"
@@ -124,6 +169,13 @@
     "correlaciones",
     "sigma",
     "opencv"
+  ],
+  "cruce": [
+    "crossing",
+    "branch",
+    "bifurcacion",
+    "knot",
+    "nudo"
   ],
   "cuerda": [
     "wire",
@@ -187,7 +239,11 @@
   "entrenar": [
     "train",
     "randomforest",
-    "model"
+    "model",
+    "training",
+    "dataset",
+    "modelo",
+    "clasificador"
   ],
   "enviamos": [
     "submitted",
@@ -215,10 +271,31 @@
     "export",
     "nube"
   ],
+  "exposicion": [
+    "exposure",
+    "tiempo de exposicion",
+    "obturador",
+    "flicker"
+  ],
+  "fantasma": [
+    "phantom",
+    "geometria fantasma",
+    "denso",
+    "sgbm",
+    "espurio"
+  ],
   "fase": [
     "workplan",
     "plan",
     "fase"
+  ],
+  "fuente": [
+    "source",
+    "cita",
+    "bib",
+    "secundaria",
+    "paywall",
+    "trazabilidad"
   ],
   "grafico": [
     "diagrama",
@@ -239,7 +316,12 @@
   "hawkeye": [
     "sensores",
     "calculo",
-    "optico"
+    "optico",
+    "hawk-eye",
+    "ov64a40",
+    "owlsight",
+    "64mp",
+    "arducam"
   ],
   "hilo": [
     "wire",
@@ -266,6 +348,13 @@
     "svg",
     "glifo"
   ],
+  "iec": [
+    "iec",
+    "60904",
+    "clase",
+    "simulador solar",
+    "paywall"
+  ],
   "iluminacion": [
     "illumination",
     "darkroom",
@@ -291,7 +380,10 @@
   "inclinacion": [
     "tilt",
     "pose",
-    "degeneracion"
+    "degeneracion",
+    "bin",
+    "grados",
+    "angulo"
   ],
   "inclinar": [
     "tilt",
@@ -315,6 +407,22 @@
     "comment",
     "apsco"
   ],
+  "irradiancia": [
+    "irradiance",
+    "am0",
+    "solar constant",
+    "1361",
+    "w/m2",
+    "constante solar"
+  ],
+  "lampara": [
+    "lamp",
+    "fixture",
+    "luminaria",
+    "hmi",
+    "led",
+    "simulador solar"
+  ],
   "lente": [
     "lens",
     "focal",
@@ -333,7 +441,11 @@
   "luz": [
     "illumination",
     "darkroom",
-    "lux"
+    "lux",
+    "iluminacion",
+    "iluminancia",
+    "light budget",
+    "presupuesto de luz"
   ],
   "mandamos": [
     "submitted",
@@ -369,15 +481,51 @@
     "commits",
     "firmar"
   ],
+  "metashape": [
+    "sfm",
+    "agisoft",
+    "photogrammetry",
+    "reconstruccion",
+    "zero resolution"
+  ],
   "modelo": [
     "model",
     "randomforest",
     "pkl"
   ],
+  "nerf": [
+    "nerf",
+    "realfusion",
+    "generativo",
+    "neuronal",
+    "gaussian"
+  ],
+  "norma": [
+    "standard",
+    "iec",
+    "clase",
+    "class",
+    "60904"
+  ],
+  "noviembre": [
+    "archivo",
+    "sesiones",
+    "ajedrez",
+    "charuco",
+    "2025"
+  ],
   "nube": [
     "point",
     "cloud",
     "ply"
+  ],
+  "nudo": [
+    "knot",
+    "crossing",
+    "cruce",
+    "bifurcacion",
+    "branch",
+    "enredo"
   ],
   "objetivo": [
     "pose",
@@ -388,7 +536,10 @@
   "obturador": [
     "shutter",
     "rolling",
-    "global"
+    "global",
+    "global shutter",
+    "imx296",
+    "obturador rodante"
   ],
   "oscuro": [
     "darkroom",
@@ -400,6 +551,13 @@
     "preview",
     "vista"
   ],
+  "parpadeo": [
+    "flicker",
+    "banding",
+    "bandeado",
+    "balasto",
+    "hmi"
+  ],
   "patron": [
     "charuco",
     "board"
@@ -407,7 +565,12 @@
   "pendiente": [
     "estado",
     "avance",
-    "plan"
+    "plan",
+    "todo",
+    "abierto",
+    "gap",
+    "hueco",
+    "sin cerrar"
   ],
   "pixel": [
     "optico",
@@ -454,7 +617,12 @@
   "profundidad": [
     "depth",
     "disparity",
-    "range"
+    "range",
+    "depth of field",
+    "dof",
+    "enfoque",
+    "focus",
+    "hiperfocal"
   ],
   "puntos": [
     "point",
@@ -471,6 +639,20 @@
     "firmar",
     "claude"
   ],
+  "rama": [
+    "branch",
+    "candidate",
+    "scorer",
+    "bifurcacion",
+    "candidato"
+  ],
+  "replay": [
+    "replay",
+    "archivo",
+    "sesiones",
+    "retrospectivo",
+    "analyze_calibration_sessions"
+  ],
   "revisor": [
     "comment",
     "member",
@@ -484,6 +666,13 @@
   "rodante": [
     "shutter",
     "rolling"
+  ],
+  "rotacion": [
+    "rotation",
+    "rolling shutter",
+    "cizalla",
+    "shear",
+    "adcs"
   ],
   "segmentar": [
     "mask",
@@ -513,10 +702,32 @@
     "blender",
     "simulation"
   ],
+  "sintetico": [
+    "synthetic",
+    "generado",
+    "entrenamiento",
+    "dataset",
+    "simulado"
+  ],
+  "sol": [
+    "sun",
+    "solar",
+    "am0",
+    "irradiancia",
+    "1361",
+    "5772"
+  ],
   "solapado": [
     "overlay",
     "pose",
     "objetivo"
+  ],
+  "sombra": [
+    "shadow",
+    "specular",
+    "brillo",
+    "convergente",
+    "penumbra"
   ],
   "tabla": [
     "tablas",
@@ -532,6 +743,19 @@
     "charuco",
     "board",
     "dict_6x6_250"
+  ],
+  "tuner": [
+    "segmentacion",
+    "mascara",
+    "edge detection",
+    "edge_detection_tuner"
+  ],
+  "umbral": [
+    "threshold",
+    "acceptance",
+    "criterio",
+    "aceptacion",
+    "gate"
   ],
   "verificar": [
     "verificar",
