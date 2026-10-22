@@ -980,9 +980,18 @@ class CalibrationPage(QWidget):
         elif status == "rejected_pose":
             # El detalle de que falta ya aparece en la caja de ayuda, debajo.
             # Repetirlo aqui solo gastaba espacio.
-            msg = res.get("message", "")
-            sub = ("You already have this pose" if "duplicate" in msg.lower()
-                   else "That tilt is outside every useful range")
+            msg = res.get("message", "").lower()
+            # Three different things arrive here and they need three different
+            # answers: the operator is still lining the board up, the pose is
+            # one we already have, or the tilt is past the last bin. Telling
+            # someone mid-alignment that their tilt is out of range sends them
+            # to fix the one thing that is not wrong.
+            if "on the target" in msg:
+                sub = "Keep moving onto the outline"
+            elif "duplicat" in msg:
+                sub = "You already have this pose"
+            else:
+                sub = "That tilt is past the last bin"
             self.guided_panel.set_banner("Change the pose", sub, "pose")
             self._set_preview_banner("Change the pose", sub, "pose", tilt, st)
 

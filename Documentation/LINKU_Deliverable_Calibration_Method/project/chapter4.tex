@@ -78,14 +78,14 @@ Gate A rejects frames that are bad regardless of where the board is. It runs on 
 \textbf{Check} & \textbf{Test} & \textbf{Why} \\
 \midrule
 Completeness & Number of detected ChArUco corners above a floor & Too few points makes the per-view pose ill-conditioned. ChArUco tolerates partial views, which is why it is used \cite{garrido2014aruco,rojtberg2018pose} \\
-Sharpness & Focus measure over the detected board region, not the whole frame & A board outside the depth of field degrades corner localisation. This is the suspected cause of the previous failures (Section \ref{sec:hypothesis}) \\
+Sharpness & Focus measure over the detected board region, not the whole frame & A board outside the depth of field degrades corner localisation. This was the suspected cause of the previous failures; Section \ref{sec:hypothesis} shows it was not, but the check is still the one the existing procedure most clearly lacks \\
 Stability & Corner displacement between consecutive preview frames below a threshold & Rejects motion blur and ensures the full-resolution capture that follows sees the same pose \\
 Exposure & No saturated or crushed regions on the board & Clipped corners localise poorly \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The sharpness check deserves emphasis. It is the cheapest single addition that addresses the hypothesis of Section \ref{sec:hypothesis}, and it is the one the current procedure most clearly lacks: at f/1.6 the usable depth is about one metre, and nothing in the present workflow warns the operator when the board leaves it.
+The sharpness check deserves emphasis, though not for the reason an earlier draft gave. Section \ref{sec:hypothesis} shows defocus was not what went wrong, so this check is not a fix for the archived failures. It earns its place on its own merits: the depth of field is genuinely narrow, with \texttt{calculate\_cam/\allowbreak camera\_dof\_visualizer.py} giving 3.08 to 4.05~m, that is 0.96~m, for the fitted 8~mm lens at f/1.6 focused at 3.5~m, and nothing in the present workflow warns the operator when the board leaves it.
 
 \section{Gate B: would this frame improve the calibration?}
 

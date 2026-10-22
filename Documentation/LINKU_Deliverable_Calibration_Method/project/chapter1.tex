@@ -129,7 +129,7 @@ Two target properties matter and neither is usually verified.
 \section{What actually went wrong}
 \label{sec:hypothesis}
 
-An earlier draft of this document hypothesised that defocus was the cause, reasoning that at f/1.6 the usable depth is only about one metre \cite{linku_darkroom_illumination} and that calibration requires varying the board distance. That hypothesis was tested and is \textbf{not} what the data shows. The measurements below were produced by \texttt{tools/analyze\_calibration\_sessions.py}, which applies the Gate A and Gate B measures of Chapter \ref{chap:design} to every archived pair.
+An earlier draft of this document hypothesised that defocus was the cause, reasoning that at f/1.6 the usable depth is only about one metre, which \texttt{calculate\_cam/\allowbreak camera\_dof\_visualizer.py} puts at 0.96~m for the fitted 8~mm lens focused at 3.5~m, and that calibration requires varying the board distance. That hypothesis was tested and is \textbf{not} what the data shows. The measurements below were produced by \texttt{tools/analyze\_calibration\_sessions.py}, which applies the Gate A and Gate B measures of Chapter \ref{chap:design} to every archived pair.
 
 \subsection{Coverage of the archive}
 

@@ -31,7 +31,7 @@ Explicit \texttt{-{}-mode} on calibration captures & Ready & Guarantees the sens
 
 \textbf{The sharpness measure is computed over the whole frame.} \texttt{validate\_image\_quality} takes the variance of the Laplacian over the entire image. In a dark room with a black background, most of the frame is empty, so the measure is dominated by the background and is largely insensitive to whether the \emph{board} is in focus. It should be computed over the bounding region of the detected corners, which the function already has available as an argument.
 
-\textbf{The sharpness threshold appears far too permissive.} The current rejection threshold is a Laplacian variance of 3.0. Values that low correspond to an almost featureless image; a sharply imaged chessboard typically produces values orders of magnitude higher. As written, the check will pass nearly every frame, including badly defocused ones. This is consistent with the hypothesis of Section \ref{sec:hypothesis} and should be recalibrated empirically against the archived sessions rather than guessed.
+\textbf{The sharpness threshold appears far too permissive.} The current rejection threshold is a Laplacian variance of 3.0. Values that low correspond to an almost featureless image; a sharply imaged chessboard typically produces values orders of magnitude higher. As written, the check will pass nearly every frame, including badly defocused ones. That makes it ineffective rather than merely mis-tuned, and it explains why no archived frame was ever rejected for focus. It is not evidence either way about Section \ref{sec:hypothesis}: a gate this permissive would have passed a defocused archive just as readily as the sharp one that was in fact measured. It should be recalibrated empirically against the archived sessions rather than guessed.
 
 \section{Staged plan}
 
@@ -120,7 +120,7 @@ Rojtberg and Kuijper's method is published with a working implementation, \textt
 \section{Interaction with the rest of the project}
 
 \begin{itemize}
-    \item \textbf{Illumination.} The calibration session must be lit well enough for the board to be sharp and unclipped. The requirements, and the depth-of-field figures used in Section \ref{sec:hypothesis}, are in the companion deliverable \cite{linku_darkroom_illumination}.
+    \item \textbf{Illumination.} The calibration session must be lit well enough for the board to be sharp and unclipped. The requirements are in the companion deliverable \cite{linku_darkroom_illumination}. The depth-of-field figures quoted in Section \ref{sec:hypothesis} are not from that document, which defers depth of field entirely; they come from \texttt{calculate\_cam/\allowbreak camera\_dof\_visualizer.py}.
     \item \textbf{Optical discipline.} The focus and aperture rings must be set and locked before the session, and not touched afterwards, for the reasons in Chapter \ref{chap:failure}. The companion deliverable specifies the locking and marking procedure.
     \item \textbf{Geometry.} The calibration must be performed on the integrated camera support that will be used in the experiment, not on a different mount. Moving the cameras between calibration and use invalidates the stereo extrinsics.
 \end{itemize}

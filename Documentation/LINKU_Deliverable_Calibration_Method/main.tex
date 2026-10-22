@@ -38,13 +38,13 @@
 \input{title/title.tex}
 
 \begin{abstract}
-The LINKU stereo pair has been calibrated 23 times without reaching acceptable quality. This document asks why, and what the published literature says a calibration procedure should look like, and converts the answer into a specification for a replacement tool.
+The LINKU stereo pair has been calibrated across 25 archived sessions that contain images, none of them reaching acceptable quality. This document asks why, and what the published literature says a calibration procedure should look like, and converts the answer into a specification for a replacement tool.
 
 Three findings drive the design. First, the quantity the project currently uses to judge a calibration, the root-mean-square reprojection error, is a \emph{training} residual and can be made arbitrarily small by a badly chosen set of images; the literature is unanimous that it is not a measure of calibration quality. Second, calibration accuracy is dominated by the choice of target poses, and specific pose configurations are mathematically degenerate: with the board parallel to the sensor in every view the focal length is simply not recoverable, no matter how many images are taken. Third, every modern system that solves this problem does the same thing: it estimates the covariance of the calibration parameters while the session runs, uses it both to tell the operator where to put the board next and to decide when the calibration has converged.
 
 Chapter \ref{chap:failure} analyses what can invalidate a calibration in this specific setup, including the two questions that prompted this document: whether capture resolution must match, and whether moving the focus or the aperture ring breaks the result. Chapter \ref{chap:literature} reviews the method, from Zhang's formulation to the four guided-calibration systems that implement live pose suggestion. Chapter \ref{chap:quality} sets out how to measure calibration quality honestly. Chapter \ref{chap:design} specifies the proposed tool: continuous capture with automatic frame gating, a live per-frame verdict, and a convergence bar driven by parameter uncertainty rather than by a frame count. Chapter \ref{chap:plan} gives a staged implementation plan against the project's existing code.
 
-No part of the proposed tool has been implemented yet. The design is traceable to the eleven papers archived in \texttt{Sources/}; the wider set consulted but not cited is kept in the research folder \texttt{Investigacion/\allowbreak Calibracion\_Estereo}.
+Since this document was first written, the tool it specifies has been built and wired into the application: Chapter \ref{chap:plan} marks each stage against the code that now implements it. What remains unconfirmed is not the design but the remedy, because no session has yet been captured with the angular spread the tool demands. The design is traceable to the eleven papers archived in \texttt{Sources/}; the wider set consulted but not cited is kept in the research folder \texttt{Investigacion/\allowbreak Calibracion\_Estereo}.
 \end{abstract}
 
 \tableofcontents

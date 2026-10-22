@@ -221,7 +221,7 @@ def rejection_category(reason: str) -> str:
                        ("too small", "board too small in frame"),
                        ("too large", "board too large in frame"),
                        ("duplicat", "duplicate pose"),
-                       ("outside the useful range", "tilt outside useful range"),
+                       ("past the", "tilt past the top of the range"),
                        ("not found", "board not found"),
                        # Before the generic "pose" rule below, which would
                        # otherwise swallow it and report frames the operator

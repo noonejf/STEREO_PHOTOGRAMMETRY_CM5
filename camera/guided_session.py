@@ -54,9 +54,13 @@ logger = logging.getLogger(__name__)
 #: bins exist because the pinhole parameters need angular spread. Rojtberg and
 #: Kuijper make exactly this split and generate poses across roughly +-70
 #: degrees, which is the range these bins cover.
+#:
+#: The bins must stay contiguous: a board held by hand sweeps continuously, so
+#: a gap between two bins throws away perfectly usable views and reports them
+#: as being outside the useful range, which they are not.
 DEFAULT_TILT_BINS: Tuple[Tuple[float, float, str], ...] = (
     (0.0, 10.0, "frontal, for the distortion terms"),
-    (15.0, 30.0, "slightly tilted"),
+    (10.0, 30.0, "slightly tilted"),
     (30.0, 45.0, "clearly tilted"),
     (45.0, 70.0, "strongly tilted"),
 )
@@ -308,10 +312,14 @@ class GuidedCalibrationSession:
 
         bin_label = self._bin_of(pose.tilt_deg)
         if bin_label is None:
-            self._count("tilt outside the useful range")
+            # The bins are contiguous, so the only way out of them is past the
+            # top of the last one. Name that bound: "outside the useful range"
+            # on its own reads as a fault in the view, and it is not one.
+            top = max(hi for _, hi, _ in self.tilt_bins)
+            self._count("tilt past the top of the range")
             return SubmitResult("rejected_pose",
-                                f"tilt {pose.tilt_deg:.0f} deg is outside the "
-                                f"useful range", verdict, pose,
+                                f"tilt {pose.tilt_deg:.0f} deg is past the "
+                                f"{top:.0f} deg the bins cover", verdict, pose,
                                 len(self._corners))
 
         counts = self._bin_counts()
