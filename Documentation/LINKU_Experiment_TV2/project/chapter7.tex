@@ -1,0 +1,135 @@
+\chapter{Analysis plan}
+\label{chap:analysis}
+
+The analysis is run after the session, on the committed captures, using the
+application without modification. Running a modified pipeline on the
+experimental data would mean the result does not describe the software that
+exists.
+
+\section{The pipeline, stage by stage}
+
+The measurement path is the \emph{Geometric (Wire Tracking)} mode, which is
+the application default. The alternative dense stereo mode is not used, and
+Section \ref{sec:no-dense} explains why that matters more than it sounds.
+
+\begin{enumerate}
+    \item \textbf{Segmentation.} The cable detection tuner produces a binary
+    mask for each image. Two segmenters are available: the classical one,
+    based on a top-hat transform with adjustable parameters, and a trained
+    random forest operating per pixel on nine hand-crafted features. Record
+    which was used for each pair.
+
+    \item \textbf{Endpoint detection.} The mask is skeletonised and pruned,
+    and the two endpoints are taken as the geodesically farthest pair.
+
+    \item \textbf{Path tracing.} Either automatic, a depth-first search over
+    the mask with backtracking and momentum, or hand drawn by the operator
+    clicking along the tether. Record which, per pair: this is what criterion
+    A3.3 counts.
+
+    \item \textbf{Rectification} of both images from the calibration.
+
+    \item \textbf{Matching.} The point at $i\%$ along the left path is paired
+    with the point at $i\%$ along the right path.
+
+    \item \textbf{Triangulation} into a sparse point cloud, written out
+    directly from the disparity and the baseline rather than through
+    OpenCV's triangulation routines.
+
+    \item \textbf{Metrics.} Arc length, straightness, depth range, diameter
+    and curvature.
+
+    \item \textbf{Export} to PLY, XYZ, PCD or OBJ.
+\end{enumerate}
+
+\section{What is computed, and against what}
+
+\begin{table}[htbp]
+\centering
+\caption[Analysis outputs]{What is extracted from each analysed pair and what
+it is compared against.}
+\label{tab:analysis}
+\begin{tabularx}{\textwidth}{@{}l X X@{}}
+\toprule
+\textbf{Quantity} & \textbf{Source} & \textbf{Compared against} \\
+\midrule
+Mask connectivity & stage 1 & criterion A3.1 \\
+Endpoint count & stage 2 & criterion A3.2 \\
+Tracking mode used, and coverage reached & stage 3 & criterion A3.3 \\
+Retained sample fraction & stage 7 & criterion A3.4 \\
+Arc length in metres & stage 7 & tape measure, criterion A3.5 \\
+Straightness & stage 7 & criterion A3.6, on taut pairs only \\
+Depth range & stage 7 & scene geometry record \\
+Reported diameter & stage 7 & measured tether diameter \\
+Curvature & stage 7 & qualitative, sag pairs \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{The retained fraction has to be reported with every length}
+
+\texttt{compute\_wire\_metrics} discards samples whose disparity is
+non-positive or whose depth falls outside 0.05 to 50~m, and it does this
+\emph{before} summing the chord lengths. A tether segment that gets filtered
+out therefore shortens the reported arc length, and nothing in the output
+says so. A length quoted without its retained fraction is not interpretable,
+so the two are always reported together. Criterion A3.4 sets the floor at
+90\%.
+
+\section{The comparison that is expected to fail, and why that is useful}
+
+Capture set S8 deliberately places one endpoint outside the frame of one
+camera. The matching stage assumes both traced paths span the same physical
+extent of the tether, and there is no epipolar check anywhere in the pipeline
+that could detect a violation. The predicted consequence is a systematic
+error in the reconstructed length with no accompanying warning.
+
+The analysis of S8 is therefore: take the arc length reported for the S8
+pairs, compare it against the tape-measured length and against the S1 pairs
+of the same tether, and record the magnitude and the sign of the discrepancy.
+This is the first time the project would have a measured size for an error it
+has only ever reasoned about.
+
+A secondary analysis, if the S8 result is large, is to run the same pairs
+through the epipolar matcher that exists in the codebase but is not reachable
+from the interface. That matcher does not rely on the parametric assumption
+and was kept specifically against this possibility. It has never been
+validated on real data, so a result from it is exploratory, not a
+measurement.
+
+\section{Why dense stereo is not used, and the trap that creates}
+\label{sec:no-dense}
+
+Dense stereo fails on a thin, textureless object because there is nothing
+along the wire to correlate. This has already been demonstrated twice:
+commercial structure-from-motion on the isolated tether returns a zero
+resolution error and produces no camera alignment or sparse cloud at all, the
+stated reason being insufficient visual information within the tether itself
+rather than background interference; and dense stereo inside the laboratory
+enclosure gives correct disparity on a solid target while also producing
+non-physical disparity throughout regions that should be empty background,
+yielding phantom geometry that needs manual intervention to clean
+\cite{linku_d5_camera_report}.
+
+The trap is operational. If the operator does not configure a mask in the
+segmentation tuner, the processing falls back to dense stereo
+\emph{automatically and silently}. It does not raise an error. It produces
+something that looks like a point cloud. Any analysis run after skipping the
+tuner is therefore running the method already known to fail, in a form that
+looks plausible. The analysis log records, for every pair, that a mask was
+present.
+
+\section{Feeding the datasets}
+
+Every pair that is successfully traced, automatically or by hand, is saved
+into the path dataset together with its mask and its verified path. This
+dataset currently holds three stereo samples against a recommended 30 to 100,
+and it is the input to the one model in the plan that does not yet exist: a
+learned per-branch scorer that would replace the fixed hand-tuned weights in
+the tracker's decision at each crossing.
+
+One caution applies to the other dataset. Saving a sample to the mask dataset
+while the random-forest segmenter is active means training the model on its
+own unverified output, which reinforces its errors. The application asks for
+confirmation in that case; the answer during this session is no, unless the
+mask has been inspected and corrected.

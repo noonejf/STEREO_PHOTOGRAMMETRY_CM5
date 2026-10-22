@@ -1,0 +1,77 @@
+\chapter*{Introduction}
+\addcontentsline{toc}{chapter}{Introduction}
+
+The LINKU camera payload measures a thin tether strung between two satellites.
+It returns metric scalars about that tether, its arc length, straightness,
+depth range, diameter and curvature, and a sparse point cloud as a by-product.
+Every stage of the processing chain has been built and exercised, and the
+optical and photometric requirements have been derived from primary sources in
+the companion deliverables. What has not happened is the thing all of it exists
+for: the instrument has never been pointed at a real tether, in the dark, on
+the support it will actually fly on, with the tether and the rig both in
+motion.
+
+That is this experiment. In the project work plan \cite{linku_workplan} it is
+the package \emph{Experimento de caja negra, hilo en movimiento}, inside the
+phase-2 deliverable \emph{Integracion y experimento en la estructura LINKU}. It
+is run in a blacked-out television studio of the PUCP Faculty of
+Communications, referred to throughout this document as \textbf{TV2}, a space
+borrowed for the purpose because it offers what the project needs and does not
+own: a room that can be made genuinely dark, with professional lighting
+fixtures and the rigging to position them.
+
+\section*{Why this document exists}
+
+Three reasons, in order of importance.
+
+\textbf{First, the acceptance criteria have to be written down before the data
+exists.} This is not a point of style. A review of the project's own
+deliverables shows the same gap in three of them independently: the
+rolling-shutter experiment and the Blender validation each carry a pending item
+instructing a future author to define the quantitative agreement threshold
+before running, rather than after seeing the results; the calibration method
+leaves three of its four acceptance criteria numerically unset; and the camera
+system report \cite{linku_d5_camera_report} contains no reconstruction accuracy
+figure at all, reporting its two reconstruction scenarios qualitatively. The
+common root is that no mission accuracy budget for tether reconstruction has
+been written anywhere in the project. This document cannot supply that budget,
+but it can refuse to inherit the habit. Chapter \ref{chap:criteria} registers
+the criteria for this experiment in advance.
+
+\textbf{Second, the parameters are scattered and some of them are
+destructive to get wrong.} The illumination requirements live in one
+deliverable, the optical discipline in another, the calibration preconditions
+in a third, and the angular-rate limits in a fourth. On the day, in a borrowed
+room, with a time slot, nobody is going to open four documents. Chapter
+\ref{chap:parameters} collects all of them in one place, each with its
+derivation and its source, and marks which are physics and which are project
+decisions open to revision.
+
+\textbf{Third, the session has to be replicable in Blender afterwards.} The
+Blender validation deliverable \cite{linku_blender_validation} compares a real
+photograph against a render of the same scene, and it currently cannot proceed
+because the laboratory-condition light values in its scene are placeholders and
+the physical pose of the tether in the chosen reference pair was never written
+down. Chapter \ref{chap:record} defines the record so that this experiment does
+not repeat that omission.
+
+\section*{What this document is not}
+
+It is not a specification of the illumination; that is derived from primary
+sources in the dark-room deliverable \cite{linku_darkroom_illumination} and is
+only summarised here. It is not a calibration procedure; that is specified and
+implemented in the calibration deliverable \cite{linku_calibration_method} and
+is invoked here as a precondition. It is not an analysis of rotation effects
+with a known angular rate; that requires a motorised stage and is a separate
+experiment \cite{linku_rollingshutter}. In TV2 both the tether and the rig are
+moved \emph{by hand}, erratically and without instrumentation of the motion,
+which is a deliberate choice discussed in Section \ref{sec:why-by-hand}.
+
+\section*{Status of this revision}
+
+Chapters \ref{chap:objectives} through \ref{chap:analysis} are complete and do
+not depend on results. Chapter \ref{chap:results} is empty: at the time of
+writing the repository contains no capture from this session, the most recent
+non-simulated stereo pairs dating from February 2026, and the record sheet of
+the pre-session parameter artifact has not been filled in. Chapter
+\ref{chap:results} states precisely what goes in it.

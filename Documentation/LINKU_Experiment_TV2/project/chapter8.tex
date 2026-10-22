@@ -1,0 +1,69 @@
+\chapter{Results}
+\label{chap:results}
+
+\textbf{This chapter is empty. No result exists yet.}
+
+At the time of this revision the repository contains no capture from the TV2
+session. The most recent non-simulated stereo pairs in
+\texttt{data/captures/} date from February 2026, and the most recent
+simulated ones from September 2026. The record sheet of the pre-session
+parameter artifact has not been filled in.
+
+Nothing in this chapter should be written before the session. What follows is
+the structure to fill, so that the writing afterwards is transcription rather
+than reconstruction.
+
+\section{Session record}
+
+Transcribe Table \ref{tab:record} here, completed. Every \emph{not measured}
+entry keeps its reason.
+
+\section{Calibration outcome}
+
+Report against Table \ref{tab:crit-calib}: the accepted view count per tilt
+bin, the relative standard deviations of $f_x$ and $f_y$, the standard
+deviation of each distortion coefficient against its own magnitude, the
+principal point offset, and whether the tool reported the session complete.
+
+Report the reprojection RMS as well, but report it \emph{after} the
+uncertainties and label it as the training residual it is. If A1.2 was not
+met, state the value achieved and carry the implied scale error forward into
+every length quoted in this chapter.
+
+\section{Illumination outcome}
+
+Report against Table \ref{tab:crit-light}, one row per criterion, with the
+measured value and pass or fail. Where a criterion failed, state what was
+tried.
+
+\section{Pipeline outcome}
+
+Report against Table \ref{tab:crit-pipeline}, aggregated across the analysed
+pairs, with the per-set breakdown from Table \ref{tab:capture-plan}. Every
+arc length is reported with its retained sample fraction beside it.
+
+\section{The two anticipated failure modes}
+
+\textbf{Parametric matching, from set S8.} The measured discrepancy against
+the tape-measured length, with its sign, and how it compares to the S1 pairs
+of the same tether.
+
+\textbf{Rolling-shutter shear, from sets S4 and S6.} A qualitative
+description of whether shear was visible at all, and at what point in the
+motion the tracker or the matching visibly stopped working. No angular rate
+is quoted, because none was measured.
+
+\section{Verdict}
+
+State the overall verdict using the definitions at the end of Chapter
+\ref{chap:criteria}: pass, qualified pass, or fail. State it before
+discussing what it means.
+
+\section{What the next session should change}
+
+Written last, from what actually went wrong rather than from what was
+anticipated here.
+
+\todo[inline]{Pending: run the session and complete this chapter. Until it is
+complete, this deliverable is a protocol, not a report, and should not be
+cited as evidence that the instrument has been validated.}

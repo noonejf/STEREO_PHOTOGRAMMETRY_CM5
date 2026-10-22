@@ -1,0 +1,263 @@
+\chapter{Acceptance criteria, registered in advance}
+\label{chap:criteria}
+
+This chapter is written before the session. Its thresholds are fixed here so
+that the result can be judged against a standard that was not chosen with the
+result already in view. Where a threshold is derived from physics, the
+derivation is given. Where it is a project decision, it is labelled as one and
+is open to revision, but only by amending this chapter in a dated revision,
+not silently at analysis time.
+
+\section{Why this chapter is not optional}
+
+A low residual on a degenerate set is not evidence of a good calibration; it
+is evidence that the ambiguity was absorbed somewhere. The project has already
+been caught by exactly this: the best archived session yields a root-mean-square
+reprojection error of 1.50~px, which the existing code classified as merely
+high rather than catastrophic, while the same fit gives
+$f_x = 2651.79 \pm 22.42$~px, a 0.85\% uncertainty, and a distortion
+coefficient $k_3 = 3.129 \pm 3.714$ whose standard deviation exceeds its own
+value \cite{linku_calibration_method}. A number that looks acceptable while
+the parameters behind it are undetermined is the specific failure this chapter
+is designed to prevent repeating at the level of the whole experiment.
+
+\section{A1. Calibration}
+
+\begin{table}[htbp]
+\centering
+\caption[Calibration acceptance criteria]{Acceptance criteria for the
+calibration session that precedes the experiment. All are evaluated by the
+guided tool at the end of the session, before any experimental capture is
+taken.}
+\label{tab:crit-calib}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Id} & \textbf{Criterion} & \textbf{Threshold} \\
+\midrule
+A1.1 & Accepted views covering each of the four tilt bins
+       (0--10\textdegree, 10--30\textdegree, 30--45\textdegree,
+       45--70\textdegree) & $\geq 3$ per bin \\
+A1.2 & Relative standard deviation of $f_x$ and of $f_y$ & $\leq 0.3\%$ \\
+A1.3 & Standard deviation of each distortion coefficient, relative to the
+       magnitude of that coefficient & $< 1$ \\
+A1.4 & Offset of the principal point from the image centre, as a fraction of
+       image width & $\leq 5\%$ \\
+A1.5 & Capture resolution of the calibration frames & $4056 \times 3040$ \\
+A1.6 & Cameras not moved, and focus and aperture rings not touched, between
+       calibration and the last experimental capture & binary \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Derivation of A1.2.} The focal length in pixels sets the scale of
+every reconstructed distance directly: a relative error $\delta$ in $f_x$
+produces a relative error $\delta$ in every depth. At the nominal working
+distance of 3.5~m, holding the scale error from this source below 1~cm
+requires $\delta \leq 0.29\%$, which rounds to the registered 0.3\%. The
+archived best case is 0.85\%, about three times this.
+
+This is the one threshold in the document that may prove unreachable on this
+rig. If it is, the correct response is to record the value achieved and state
+that the scale error is correspondingly larger, not to relax the number
+afterwards. The figure stands as the requirement the measurement has to be
+judged against, whether or not it is met.
+
+\textbf{Derivation of A1.3.} A parameter whose standard deviation exceeds its
+own magnitude is not determined by the data; the fit is free to set it to zero
+without materially changing the residual. This is a binary sanity check, not a
+tuned threshold, and the archived fit fails it on $k_3$.
+
+\textbf{Derivation of A1.4.} A principal point far from the image centre is
+the signature of the $[t_x, t_y]$ against $[c_x, c_y]$ degeneracy, in which a
+board translation and a principal-point shift become indistinguishable. The
+active calibration shows $c_x = 694.8$ on a 1920-pixel-wide image where it
+should sit near 960, an offset of 265~px or 13.8\% of the width. The 5\%
+threshold is a project decision chosen to sit comfortably below the known
+failure and comfortably above the few-percent decentring a real lens
+assembly can legitimately show.
+
+\textbf{On A1.5.} The relation $f_x = f / p$ means a calibration is tied to
+the effective pixel size of the mode it was captured in, and two of the
+IMX477 modes crop as well as bin, so the result cannot simply be rescaled
+\cite{raspberrypi_camera_docs}. Every archived session used
+$1920 \times 1440$, never the full sensor. This criterion exists because the
+single most common way to waste the session is to calibrate in one mode and
+capture in another.
+
+\section{A2. Illumination}
+
+Each requirement is taken from the dark-room specification
+\cite{linku_darkroom_illumination}, where its derivation from primary sources
+is given. Reproduced here as pass or fail conditions with the measurement that
+decides them.
+
+\begin{table}[htbp]
+\centering
+\caption[Illumination acceptance criteria]{Illumination acceptance criteria
+and the measurement that decides each.}
+\label{tab:crit-light}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Id} & \textbf{Criterion and how it is measured} & \textbf{Threshold} \\
+\midrule
+A2.1 & Stray light: with the fixture off, at the longest exposure to be used,
+       no scene structure discernible in either camera & nothing visible \\
+A2.2 & Single direction: one fixture, or several with parallel axes. No fill,
+       no bounce, no ambient & binary \\
+A2.3 & Collimation: width of the penumbra cast by a straight edge held 1~m
+       from a white card at the tether position & $\leq 35$~mm \\
+A2.4 & Uniformity over the working volume, including the depth axis, as
+       $(\max-\min)/(\max+\min)$ on a lux grid & $\leq 5\%$ \\
+A2.5 & Illuminance at the tether position & $\geq 2320$~lx \\
+A2.6 & Short-term stability over the session & $\leq 2\%$ \\
+A2.7 & Flicker: white card imaged at the shortest exposure in use, each
+       camera & no banding \\
+A2.8 & Colour temperature & 5600--6000~K \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{On A2.3.} The real Sun subtends 0.533\textdegree{} and would cast a
+9.3~mm penumbra at 1~m \cite{prsa2016iau}. The registered 35~mm corresponds to
+a source of about 2\textdegree, set just outside the 1.9\textdegree{} of the
+ESA Large Space Simulator \cite{esa_lss}. The virtue of this test is that it
+needs a ruler rather than an optical bench.
+
+\textbf{On A2.4.} This is the class B uniformity of IEC 60904-9, using that
+standard's own definition \cite{iec60904_9_2020}. The depth axis is the one
+that fails first and the one most often omitted from a uniformity check. The
+procedure in Chapter \ref{chap:procedure} loops back on failure of this
+criterion specifically, because moving a fixture to fix uniformity changes
+the illuminance while dimming it does not change the uniformity.
+
+\textbf{On A2.5.} Derived from the Sony IMX477 datasheet
+\cite{sony_imx477_datasheet} for the fitted 8~mm f/1.6 configuration at the
+1\textdegree/s reference rate, as the illuminance at which a white surface
+reaches saturation within the maximum exposure that rate allows. It is a
+floor, not a target: four stated assumptions in the derivation all push the
+real requirement upward, and a tether darker than a white card needs more.
+
+\textbf{On A2.7.} A mains-connected fixture modulates at twice the line
+frequency, giving a 10~ms cycle at 50~Hz, the same order as the exposures in
+use, and a rolling shutter turns that into banding
+\cite{sheinin2018rollingac}. Note that a global-shutter sensor is not immune:
+it converts the banding into frame-to-frame brightness variation, which is
+equally destructive for a stereo pair that has to be radiometrically
+consistent. Tuning the exposure to an exact multiple of the flicker period is
+not available as a remedy, because the exposure is not free. The fixture
+itself must not flicker.
+
+\section{A3. Pipeline}
+
+These are evaluated after the session, on the captures, by running the
+application unmodified.
+
+\begin{table}[htbp]
+\centering
+\caption[Pipeline acceptance criteria]{Pipeline acceptance criteria. Unless
+stated otherwise each is evaluated on every stereo pair selected for analysis,
+and the criterion is met if the stated fraction of pairs passes.}
+\label{tab:crit-pipeline}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Id} & \textbf{Criterion} & \textbf{Threshold} \\
+\midrule
+A3.1 & Segmentation yields a tether mask that is a single connected component
+       in both images & $\geq 80\%$ of pairs \\
+A3.2 & Endpoint detection returns exactly two endpoints in both images &
+       $\geq 80\%$ of pairs \\
+A3.3 & Automatic tracking reaches the far endpoint without operator
+       intervention & $\geq 50\%$ of pairs \\
+A3.4 & Fraction of path samples surviving the disparity and depth filters of
+       \texttt{compute\_wire\_metrics} & $\geq 90\%$ per pair \\
+A3.5 & Reconstructed arc length against the tape-measured tether length, on
+       pairs where the whole tether is in frame in both cameras &
+       within $\pm 10\%$ \\
+A3.6 & Straightness, on a pair where the tether was deliberately held taut &
+       $\geq 0.97$ \\
+A3.7 & At least one complete run producing an exported point cloud and a full
+       set of metric scalars & $\geq 1$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{On A3.3.} The 50\% threshold is deliberately lower than the others.
+Automatic tracking is the stage most exposed to crossings and to breaks in the
+mask, and the application offers a hand-drawn path as a first-class
+alternative precisely because the automatic route is not expected to be
+universally reliable yet. A result below 50\% is informative rather than
+disqualifying: it is the measurement that would justify building the learned
+branch scorer.
+
+\textbf{On A3.4.} \texttt{compute\_wire\_metrics} discards points with
+non-positive disparity or with $Z$ outside 0.05 to 50~m \emph{before}
+computing arc length, so a mid-tether segment that gets filtered makes the
+reported total length too short with no warning anywhere in the output. The
+retained fraction therefore has to be recorded alongside the length, or the
+length cannot be interpreted. This criterion exists to force that.
+
+\textbf{On A3.5.} This is the only criterion in the document that compares
+against an external measurement. The tether length is measured with a tape
+before the session and recorded in Chapter \ref{chap:record}. The
+$\pm 10\%$ tolerance is a project decision and is loose on purpose for a first
+run: it has to accommodate the focal scale error permitted by A1.2, the
+systematic error of the parametric matching assumption, and the under-reporting
+caused by A3.4, none of which has ever been measured together on hardware. It
+is set to detect a gross failure, not to certify an accuracy. Tightening it is
+the job of the next revision, once there is a measured distribution to tighten
+it against.
+
+\textbf{On A3.6.} Straightness is reported by the pipeline as the ratio of
+the endpoint chord to the traced arc length, so a taut tether should return a
+value just below 1. The 0.97 threshold allows roughly 3\% of path wander from
+sag, mask noise and tracking jitter combined.
+
+\section{A4. Record}
+
+\begin{table}[htbp]
+\centering
+\caption[Record acceptance criteria]{Completeness criteria for the session
+record. These decide whether the experiment can be replicated and rendered,
+not whether it succeeded.}
+\label{tab:crit-record}
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{Id} & \textbf{Criterion} \\
+\midrule
+A4.1 & Every field of the record sheet in Chapter \ref{chap:record} filled, or
+       explicitly marked not measured with the reason \\
+A4.2 & Tether physical pose recorded: approach angle, distance to the camera
+       baseline, and attachment points \\
+A4.3 & Fixture make, model, modifier, count and ballast or driver mode
+       recorded \\
+A4.4 & Ring marks checked and photographed at the end of the session, and the
+       result recorded \\
+A4.5 & Calibration session and all experimental captures committed to the
+       repository, with their per-pair metadata \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{On A4.4.} The experiment moves the rig by hand. Moving the focus ring
+changes the focal length, and $f_x$ is the focal length in pixels, so 1\% of
+drift is 1\% of scale error on every reconstructed distance. It is a
+systematic bias and averaging more frames does not remove it. If the marks
+have moved by the end of the session, the data is in doubt and A3.5 cannot be
+interpreted; this is the reason the check is a criterion and not a note.
+
+\textbf{On A4.5.} The Blender validation deliverable records that for its
+chosen reference pair the capture session and exported point cloud were never
+pushed to the repository, leaving only screenshots
+\cite{linku_blender_validation}. This criterion exists so that it does not
+happen twice.
+
+\section{Overall verdict}
+
+The experiment is reported as a \textbf{pass} if A1, A2 and A4 are met in full
+and A3 is met except for A3.3 and A3.5. It is reported as a \textbf{qualified
+pass} if A1 and A4 are met, A2 fails on no more than one of A2.3, A2.4 or
+A2.8, and A3.7 is met: in that case the captures are usable for geometry but
+not as the photometric reference for the Blender comparison. It is reported as
+a \textbf{fail} if A1 is not met, because then no quantity in metres means
+anything, or if A3.7 is not met, because then the pipeline did not complete
+even once.

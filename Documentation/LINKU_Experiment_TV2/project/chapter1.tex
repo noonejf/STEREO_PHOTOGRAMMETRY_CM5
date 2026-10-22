@@ -1,0 +1,97 @@
+\chapter{Objectives}
+\label{chap:objectives}
+
+The experiment has four objectives. They are listed in the order in which a
+failure of one invalidates the ones below it, which is also the order in which
+the session is run.
+
+\section{O1. Establish a valid calibration on the integrated support}
+
+The stereo geometry that every reconstructed number depends on has to be
+measured on the support that will carry the cameras during the experiment, not
+on any other mount. The archived calibration is unusable and the project knows
+why: measured over 424 archived frames the median board tilt is
+4.4\textdegree, only 39\% of frames exceed 5\textdegree, and not one frame in
+the entire archive reaches 45\textdegree, which leaves the focal length
+mathematically unrecoverable \cite{linku_calibration_method}. The guided tool
+built in response refuses to report a session complete until the accepted
+views cover four tilt bins.
+
+This objective is a precondition, not a result. If it fails, objectives O2 to
+O4 still produce images, but every metric derived from them is scaled by an
+unknown factor and no distance in metres can be quoted.
+
+\section{O2. Confirm the illumination reproduces the orbital condition}
+
+One direction of light, no fill, no bounce, a parallel enough beam, and enough
+of it. The requirements and their derivation are in the dark-room deliverable
+\cite{linku_darkroom_illumination}; the measurement of whether the TV2 fixtures
+actually meet them has never been made, because the room has never been
+occupied. The enclosure used until now contains one unspecified bulb whose
+irradiance, spectrum and beam behaviour have never been measured.
+
+\section{O3. Run the full pipeline end to end on a real moving tether}
+
+Segment, find the endpoints, trace the path in both images, rectify, match,
+triangulate, and compute the metric scalars. Every stage has been exercised on
+archived or simulated data. None has been exercised on a tether that was
+moving, in a dark room, with the rig also moving.
+
+Two specific failure modes are being looked for, both of which the project has
+predicted but never observed in hardware:
+
+\begin{itemize}
+    \item \textbf{The parametric matching assumption.} Stage 5 pairs the point
+    at $i\%$ along the left path with the point at $i\%$ along the right path.
+    This holds only if both traced paths start and end at the same physical
+    points on the tether and traverse it at the same rate. When an endpoint is
+    occluded, or a path leaves the frame, the error is systematic and silent:
+    there is no epipolar check to catch it. A hand-moved tether is the first
+    situation in which an endpoint can plausibly leave the frame mid-sequence.
+
+    \item \textbf{Rolling-shutter shear.} At the software's current 15 frame/s
+    configuration the 3-pixel shear limit corresponds to roughly
+    1.05\textdegree/s \cite{linku_rollingshutter}. Hand motion will exceed
+    that. The experiment does not measure the rate, so it cannot quantify the
+    shear; what it can establish is whether the tracker and the matching
+    survive it at all, and at what point they visibly stop doing so.
+\end{itemize}
+
+\section{O4. Record the scene well enough to rebuild it in Blender}
+
+The Blender validation deliverable compares a real photograph against a render
+of the same scene, and it is currently blocked on two things this session can
+supply: measured laboratory-condition light values, which stand in the scene as
+placeholders, and the physical pose of the tether, which for the existing
+reference pair was never written down
+\cite{linku_blender_validation}. Chapter \ref{chap:record} is written to close
+both.
+
+\section{What this experiment deliberately does not do}
+\label{sec:why-by-hand}
+
+\textbf{It does not measure angular rate.} There is no servo, no motor and no
+rotation stage. Both the tether and the camera rig are moved by hand,
+erratically. A quantitative rolling-shutter characterisation needs a commanded
+or encoded rate, and that is a separate experiment scheduled in a later phase
+\cite{linku_rollingshutter}. Running it here with uninstrumented motion would
+produce numbers that look quantitative and are not, which is worse than
+producing none.
+
+The choice of hand motion is not merely a concession to the absence of a rig.
+The deployment it stands in for is itself not a smooth commanded rotation, and
+the question this experiment asks is the coarser one that has to be answered
+first: does the pipeline survive uncontrolled motion, or does it fail, and
+where.
+
+\textbf{It does not attempt a reconstruction accuracy figure against ground
+truth.} No independently measured tether geometry is available at the scale
+and in the pose used. What can be checked is internal consistency and physical
+plausibility, which is what Chapter \ref{chap:criteria} registers.
+
+\textbf{It does not use the flight sensor.} The IMX708 B0308 is the decided
+flight sensor but has not been purchased, with procurement expected the
+following year. This experiment uses the IMX477 pair that exists. Every
+optical figure quoted in this document is therefore computed for the IMX477
+with its 1.55~\textmu m pixel and the fitted 8~mm lens, and does not transfer
+to the B0308.

@@ -220,9 +220,12 @@ found useful while the outline sat untouched on screen.
 
 Accepted poses trigger a full-resolution still pair; the preview is only ever
 used for guidance. The session refuses to report itself complete until the
-accepted views cover four tilt bins (0-10°, 15-30°, 30-45°, 45-70°) with at
+accepted views cover four tilt bins (0-10°, 10-30°, 30-45°, 45-70°) with at
 least 3 each, and `Finish with the views collected` is the deliberate way out
-when a pose cannot be reached.
+when a pose cannot be reached. **The bins must stay contiguous.** They were
+(0-10, 15-30, ...) and a board at 12° fell in no bin at all, so the session
+rejected it saying the tilt was outside the useful range, which it is not. A
+hand-held board sweeps through every angle, so a gap discards good views.
 
 The legacy countdown flow is still present behind `Legacy flow (countdown)`.
 
@@ -311,6 +314,17 @@ LaTeX deliverables under `Documentation/`, compiled with the repo-root script:
 Cited sources go in each deliverable's `Sources/` folder and into its
 `bibs/sample.bib`. Papers still being read live in
 `Documentation/Investigacion/`.
+
+**`LINKU_Project_APSCO_Deliverable_D5_Report__submitted___v2_` was submitted to
+APSCO and is not edited.** The one worked on is the near-identical
+`LINKU_Project_SubDeliverable_D5_CameraSystem_Report__v2_`. Check for
+`submitted` in the folder name before touching anything under `Documentation/`.
+
+`LINKU_Experiment_TV2` is the operating record of the dark-studio experiment
+(TV2 is a studio of the PUCP Faculty of Communications). Its chapter 2
+registers the acceptance criteria **in advance**; they are not to be
+re-derived at analysis time, and amending them means a dated revision of that
+chapter. Its results chapter is deliberately empty until the session is run.
 
 Two markdown documents sit beside the LaTeX ones:
 

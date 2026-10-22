@@ -1,0 +1,190 @@
+\chapter{Session procedure}
+\label{chap:procedure}
+
+\section{Why the order matters}
+
+The sequence below is not a checklist that can be reordered for convenience.
+The geometric settings are fixed before the photometric ones for a specific
+reason: \textbf{moving a fixture to correct uniformity changes the
+illuminance, while dimming it does not change the uniformity}. Settle
+position and aim first, then level. Doing it the other way round means
+measuring the light twice.
+
+The same logic places calibration after the optics are locked and before any
+experimental capture, and places the stray-light check before everything,
+because a room that is not actually dark invalidates every photometric number
+measured in it.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  node distance = 6mm and 10mm,
+  box/.style  = {draw, rounded corners=2pt, align=center, inner sep=4pt,
+                 font=\small, minimum height=8mm, text width=30mm},
+  gate/.style = {draw, align=center, inner sep=4pt, font=\small\itshape,
+                 minimum height=8mm, text width=30mm},
+  ar/.style   = {-{Stealth[length=2mm]}}
+]
+\node[box] (s1) {1. Darken \\ and check};
+\node[box, below=of s1] (s2) {2. Warm up};
+\node[box, below=of s2] (s3) {3. Place and aim \\ (geometry)};
+\node[gate, below=of s3] (s4) {4. Uniformity \\ grid};
+\node[box, below=of s4] (s5) {5. Level and \\ record lux};
+\node[box, right=22mm of s1] (s6) {6. Set and lock \\ the optics};
+\node[box, below=of s6] (s7) {7. Flicker test};
+\node[box, below=of s7] (s8) {8. Calibrate on \\ the support};
+\node[box, below=of s8] (s9) {9. Run the \\ experiment};
+\node[box, below=of s9] (s10) {10. Check marks, \\ complete record};
+
+\draw[ar] (s1) -- (s2);
+\draw[ar] (s2) -- (s3);
+\draw[ar] (s3) -- (s4);
+\draw[ar] (s4) -- (s5);
+\draw[ar] (s5.east) -- ++(6mm,0) |- (s6.west);
+\draw[ar] (s6) -- (s7);
+\draw[ar] (s7) -- (s8);
+\draw[ar] (s8) -- (s9);
+\draw[ar] (s9) -- (s10);
+
+\draw[ar] (s4.west) -- ++(-8mm,0) |- node[pos=0.25, left, font=\scriptsize,
+          align=right] {fails \\ A2.4} (s3.west);
+\end{tikzpicture}
+\caption[Session procedure]{The session procedure. The only loop is the
+uniformity check returning to fixture placement, because correcting
+uniformity means moving a fixture, which changes the illuminance and
+invalidates any level already measured.}
+\label{fig:procedure}
+\end{figure}
+
+\section{The ten steps}
+
+\begin{enumerate}
+    \item \textbf{Darken the room.} Close, cover, and rig the black
+    background. Verify with a frame from each camera at the longest exposure
+    that will be used, with the fixture off. Nothing recognisable may appear.
+    Anything visible is stray light and must be eliminated before continuing.
+    This is criterion A2.1.
+
+    \item \textbf{Warm up the fixture} for the manufacturer's stated time
+    before measuring anything. For HMI this is several minutes. If a
+    spectroradiometer is used, EBU recommends at least 30 minutes for the
+    instrument itself \cite{ebu_tech3355}.
+
+    \item \textbf{Place and aim.} Position the fixture at the greatest throw
+    the room allows and set its aim. Run the penumbra test of Section
+    \ref{sec:penumbra} and record the width. This is criterion A2.3.
+
+    \item \textbf{Map the uniformity.} Take a lux grid across width, height
+    and depth of the working volume. If criterion A2.4 fails, move the
+    fixture and return to step 3. Do not attempt to fix uniformity by
+    dimming.
+
+    \item \textbf{Record the level.} Illuminance at the tether position,
+    against criterion A2.5. Also record the grid minimum and maximum from
+    step 4 and the measured colour temperature.
+
+    \item \textbf{Set and lock the optics.} Aperture wide open, focus set by
+    eye on the live full-resolution image with the tether in place, then both
+    rings tightened and marked. Photograph the marks.
+
+    \item \textbf{Flicker test.} White card, shortest exposure in use, one
+    frame from each camera. Look for banding. This is criterion A2.7. If it
+    fails, the fixture or its ballast mode has to change, and steps 3 to 5
+    are repeated for the replacement.
+
+    \item \textbf{Calibrate} on the integrated support, in place, following
+    Section \ref{sec:calib-run}.
+
+    \item \textbf{Run the experiment} following Section \ref{sec:capture-plan},
+    touching nothing on the optics.
+
+    \item \textbf{Close out.} Check the ring marks against the photographs
+    from step 6 and record whether they moved. Complete every field of the
+    record sheet. Copy the captures off the device.
+\end{enumerate}
+
+\section{Running the calibration}
+\label{sec:calib-run}
+
+The application's guided flow does the bookkeeping. The operator's job is
+physical.
+
+The tool asks for one pose at a time and draws its outline in both camera
+previews. A frame is captured only when it is sharp over the board region,
+momentarily still, visible to \emph{both} cameras, and on the pose currently
+being asked for. A rejected frame does not consume a slot, so a request for
+25 views yields 25 that passed every gate.
+
+Three practical points for the operator:
+
+\begin{itemize}
+    \item \textbf{Stand back and hold the board yourself.} The flow is built
+    for a single person holding the board at a distance and matching the
+    drawn outline. The preview is sized so it remains readable from across
+    the room.
+
+    \item \textbf{The strongly tilted poses are the point.} The bins at 30 to
+    45\textdegree{} and 45 to 70\textdegree{} are the ones no archived session
+    ever reached, and they are the ones that make the focal length
+    recoverable. If a pose cannot be physically reached, use \emph{Finish with
+    the views collected}; that is the deliberate way out, and the session
+    reports itself as incomplete rather than pretending otherwise.
+
+    \item \textbf{Watch the uncertainty, not the residual.} The progress
+    indicator is driven by parameter uncertainty from the fit covariance, not
+    by a frame count and not by the reprojection error. A session is finished
+    when the uncertainty stops falling, not when a number of frames has been
+    reached.
+\end{itemize}
+
+At the end, evaluate Table \ref{tab:crit-calib}. If A1 fails, the experiment
+can still be run, but Chapter \ref{chap:analysis} will report lengths in
+pixels and ratios rather than in metres, and criterion A3.5 is void.
+
+\section{The capture plan}
+\label{sec:capture-plan}
+
+Both the tether and the rig are moved by hand. The plan is organised so that
+the simplest configurations are captured first, while everything is known to
+be working, and the hardest last.
+
+\begin{table}[htbp]
+\centering
+\caption[Capture plan]{Capture sequence. Each configuration is captured as
+several stereo pairs, so that a failure in any one pair does not cost the
+configuration. Counts are a minimum.}
+\label{tab:capture-plan}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Set} & \textbf{Configuration} & \textbf{Pairs} \\
+\midrule
+S1 & Tether taut and static, whole length in frame in both cameras. The
+     reference set for A3.5 and A3.6 & $\geq 5$ \\
+S2 & Tether with deliberate sag, static & $\geq 3$ \\
+S3 & Tether static, camera rig moved slowly by hand & $\geq 5$ \\
+S4 & Tether static, camera rig moved erratically & $\geq 5$ \\
+S5 & Tether in motion, rig static & $\geq 5$ \\
+S6 & Both in motion, erratic. The nominal case & $\geq 10$ \\
+S7 & Tether arranged with a deliberate self-crossing, static & $\geq 3$ \\
+S8 & One endpoint deliberately out of frame in one camera only &
+     $\geq 3$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{S1 is the measurement set.} It is the only one where an external
+reference exists, because the tether is taut and its length has been
+tape-measured. Everything else is an exercise of robustness.
+
+\textbf{S7 exists to characterise the tracker, not to pass.} A self-crossing
+is where the automatic tracker has to choose a branch using a hand-tuned
+scoring formula, and it is the case the project expects to be weakest.
+Capturing it deliberately turns an anticipated weakness into a measurement,
+and the pairs feed the path dataset whether the tracker succeeds or not.
+
+\textbf{S8 exists to provoke a silent failure.} The parametric matching
+assumption breaks when the two traced paths do not cover the same physical
+extent, and nothing in the pipeline detects it. Deliberately occluding one
+endpoint in one camera creates that condition on purpose, so that the size
+and the sign of the resulting error can be seen for the first time against
+the tape-measured length from S1.

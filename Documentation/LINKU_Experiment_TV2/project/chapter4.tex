@@ -1,0 +1,171 @@
+\chapter{Parameters to set and lock}
+\label{chap:parameters}
+
+Chapter \ref{chap:criteria} says what will be judged. This chapter says what
+has to be set, in what order, and why each setting is what it is. The numeric
+thresholds are not repeated here; they are in Tables \ref{tab:crit-calib} to
+\ref{tab:crit-record}.
+
+Each entry is marked \textbf{Physics} if the Sun or the sensor fixes it and
+the project cannot negotiate, or \textbf{Decision} if it is a project choice
+that could be revised with an argument.
+
+\section{Illumination}
+
+\subsection*{L1. One direction of light. \textnormal{Physics}}
+
+In orbit the tether is lit by a single distant source and there is no
+atmosphere to fill the shadows: the lit side is at full sun and the shadowed
+side is nearly black. Several fixtures are permitted only if their axes are
+parallel. Converging beams are forbidden, and this is the most important
+prohibition in the chapter: two converging sources put two shadows and two
+specular highlight lines on a target that is one or two pixels wide, which
+presents the matching stage with a doubled thread, a failure mode it is not
+designed to handle. Also forbidden are mixing fixture types or colour
+temperatures along a row, and placing a fixture at one end shining along the
+tether, which combines grazing incidence with inverse-square falloff along
+its length.
+
+\subsection*{L2. Daylight colour. \textnormal{Decision}}
+
+Every space vision laboratory in the reviewed set that declares a colour
+temperature falls in the daylight range, and the DLR EPOS sun simulator is a
+6000~K HMI with CRI 90 \cite{dlr2025eposportfolio, benninghoff2017epos}. The
+Sun's effective temperature is 5772~K \cite{prsa2016iau}. This rules out
+3200~K tungsten without further discussion. TLCI is requested as a datum
+because CRI was not designed for cameras \cite{ebu_tech3355}, but no TLCI
+threshold is set, because no reviewed source gives one.
+
+\subsection*{L3. Parallel beam. \textnormal{Decision, anchored to physics}}
+
+Verified with the penumbra test of Section \ref{sec:penumbra}. There is a
+second, independent reason for collimation beyond matching the Sun's shadow
+behaviour: without it, the inverse-square falloff makes the uniformity
+requirement L4 unachievable at any distance that fits in the room. A point
+source would need a throw of roughly twenty times the object depth to reach
+class B uniformity, which is about 10~m for a 0.5~m deep structure and 20~m
+for a 1~m one. Few rooms offer that.
+
+\subsection*{L4. Uniformity across the working volume, depth included.
+\textnormal{Decision, from IEC class B}}
+
+Measured on a lux grid that spans width, height and depth. The depth axis
+fails first and is the one most often left out.
+
+\subsection*{L5. Enough light at the tether. \textnormal{Physics, from the
+datasheet}}
+
+Derived in the dark-room deliverable from the IMX477 datasheet. It is a
+floor. Four assumptions enter the derivation, all of which push the true
+requirement upward: the datasheet's 3200~K test spectrum differs from the
+5600 to 6000~K in use; the treatment of sensor gain; an on-axis transmittance
+of unity, ignoring vignetting; and a white card of reflectance 0.9 filling
+many pixels, where the real tether is darker and narrower.
+
+\subsection*{L6. No flicker. \textnormal{Physics}}
+
+For an HMI, use an electronic ballast in its high-frequency mode, near
+1000~Hz. Note specifically that the ARRI EB 12/18 manual states its
+``50/60~Hz, low noise'' mode is \emph{not} flicker free despite the ballast
+being an electronic one, and that its 75~Hz ``flicker free'' mode is also
+unsuitable here because the resulting period exceeds the exposure ceiling set
+by the rotation rate \cite{arri_eb1218_manual}. Magnetic ballasts are
+excluded. For an LED fixture, request the dimming method and the PWM
+frequency from the supplier; no reviewed source gives a safe value, so the
+fixture is accepted only after the on-site test A2.7.
+
+\subsection*{L7. Black surroundings, fixture out of frame.
+\textnormal{Decision}}
+
+Black velvet or molton, no light falling on walls. This is how DLR and
+Stanford build their testbeds \cite{benninghoff2017epos, park2021tron}, and
+black velvet was the best background measured with the same Raspberry Pi HQ
+camera this project uses \cite{pauly2022spacelab}. A fixture inside the frame
+produces flare; Stanford report exactly that when the camera points near their
+sun lamp. IEC 60904-9 separately warns that wall reflections invalidate a
+measured uniformity classification \cite{iec60904_9_2020}.
+
+\section{The penumbra test}
+\label{sec:penumbra}
+
+Hold a straight edge 1~m in front of a white card placed at the tether
+position, and measure the width of the diffuse band with a ruler. The geometry
+is
+\begin{equation}
+w = L \tan \alpha ,
+\label{eq:penumbra}
+\end{equation}
+where $L$ is the edge-to-card distance and $\alpha$ the angular size of the
+source as seen from the edge. The measured width therefore gives the angular
+size directly. The Sun would give 9.3~mm at $L = 1$~m; the registered limit of
+35~mm corresponds to about 2\textdegree; an uncollimated lamp typically gives
+87~mm or more. The value of this test is that it converts an optical property
+into a ruler reading.
+
+\section{Optics}
+
+\subsection*{O1. Aperture wide open at f/1.6. \textnormal{Decision, with
+calculation}}
+
+Two independent arguments point the same way. Stopping down costs light as
+the square of the f-number: going to f/2.8 triples the illuminance
+requirement, from 2320 to about 7100~lx. And diffraction is already
+significant wide open, with the Airy disc at 2.15~\textmu m or 1.39~px at
+f/1.6, rising to 2.42~px at f/2.8 and 4.85~px at f/5.6, against a tether that
+projects to 1.47~px. There is no aperture at which closing down helps.
+
+\subsection*{O2. Focus at the real tether distance, set by eye.
+\textnormal{Physics}}
+
+Set while looking at the live image at full resolution, with the tether in
+place. See Chapter \ref{chap:setup} for why the barrel scale cannot be used.
+
+\subsection*{O3. Lock and mark both rings. \textnormal{Critical}}
+
+Tighten the grub screws and mark the ring positions with a pen or tape.
+Moving focus changes the focal length, and $f_x$ is the focal length in
+pixels, so 1\% of drift is 1\% of scale error on every reconstructed distance,
+or 10~mm per metre. It is a systematic bias and averaging does not remove it.
+This experiment moves the rig by hand, so a loose ring will move. The marks
+are checked at the end of the session, which is criterion A4.4.
+
+\section{Calibration}
+
+\subsection*{C1. Same resolution and same sensor mode as the experiment.
+\textnormal{Physics}}
+
+Capture the calibration frames at $4056 \times 3040$ with an explicit
+\texttt{-{}-mode}. Without that argument libcamera may silently pick a mode
+and then scale or crop, which makes the transfer untrustworthy
+\cite{raspberrypi_camera_docs}.
+
+\subsection*{C2. Calibrate on the integrated support. \textnormal{Physics}}
+
+The stereo extrinsics describe the rigid transform between two specific
+cameras in specific positions. Calibrating on one mount and then moving the
+cameras to another invalidates them. The support is already built; the
+calibration session happens on it, in the room, with the structure in place.
+
+\subsection*{C3. Fill all four tilt bins. \textnormal{Physics}}
+
+This is the correction for the diagnosed cause of the 23 previous failures.
+With the board nearly parallel to the sensor in every view, a longer focal
+length at a greater distance produces an identical image and the focal length
+is simply not recoverable, however many frames are taken
+\cite{zhang2000flexible, linku_calibration_method}. The guided tool asks for a
+specific pose, draws its outline in both previews, and only accepts a frame
+that is on that pose, so filling the bins is the tool's job rather than the
+operator's; what the operator has to do is physically reach the poses it asks
+for, including the strongly tilted ones.
+
+\subsection*{C4. Do not touch the optics afterwards. \textnormal{Critical}}
+
+See O3. Calibration and experiment are one continuous optical configuration.
+
+\section{Camera settings during the checks and the run}
+
+Base gain, fixed white balance, manual exposure at the ceiling given in Table
+\ref{tab:optics-at-work}. Automatic exposure and automatic white balance are
+both disabled: an auto-exposure loop will chase the moving tether and change
+the radiometry from frame to frame, which breaks both the flicker test and the
+stereo consistency the matching depends on.

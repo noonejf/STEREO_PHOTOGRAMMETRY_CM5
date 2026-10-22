@@ -1,0 +1,125 @@
+\chapter{Facility and instrument}
+\label{chap:setup}
+
+\section{The venue}
+
+TV2 is a television studio of the PUCP Faculty of Communications, borrowed for
+the session through internal services. The project does not own a space that
+can be made dark at this scale, and the studio offers three things the
+experiment needs and the laboratory enclosure does not: a room that can be
+blacked out completely, professional lighting fixtures with the rigging to
+position and aim them, and enough floor depth to place a fixture far from the
+subject, which is what the collimation requirement A2.3 ultimately demands.
+
+A studio also brings two hazards that the acceptance criteria are written to
+catch. Studio lighting is designed for an aesthetic result, so fill light,
+bounce and multiple sources are the norm and have to be deliberately
+suppressed, which is criterion A2.2. And studio fixtures are frequently
+dimmed, often by a method whose modulation frequency is unknown, which is
+criterion A2.7.
+
+\section{The instrument, as built}
+
+\begin{table}[htbp]
+\centering
+\caption[Instrument configuration]{The camera payload as assembled for this
+experiment. The integrated support was completed and verified working on 13
+October 2026; it is the geometry the calibration must be performed on.}
+\label{tab:instrument}
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{Item} & \textbf{Configuration} \\
+\midrule
+Compute & Raspberry Pi Compute Module 5, Cortex-A76 at 2.4~GHz, 16~GB \\
+Sensors & Two Arducam HQ 477 modules, Sony IMX477, 12.3~MP
+          \cite{sony_imx477_datasheet} \\
+Lenses & Arducam C1508ZM04, 8~mm, f/1.6 to f/16, C-mount
+         \cite{arducam_c1508zm04} \\
+Baseline & 100~mm, fixed by the integrated support \\
+Capture & $4056 \times 3040$, 12-bit sensor mode, explicit
+          \texttt{-{}-mode} argument \\
+Preview & $1920 \times 1440$, used for guidance only, never for measurement \\
+Frame rate & 15~frame/s in the current software configuration \\
+Synchronisation & Sequential software triggering, with the inter-camera delay
+                  recorded per pair \\
+Calibration target & ChArUco $5 \times 7$, 37~mm squares, 29.6~mm markers,
+                     \texttt{DICT\_6X6\_250} \cite{garrido2014aruco} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{On the calibration target.} It is a ChArUco pattern printed on paper
+and mounted on a rigid folder. Two properties of a target matter and neither
+is usually verified: flatness and detectability. Detectability is the reason
+for ChArUco rather than a plain chessboard, since a self-identifying target
+labels every corner individually and tolerates partial views, which is what
+makes interactive guidance possible \cite{rojtberg2018pose}. Flatness has
+never been measured for this board, and a paper sheet on a folder is the
+weaker of the two properties. It is recorded here as a known limitation
+rather than as a controlled parameter.
+
+\textbf{On synchronisation.} Hardware triggering is not exposed through the
+standard development configuration, so the two cameras are triggered
+sequentially in software. The camera system report asserts this is adequate
+for target motion below roughly 5~cm/s \cite{linku_d5_camera_report}; that
+bound is an assumption rather than a measured synchronisation error. Hand
+motion will exceed it. The inter-camera delay is recorded per pair, and pairs
+whose delay is large are candidates for exclusion from A3.5. For reference,
+the February 2026 reference pair records a 10.4~ms delay.
+
+\section{The subject}
+
+A physical tether proxy, nominally 1~mm in diameter, strung across the LINKU
+structure. The structure itself is built by another member of the team and is
+outside the scope of this document; what matters here is that the tether is
+attached to it at two points whose positions are recorded, and that the
+camera support is mounted on it.
+
+The 1~mm figure is the physical proxy actually used in the laboratory. It
+should not be confused with the 0.8~mm figure that appears in the camera
+system report, which is explicitly described there as a conservative
+assumption adopted for the analytical detectability estimate and is not a
+measurement of anything \cite{linku_d5_camera_report}.
+
+\section{Working distance and what the optics do at it}
+
+The nominal working distance is 3.5~m, taken from the Blender replica of the
+structure. At that distance, with the fitted 8~mm lens on the IMX477, the
+tool \cite{linku_dof_visualizer} gives the figures in Table
+\ref{tab:optics-at-work}.
+
+\begin{table}[htbp]
+\centering
+\caption[Optical behaviour at the working distance]{Optical behaviour of the
+fitted configuration at the nominal 3.5~m working distance, computed for the
+IMX477 with a 1.55~\textmu m pixel and a one-pixel circle of confusion. These
+figures do not transfer to the IMX708 B0308 flight sensor, which has a
+different pixel pitch and a different focal length.}
+\label{tab:optics-at-work}
+\begin{tabularx}{\textwidth}{@{}X l l@{}}
+\toprule
+\textbf{Quantity} & \textbf{Value} & \textbf{Note} \\
+\midrule
+Projected width of a 1~mm tether at 3.5~m & 1.47~px & marginally resolved \\
+Depth of field focused at 3.5~m, f/1.6 & 3.08 to 4.05~m & 0.96~m total \\
+Hyperfocal distance at f/1.6 & 25.8~m & \\
+Depth of field focused at 21~m & 11.58 to 112.6~m & tether at 3.5~m is blurred \\
+Airy disc diameter at f/1.6 & 2.15~\textmu m & 1.39~px \\
+Maximum exposure at the 1\textdegree/s reference rate & 11.1~ms & 1~px blur budget \\
+Minimum illuminance to saturate a white card in that exposure & 2320~lx & criterion A2.5 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Two consequences drive the procedure in Chapter \ref{chap:procedure}.
+
+\textbf{The depth of field is under a metre.} Focusing for a far subject does
+not merely reduce sharpness at 3.5~m, it moves the near limit of the sharp
+zone out to 11.6~m and leaves the tether entirely outside it. The focus has to
+be set by looking at a live image at full resolution, at the real distance,
+and then locked.
+
+\textbf{The focus ring carries no usable scale.} Its full travel moves the
+lens by 0.45~mm, and the last 0.003~mm of that, 0.7\% of the rotation, covers
+everything from 21~m to infinity. Setting focus by reading a number off the
+barrel is not a viable method on this lens.

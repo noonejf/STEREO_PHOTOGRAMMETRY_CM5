@@ -1,0 +1,126 @@
+\chapter{What gets recorded}
+\label{chap:record}
+
+The session produces two things: image files, which the software names and
+stores by itself, and written observations, which nothing records unless a
+person writes them down. This chapter specifies the second, because it is the
+part that has previously gone missing.
+
+\section{The record sheet}
+
+Every field is filled during the session, not reconstructed afterwards. A
+field that could not be measured is marked \emph{not measured} with the
+reason, which is criterion A4.1. An empty cell is indistinguishable from a
+forgotten one.
+
+\begin{longtable}{@{}p{0.52\textwidth} p{0.13\textwidth} p{0.27\textwidth}@{}}
+\caption[Session record sheet]{The session record sheet. Transcribed into the
+results chapter after the session.}
+\label{tab:record} \\
+\toprule
+\textbf{Datum} & \textbf{Unit} & \textbf{Value} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Datum} & \textbf{Unit} & \textbf{Value} \\
+\midrule
+\endhead
+\multicolumn{3}{@{}l}{\textit{Venue and date}} \\
+Room, date, start and end time & & \\
+People present and their roles & & \\
+\addlinespace
+\multicolumn{3}{@{}l}{\textit{Fixture}} \\
+Make, model, modifier, count & text & \\
+Ballast or driver, and the mode selected & text & \\
+Dimming method and PWM frequency, if LED & text, Hz & \\
+Warm-up time allowed before measuring & min & \\
+Distance and angle of the fixture to the structure and to the cameras & m, \textdegree & \\
+\addlinespace
+\multicolumn{3}{@{}l}{\textit{Photometry}} \\
+Illuminance at the tether position & lx & \\
+Uniformity grid: minimum and maximum, and the grid spacing used & lx, m & \\
+Measured colour temperature & K & \\
+Measured CRI, and TLCI if available & & \\
+Penumbra width at 1~m & mm & \\
+Stability over the session: minimum and maximum & lx & \\
+Stray-light check result & pass/fail & \\
+Flicker test result, per camera & pass/fail & \\
+\addlinespace
+\multicolumn{3}{@{}l}{\textit{Geometry of the scene}} \\
+Tether physical length, tape measured & m & \\
+Tether diameter, measured & mm & \\
+Tether material and surface finish & text & \\
+Attachment points on the structure, described or sketched & & \\
+Tether approach angle relative to the camera baseline & \textdegree & \\
+Distance from the camera baseline to the nearest and farthest tether point & m & \\
+Working volume of the structure: width, height, depth & m & \\
+\addlinespace
+\multicolumn{3}{@{}l}{\textit{Optics and cameras}} \\
+Focus distance set, and how it was judged & m, text & \\
+Aperture set & f/ & \\
+Both rings locked and marked, before the session & yes/no & \\
+Both marks unmoved, after the session & yes/no & \\
+Per camera: exposure, gain, white balance & ms, dB & \\
+Capture resolution and sensor mode used & px & \\
+\addlinespace
+\multicolumn{3}{@{}l}{\textit{Calibration}} \\
+Session directory name & text & \\
+Accepted views per tilt bin & count $\times$ 4 & \\
+Relative standard deviation of $f_x$, $f_y$ & \% & \\
+Principal point offset from centre & px, \% & \\
+Reported reprojection RMS, for the record only & px & \\
+Session reported complete by the tool & yes/no & \\
+\addlinespace
+\multicolumn{3}{@{}l}{\textit{Captures}} \\
+Capture sets obtained, against Table \ref{tab:capture-plan} & S1--S8 & \\
+Total stereo pairs & count & \\
+Inter-camera delay: median and worst & ms & \\
+Anything that went wrong, in prose & & \\
+\bottomrule
+\end{longtable}
+
+\section{Why the scene geometry fields are there}
+
+The block headed \emph{Geometry of the scene} is not documentation for its
+own sake. The Blender validation deliverable selected a real stereo pair as
+its reference and then found it could not reproduce the scene, because the
+tether's approach angle, distance and attachment points had never been
+written down \cite{linku_blender_validation}. Those four fields exist so that
+this session's captures do not become unusable for the same reason.
+
+The photometry block serves the same deliverable from the other side: its
+laboratory-condition light is currently a placeholder, and these measurements
+are what replaces it.
+
+\section{Files, naming and metadata}
+
+The application writes each stereo pair to its own timestamped directory
+under \texttt{data/\allowbreak captures/}, with per-pair metadata including the capture
+resolution, the baseline and the inter-camera delay. That naming is
+automatic and should not be changed by hand. What has to be added is the
+mapping from directory to capture set.
+
+\begin{itemize}
+    \item Keep a plain text file in the session folder mapping each capture
+    directory to its set S1 to S8 and to a one-line description of what was
+    being done at the time. Written during the session, not after.
+
+    \item Commit the calibration session directory and every capture
+    directory, with their metadata, which is criterion A4.5. The repository
+    already versions \texttt{data/\allowbreak captures/} and
+    \texttt{data/\allowbreak calibration/}, so this is the default behaviour rather than
+    an exception, but it has to actually be done.
+
+    \item Photograph the physical setup: the fixture position, the structure
+    with the tether strung, the camera support in place, and the ring marks.
+    These go in \texttt{Images/} of this deliverable.
+\end{itemize}
+
+\section{What is deliberately not recorded}
+
+The angular velocity of the hand motion. There is no instrumentation for it,
+and writing down an estimate would create a number that later analysis would
+be tempted to treat as a measurement. Section \ref{sec:why-by-hand} gives the
+reasoning. The rolling-shutter deliverable is where that quantity gets
+measured, with a stage that either commands or encodes the rate
+\cite{linku_rollingshutter}.

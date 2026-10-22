@@ -1,0 +1,72 @@
+\chapter*{Status and limitations}
+\addcontentsline{toc}{chapter}{Status and limitations}
+
+\section*{Where each part stands}
+
+\begin{table}[htbp]
+\centering
+\caption[Status of this document]{What is settled and what is not.}
+\label{tab:status}
+\begin{tabularx}{\textwidth}{@{}l l X@{}}
+\toprule
+\textbf{Part} & \textbf{Status} & \textbf{Basis} \\
+\midrule
+Objectives & Settled & Derived from the work plan package and from the gaps
+             the companion deliverables leave open \\
+Acceptance criteria & Registered & Fixed before any data exists. A1.2, A2.x
+             and A3.4 derived; A1.4, A3.3, A3.5 and A3.6 are project
+             decisions \\
+Instrument description & Measured & The hardware exists and was verified
+             working on 13 October 2026 \\
+Optical figures & Derived & Thin-lens model for the IMX477 with the fitted
+             8~mm lens; reproduced independently from first principles \\
+Illumination requirements & Derived & From primary sources in the companion
+             dark-room deliverable \\
+Procedure & Settled & Ordering follows from the physics, not from
+             convenience \\
+Record sheet & Settled & Scope set by what the Blender comparison needs \\
+Analysis plan & Settled & Runs the existing application unmodified \\
+Results & \textbf{Absent} & The session has not been recorded \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section*{Limitations that are known before the session}
+
+\textbf{No angular rate is measured.} Both the tether and the rig are moved
+by hand. Nothing in this experiment can produce a quantitative
+rolling-shutter result, and the document is written so that nothing in it
+can be mistaken for one.
+
+\textbf{No independent ground truth except length.} The only external
+measurement available is a tape-measured tether length, which constrains
+scale but says nothing about shape. Straightness and curvature are judged for
+internal consistency and plausibility only.
+
+\textbf{Board flatness is unverified.} The calibration target is paper on a
+folder. Flatness is one of the two target properties that matter and it has
+never been measured for this board.
+
+\textbf{The sensor is not the flight sensor.} Every optical number here is
+computed for the IMX477 with its 1.55~\textmu m pixel and the 8~mm lens. The
+decided flight sensor is the IMX708 B0308, which has a different pixel pitch
+and a different focal length, and which has not been purchased. None of these
+figures transfers to it without recomputation.
+
+\textbf{Synchronisation is sequential and software-timed.} The adequacy bound
+of roughly 5~cm/s quoted in the camera system report is an assumption, not a
+measured synchronisation error, and hand motion exceeds it.
+
+\section*{What this experiment unblocks}
+
+If it passes, three things that are currently waiting can proceed. The
+Blender validation gets measured laboratory light values and a recorded
+tether pose, which are its two missing inputs. The path dataset gains the
+first real samples of crossings and of partial occlusion, which is the input
+to the learned branch scorer. And the project gains, for the first time, a
+reconstruction length with a stated uncertainty that can be compared against
+something measured with a tape.
+
+If it fails, the most likely place is A1, the calibration, which is the
+project's longest-standing open problem and the one with the least margin in
+the schedule.
