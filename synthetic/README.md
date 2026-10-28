@@ -20,10 +20,32 @@ synthetic/
   train_endpoints.py the endpoint finder, measured against the shipped detector
 ```
 
-**The cord is always an open curve.** It has two free ends, and the whole
-path capability depends on that: a closed loop has no start and no stop.
-`geometry.MIN_END_SEPARATION` enforces it, and a shape whose ends come too
-close is rejected and drawn again rather than merely hoped to be rare.
+**The cord is always an open curve, and both ends are visible as ends.**
+Two separate conditions, and only the first was enforced at first.
+
+`geometry.MIN_END_SEPARATION` asks that the two ends are far from each other.
+A ring with a small gap passes that, and so does a cord whose end comes to
+rest across its own middle: neither shows a free end once painted, and an end
+that is invisible in the mask cannot be found from the mask by anything.
+`geometry.ends_are_free` measures the thing that decides, the clearance
+between each end and the rest of the cord, and `generate._open_centreline`
+redraws a shape that fails it. An end outside the frame is exempt, since that
+occlusion is real and the models have to cope with it. The realised rate is
+recorded per sample as `ends_free` in `index.jsonl`: 98% over the shipped
+1500, lowest on knots at 95%.
+
+Two shape generators needed fixing for this, not just a filter on top:
+
+- `_loop` turned 1.55 to 1.9 times around a circle of constant radius, so
+  the second revolution retraced the first and painted a solid ring with
+  both ends buried in it. It now drifts the centre as it turns, and takes
+  1.15 to 1.45 turns.
+- `_knot` cut the closed torus knot at a random index. A torus knot runs
+  close to itself nearly everywhere, so both ends landed against a
+  neighbouring wrap at about 4 px clearance where 15 px is needed. The cut
+  point and the trim length are now both chosen where the curve is locally
+  farthest from the rest of itself, which lifts the median clearance to
+  9.7 px.
 
 ## Finding the two ends
 
@@ -31,38 +53,54 @@ Tracing a mask is useless without knowing where to begin and where to stop,
 so this is half of the path capability rather than a side quest.
 
 The shipped detector takes skeleton tips and picks the geodesically farthest
-pair. Measured over 80 synthetic masks, that cannot work on a third of the
-cases: 47 of 138 true endpoints have no skeleton tip within two wire radii,
-and 44 of those sit squarely on the mask. They concentrate in 83% of loop
-ends and 71% of knot ends, for one structural reason. When the free end lies
-across another part of the cord the skeleton merges straight through it and
-leaves no tip, and no tuning recovers an end that leaves no tip.
+pair. It cannot find an end that leaves no tip, and when the free end of the
+cord rests across another part of the cord the skeleton merges straight
+through it and no tip is produced there.
 
-`endpoints.py` scores **every** skeleton pixel instead, which lifts the
-ceiling on those same masks from 66% to 100%, then takes the best pixel plus
-the best one geodesically far from it. Twelve features; the one that carries
-the most weight is one-sidedness, which measures whether the nearby skeleton
-lies to one side, and that still fires where no tip exists.
+`endpoints.py` scores **every** skeleton pixel instead, then takes the best
+pixel plus the best one geodesically far from it. Twelve features; the one
+that carries by far the most weight is one-sidedness (0.36), which measures
+whether the nearby skeleton lies to one side, and that still fires where no
+tip exists.
 
-Results, 1500 masks, 200 trees, 102 s on CPU, against the shipped detector:
+Results, 1500 masks, 200 trees, 79 s on CPU, 40 held-out masks:
 
-| shape | learned | shipped | within 25 px |
+| | median | p75 | within 25 px |
 |---|---|---|---|
-| straight | 3 px | 5 px | 100% |
-| smooth | 3 px | 6 px | 92% |
-| catenary | 6 px | 11 px | 100% |
-| coil | 11 px | 59 px | 55% |
-| loop | 106 px | 156 px | 22% |
-| knot | 109 px | 113 px | 9% |
-| tangle | 111 px | 137 px | 0% |
+| learned | 1.2 px | 2.0 px | 85% |
+| shipped | 1.3 px | 25.5 px | 75% |
 
-It wins in every family. **Read the per-shape rows, not the aggregate.** The
-aggregate is 51.5 px against 118.5, and it misleads, because this dataset is
-40% knot and tangle on purpose, which is right for the branch scorer and
-badly unrepresentative of the real tether. On the simple shapes, which is
-what a tensioned cable is, the learned finder gives 3 px median and 94%
-within 25 px. Heavy tangles stay hard and partly unrecoverable from a binary
-mask alone.
+| shape | learned median | within 25 px |
+|---|---|---|
+| smooth | 0 px | 100% |
+| coil, loop, straight, tangle | 1 px | 100 / 92 / 100 / 71% |
+| catenary | 6 px | 100% |
+| knot | 8 px | 62% |
+
+On the simple shapes a tensioned cable actually is: 1 px median, 100% within
+25 px. The learned finder is 9 MB and takes 171 ms per mask.
+
+**The gain is in the tail, not the median.** Both find the end to about a
+pixel when they find it at all; the difference is how often they miss
+completely, which is what p75 and the within-25-px column show. Read those,
+not the median.
+
+### What an earlier version of this file claimed, and why it was wrong
+
+Until the generator was fixed, this section reported that the shipped
+detector was structurally blind to a third of all endpoints: 47 of 138 with
+no skeleton tip within two wire radii, 83% of loop ends, 51.5 px median error
+against the learned finder's. That measurement was real but it was measuring
+the generator, not the detector. The path set was painting cords three times
+too thick, which fused neighbouring strands into one blob and buried the free
+ends inside it. With the cords at the thickness the archive actually shows,
+95% of ends leave a skeleton tip rather than 66%, and the shipped detector
+goes from 51.5 px median to 1.3 px.
+
+The structural argument still holds for the ends that stay buried, and the
+learned finder still wins, but it wins by 10 points of tail coverage rather
+than by two orders of magnitude. A synthetic benchmark measures the generator
+until proven otherwise.
 
 ## Why synthetic data works here, and where it does not
 
@@ -90,12 +128,33 @@ held-out score as a sanity check and the real score as the result.
 Every constant in `config.py` came from the 26 image and mask pairs already
 in `data/ai_dataset/`:
 
-| quantity | archive | generator |
-|---|---|---|
-| foreground fraction | median 1.66%, range 0.03 to 2.30% | median 1.2%, p05 0.4, p95 2.5 |
-| wire radius, max of the distance transform | median 17.7 px, range 8 to 30 | median 16.5 px |
-| single connected component | 25 of 26 masks | 91% of samples |
-| wire minus background | median 111 grey levels | matched per family |
+| quantity | archive | mask set | path set |
+|---|---|---|---|
+| foreground fraction | median 1.66%, p05 0.32, p95 2.08 | median 1.58% | median 1.80% |
+| wire radius, max of the distance transform | median 17.7 px at 1920x1440 | median 15.2 px | median 6.4 px at 960x720 |
+| single connected component | 25 of 26 masks, 96% | 83% | 94% |
+| wire minus background | median 111 grey levels | matched per family | --- |
+
+The mask set sits below the archive on the last row on purpose: 12% of its
+samples get a break and 13% leave the frame, both of which split the mask,
+and the segmenter has to cope with both. The path set is gentler, since a
+severed path has no traversable ground truth to label against.
+
+The path set is generated at 960x720, so its radii are half the archive's by
+construction, and lower again because its shapes are long: the foreground
+budget is shared between radius and arc length, so a knot that wanders for
+two frame diagonals comes out at the 3 px floor. That is the regime the real
+tether is in anyway. At the 8 mm lens, a 2 mm cord projects 10 px across at
+1 m and 0.26 px at 40 m.
+
+**This was wrong until it was measured.** The path set used to sample its
+radius flat over 8 to 24 px at 960x720 and ignore the foreground target
+entirely, on the argument that only topology matters for the tracker. It came
+out at 5.3% foreground against the archive's 1.4%, three times too fat, and
+the argument was backwards: a fat cord fuses neighbouring strands into one
+blob, which erases the crossings the tracker exists to resolve and buries the
+ends the endpoint model is supposed to find. Thickness is not cosmetic here,
+it sets the topology of the mask.
 
 Two lighting families are reproduced because the archive contains two. The
 `lab` family is the grey table with a hard side light, a strong gradient,

@@ -118,16 +118,55 @@ def sample_generator(n, size):
     return rows
 
 
+def measure_synthetic_set(root: Path, limit: int):
+    """Summarise a generated mask set straight off disk.
+
+    Separate from `sample_generator` because the path set is produced by a
+    different policy and is the one that drifted: it used to sample its
+    radius flat instead of solving it from a foreground target, and came out
+    three times too fat for the working distance without anything noticing.
+    Reading the shipped files rather than re-sampling the generator is what
+    catches that, since it measures what training will actually see.
+    """
+    rows = []
+    for f in sorted((root / "masks").glob("*.png"))[:limit]:
+        mask = cv2.imread(str(f), cv2.IMREAD_GRAYSCALE)
+        if mask is None:
+            continue
+        fg = mask > 127
+        if not fg.any():
+            continue
+        n_comp, _ = cv2.connectedComponents(fg.astype(np.uint8))
+        dt = cv2.distanceTransform(fg.astype(np.uint8), cv2.DIST_L2, 5)
+        rows.append({"name": f.stem, "size": mask.shape,
+                     "fg_pct": 100.0 * fg.mean(), "dt_max": float(dt.max()),
+                     "components": n_comp - 1,
+                     "wire_grey": float("nan"), "bg_grey": float("nan"),
+                     "bg_std": float("nan"), "contrast": float("nan"),
+                     "dataset": root.name})
+    return rows
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--compare", action="store_true",
                     help="also sample the generator and print both side by side")
     ap.add_argument("--n", type=int, default=120, help="generator samples for --compare")
+    ap.add_argument("--set", dest="sets", action="append", default=[],
+                    choices=["mask", "path"],
+                    help="also summarise a generated set from data/synthetic/")
     args = ap.parse_args(argv)
 
     real = collect(DATASETS)
     r = summarise(real, "REAL archive")
+
+    for name in args.sets:
+        root = ROOT / "data" / "synthetic" / name
+        if not (root / "masks").is_dir():
+            print(f"\n{name}: not generated yet ({root})")
+            continue
+        summarise(measure_synthetic_set(root, args.n), f"SYNTHETIC {name} set")
 
     if args.compare:
         s = summarise(sample_generator(args.n, (1920, 1440)), "GENERATOR")

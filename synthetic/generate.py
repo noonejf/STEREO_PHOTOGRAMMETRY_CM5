@@ -60,11 +60,20 @@ PATH_SHAPE_WEIGHTS = {
     "loop": 0.26, "coil": 0.14, "knot": 0.24, "tangle": 0.16,
 }
 
-#: Base radius for path samples, in output pixels. Set explicitly rather than
-#: solved from a foreground target, so the mask lands in the regime the
-#: tracker's internal rescaling expects. Foreground fraction does not matter
-#: for this model; topology and relative thickness do.
-PATH_RADIUS_PX = (8.0, 24.0)
+#: Radius bounds for path samples, in output pixels. The radius itself is
+#: solved from a foreground target, exactly as the segmenter set does, and
+#: these only clamp the result.
+#:
+#: It used to be sampled flat over (8, 24) px at 960x720 on the argument that
+#: only topology matters here. That was wrong twice over. The realised
+#: foreground came out at 5.3% against the archive's 1.4%, so the cords were
+#: three times too fat for the working distance; and a fat cord fuses
+#: neighbouring strands into one blob, which destroys the crossings the
+#: tracker is supposed to resolve and buries the ends the endpoint model is
+#: supposed to find. Thickness is not cosmetic for this dataset, it sets the
+#: topology of the mask.
+PATH_FOREGROUND_FRACTION = config.FOREGROUND_FRACTION
+PATH_RADIUS_PX = (3.0, 14.0)
 
 SHARD_SIZE = 250
 
@@ -75,20 +84,58 @@ def _weighted_pick(weights, rng):
     return kinds[int(rng.choice(len(kinds), p=w / w.sum()))]
 
 
+def _mask_radius(xy, size, rng):
+    return rasterize.radius_for_foreground(
+        xy, size, rng.uniform(*config.FOREGROUND_FRACTION))
+
+
+def _path_radius(xy, size, rng):
+    r = rasterize.radius_for_foreground(
+        xy, size, rng.uniform(*PATH_FOREGROUND_FRACTION))
+    return float(np.clip(r, *PATH_RADIUS_PX))
+
+
+def _open_centreline(kind, size, rng, oof, radius_fn, attempts: int = 6):
+    """Draw a cord whose two ends are actually visible as free ends.
+
+    `geometry.make_centreline` already refuses a curve whose two ends meet,
+    but that is not the same thing: an end lying across the middle of the
+    cord, or a loop that nearly closes, passes it and still paints a mask
+    with no free end anywhere. Whether an end is visible depends on the
+    radius, which is only known once the shape exists, so the check lives
+    here and a shape that fails it is drawn again.
+
+    After `attempts` the first candidate is used anyway and the sample is
+    flagged `ends_free: false`, so the rate is counted in `index.jsonl`
+    rather than hidden by an infinite loop.
+    """
+    first = None
+    for _ in range(attempts):
+        xy, depth = geometry.make_centreline(kind, size, rng,
+                                             allow_out_of_frame=oof)
+        radius = radius_fn(xy, size, rng)
+        if geometry.ends_are_free(xy, radius, size):
+            return xy, depth, radius, True
+        if first is None:
+            first = (xy, depth, radius)
+    return first[0], first[1], first[2], False
+
+
 # --------------------------------------------------------------- mask set
 
 def make_mask_sample(seed: int, size, jpeg_quality: int):
     rng = np.random.default_rng(seed)
     kind = _weighted_pick(MASK_SHAPE_WEIGHTS, rng)
     oof = rng.random() < config.OUT_OF_FRAME_RATE
-    xy, depth = geometry.make_centreline(kind, size, rng, allow_out_of_frame=oof)
-    mask, buffers, info = rasterize.rasterize(xy, depth, size, rng)
+    xy, depth, radius, free = _open_centreline(kind, size, rng, oof, _mask_radius)
+    mask, buffers, info = rasterize.rasterize(xy, depth, size, rng,
+                                              base_radius=radius)
     family = "lab" if rng.random() < config.LAB_PROBABILITY else "orbital"
     img, anotes = appearance.render(buffers, size, family, rng,
                                     radius=info["base_radius_px"],
                                     jpeg_quality=jpeg_quality)
     meta = {"seed": seed, "shape": kind, "out_of_frame": bool(oof),
-            "size": list(size), **info, **anotes}
+            "ends_free": bool(free), "size": list(size), **info, **anotes}
     return img, mask, meta
 
 
@@ -98,8 +145,7 @@ def make_path_sample(seed: int, size, stride: int, min_options: int):
     rng = np.random.default_rng(seed)
     kind = _weighted_pick(PATH_SHAPE_WEIGHTS, rng)
     oof = rng.random() < config.OUT_OF_FRAME_RATE * 0.5
-    xy, depth = geometry.make_centreline(kind, size, rng, allow_out_of_frame=oof)
-    radius = rng.uniform(*PATH_RADIUS_PX)
+    xy, depth, radius, free = _open_centreline(kind, size, rng, oof, _path_radius)
     # Gentler degradation than the segmenter set: a break severs the path, and
     # a severed path has no traversable ground truth to label against.
     mask, _, info = rasterize.rasterize(xy, depth, size, rng,
@@ -107,6 +153,7 @@ def make_path_sample(seed: int, size, stride: int, min_options: int):
     visible = rasterize.visible_path(xy, size)
     harvest = branches.harvest(mask, xy, min_options=min_options, stride=stride, rng=rng)
     meta = {"seed": seed, "shape": kind, "out_of_frame": bool(oof),
+            "ends_free": bool(free),
             "size": list(size), "crossings": len(geometry.crossings(xy)),
             "visible_fraction": round(float(visible.mean()), 4),
             **info,

@@ -156,7 +156,7 @@ Browse either with `DatasetViewerDialog` (`gui/dataset_viewer.py:135`).
 ### Synthetic data (`synthetic/`)
 
 Neither model has enough real data, so `synthetic/` generates both datasets.
-See `synthetic/README.md`. Three things to know before using it:
+See `synthetic/README.md`. Four things to know before using it:
 
 - **The branch scorer has no domain gap.** `SmartWireTracker.__init__` takes
   `(mask, start, end)` and every feature comes from the distance transform of
@@ -170,7 +170,19 @@ See `synthetic/README.md`. Three things to know before using it:
   loader checks for it.
 - **Constants in `config.py` were measured**, by
   `tools/measure_real_samples.py`, off the 26 real pairs. Re-run it with
-  `--compare` after adding real samples.
+  `--compare` after adding real samples, and with
+  `--set mask --set path` to check what the shipped files actually contain:
+  the path set once drifted to three times the archive's foreground
+  fraction and nothing caught it, because only the generator was ever
+  sampled, never the data on disk.
+- **Cord thickness sets the topology of the mask**, so it is solved from the
+  foreground target and never sampled freely. A fat cord fuses neighbouring
+  strands into one blob, which erases the crossings the tracker exists to
+  resolve and buries the ends `endpoint_model` is supposed to find. For the
+  same reason the generator guarantees not only that the curve is open
+  (`geometry.MIN_END_SEPARATION`) but that **both ends are visible as ends**
+  in the painted mask (`geometry.ends_are_free`), which is a different and
+  stricter condition.
 
 Output lands in `data/synthetic/`, which **is** gitignored, unlike
 `data/captures/`.
@@ -185,11 +197,12 @@ replace:
   masks at 3.8x the runtime. Measure with
   `tools/benchmark_branch_scorer.py`.
 - `processing/endpoint_model.py`, `LINKU_ENDPOINT_MODEL=1`, consulted from
-  `detect_wire_endpoints`. It beats the skeleton-tip detector in every
-  shape family, and on the simple shapes the real tether actually is it
-  gives 3 px median error against the shipped 5 px, 94% within 25 px. The
-  tip detector structurally cannot find an end that lies across another
-  strand, which is 83% of loop ends.
+  `detect_wire_endpoints`. Over 40 held-out masks it gives 1.2 px median
+  error against the shipped detector's 1.3, and the real difference is the
+  tail: p75 2.0 px against 25.5, and 85% within 25 px against 75%. 9 MB,
+  171 ms per mask. **The medians are nearly equal**, so the reason to enable
+  it is how often the tip detector misses completely, not its accuracy when
+  it hits.
 
 Both are trained by `synthetic/`, all three trainers checkpoint and resume.
 

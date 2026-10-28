@@ -108,11 +108,20 @@ def _smooth(rng) -> np.ndarray:
 def _loop(rng) -> np.ndarray:
     """One or two self-crossings. This is the shape the real captures show."""
     loops = rng.integers(1, 3)
-    turns = loops + rng.uniform(0.55, 0.9)
+    turns = loops + rng.uniform(0.15, 0.45)
     n = int(26 * turns)
     th = np.linspace(0, 2 * np.pi * turns, n)
     r = rng.uniform(0.45, 0.85) * (1 + rng.uniform(-0.25, 0.25) * np.sin(th * rng.integers(1, 3)))
     pts = np.stack([r * np.cos(th), r * np.sin(th), 0.35 * np.sin(th * 1.3)], axis=1)
+
+    # Drift the centre as the curve turns, so one revolution does not retrace
+    # the previous one. Without this a loop of nearly two turns paints a solid
+    # ring with both ends buried inside it: no free end exists anywhere in the
+    # mask, which is the one thing this family must never produce.
+    ang = rng.uniform(0, 2 * np.pi)
+    drift = rng.uniform(0.7, 1.5) * float(np.mean(np.abs(r)))
+    frac = (th / th[-1])[:, None]
+    pts[:, :2] += frac * drift * np.array([np.cos(ang), np.sin(ang)])
     # free tails, so the ends are not on the loop itself
     tail = rng.uniform(0.3, 0.7)
     d0 = pts[1] - pts[0]
@@ -151,10 +160,30 @@ def _knot(rng) -> np.ndarray:
     cz = r * np.sin(q * th)
     pts = np.stack([cx, cy, cz], axis=1)
 
-    # a knot is a closed curve; cut it so the wire has two free ends
-    cut = rng.integers(0, n)
+    # A knot is a closed curve, so cut it to give the cord two free ends.
+    #
+    # Where the cut falls matters. A torus knot runs close to itself nearly
+    # everywhere, so a cut at a random index usually leaves both ends resting
+    # against a neighbouring wrap: measured clearance there is about 4 px
+    # against the 15 px an end needs to show up in the mask. The cut is
+    # therefore placed where the curve is locally farthest from the rest of
+    # itself, which is the one place a free end can exist.
+    d = np.linalg.norm(pts[:, None, :2] - pts[None, :, :2], axis=2)
+    span = np.minimum(np.abs(np.arange(n)[:, None] - np.arange(n)[None, :]),
+                      n - np.abs(np.arange(n)[:, None] - np.arange(n)[None, :]))
+    d[span < n // 12] = np.inf
+    clearance = d.min(axis=1)
+    best = np.argsort(clearance)[-max(8, n // 20):]
+    cut = int(rng.choice(best))
     pts = np.roll(pts, -cut, axis=0)
-    pts = pts[: int(n * rng.uniform(0.80, 0.97))]
+
+    # The far end is the other side of the removed arc, at a position the cut
+    # did not choose, so pick the trim length the same way. Choosing only the
+    # cut leaves one end free and the other buried, which is half a fix.
+    rolled = np.roll(clearance, -cut)
+    lo, hi = int(n * 0.80), int(n * 0.97)
+    keep = lo + int(np.argmax(rolled[lo:hi]))
+    pts = pts[:keep]
     return _random_rotate(pts, rng)
 
 
@@ -212,6 +241,73 @@ def _is_open(xy: np.ndarray) -> bool:
     if extent < 1e-9:
         return False
     return np.linalg.norm(xy[0] - xy[-1]) / extent >= MIN_END_SEPARATION
+
+
+#: Clearance an end needs from the rest of the cord before it reads as a free
+#: end, in units of the cord radius. Two strands fuse into one blob once their
+#: centrelines come within 2 r, so a tip buried under another strand leaves no
+#: visible end at all.
+END_CLEARANCE_RADII = 2.5
+
+#: How much of the cord, measured back from each end, has to stay clear.
+END_TAIL_RADII = 3.0
+
+
+def end_clearances(xy: np.ndarray, radius: float) -> list:
+    """Distance from each end's tail to the rest of the cord, in pixels.
+
+    `MIN_END_SEPARATION` only asks that the two ends are far from each other,
+    which a ring with a small gap passes and a cord whose end lies across its
+    own middle also passes. Neither of those shows a free end once painted,
+    and an end that is not visible in the mask cannot be found from the mask,
+    by a model or by anything else. This measures the thing that actually
+    decides it.
+    """
+    xy = np.asarray(xy, dtype=float)
+    if len(xy) < 8:
+        return [0.0, 0.0]
+    seg = np.linalg.norm(np.diff(xy, axis=0), axis=1)
+    arc = np.concatenate([[0.0], np.cumsum(seg)])
+    tail = max(radius * END_TAIL_RADII, 6.0)
+    # Skip this much arc on either side of the point under test, so the cord's
+    # own continuation is not mistaken for a second strand lying across it.
+    # Measured from each tail point, not from the end, or a gently curving
+    # cord reports the distance to its own neighbour and every shape comes
+    # out looking equally crowded.
+    gap = max(radius * 6.0, 20.0)
+
+    out = []
+    for from_start in (True, False):
+        s = arc if from_start else arc[-1] - arc
+        head = np.flatnonzero(s <= tail)
+        best = float("inf")
+        for i in head:
+            far = np.abs(arc - arc[i]) > gap
+            if not far.any():
+                continue
+            d = np.linalg.norm(xy[far] - xy[i], axis=1).min()
+            best = min(best, float(d))
+        out.append(best)
+    return out
+
+
+def ends_are_free(xy: np.ndarray, radius: float, size=None) -> bool:
+    """Would both ends be visible as free ends in the painted mask?
+
+    An end outside the frame is not required to be clear: it is genuinely
+    occluded by the frame edge, which is a case the real captures contain and
+    the models have to cope with.
+    """
+    xy = np.asarray(xy, dtype=float)
+    need = END_CLEARANCE_RADII * radius
+    for end, clear in zip((xy[0], xy[-1]), end_clearances(xy, radius)):
+        if size is not None:
+            w, h = size
+            if not (0 <= end[0] < w and 0 <= end[1] < h):
+                continue
+        if clear < need:
+            return False
+    return True
 
 
 def make_centreline(kind: str, size, rng, allow_out_of_frame: bool = False,
