@@ -14,16 +14,20 @@ held-out decisions.
 The explicit opt-in is there because of a measurement, not caution. The
 first trained scorer beat the formula by a wide margin on the offline
 metric, 0.692 against 0.456 top-1 over 25317 held-out decisions, and then
-did **not** improve the tracker end to end: over four synthetic masks it won
-one, lost one badly (32.9% coverage against 67.3%) and tied two, while
-running two to five times slower. Per-step accuracy and final path coverage
-are different things, because the tracker is a sequential search with
-backtracking: one confident wrong turn early can cost more than the several
-hesitant ones the backtracking was tuned around.
+did **not** improve the tracker. Measured end to end over 30 synthetic
+masks: mean coverage 64.4% against 61.7%, median 63.3% against 64.4%, and
+11 wins, 12 losses, 7 ties. A coin flip, at 3.8 times the runtime.
 
-So the offline number is necessary and not sufficient. Before switching this
-on for real work, run ``tools/benchmark_branch_scorer.py`` over enough masks
-to see coverage, and switch it on only if coverage improves.
+Per-step accuracy and final path coverage are different quantities. The
+tracker is a sequential search with backtracking, so one confident wrong
+turn early can cost more than the several hesitant ones the backtracking
+was tuned around. The offline number is necessary and nowhere near
+sufficient.
+
+If this is picked up again, the thing to change is the training objective,
+not the dataset size: the model has to be optimised against the whole
+traced path, not against the isolated decision. Reproduce the measurement
+with ``tools/benchmark_branch_scorer.py --count 30``.
 
 Train one with::
 

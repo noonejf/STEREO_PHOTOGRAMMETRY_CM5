@@ -141,6 +141,18 @@ sample, never by row and never by decision: candidates within a decision are
 mutually exclusive and decisions within one image share a wire, so anything
 finer leaks.
 
+**And that number is still not enough.** The first model trained here scored
+0.692 against the formula's 0.456 over 25317 held-out decisions, then went
+11 wins, 12 losses, 7 ties on end-to-end coverage over 30 masks, at 3.8
+times the runtime. Per-step accuracy is not what determines where the
+tracker ends up. Always finish with
+`python3 tools/benchmark_branch_scorer.py --count 30`, and treat coverage as
+the only verdict. The scorer stays off unless `LINKU_BRANCH_SCORER=1`.
+
+If Model 2 is picked up again, the lever is the training objective, not more
+data: it has to be optimised against the whole traced path rather than
+against the isolated decision.
+
 ## Known limits
 
 - **Masks are single-wire.** Nothing here generates two separate tethers, a
