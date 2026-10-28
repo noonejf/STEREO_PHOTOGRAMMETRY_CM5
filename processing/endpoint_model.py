@@ -25,7 +25,17 @@ import os
 import pickle
 from pathlib import Path
 
+import cv2
+import numpy as np
+
 logger = logging.getLogger(__name__)
+
+#: Width the model works at. It was trained on 960 px masks, and several of
+#: its features (local windows, densities, neighbour counts) are defined in
+#: pixels of that regime, so a capture-resolution mask is resized down before
+#: scoring and the answer is scaled back up. This is also what keeps the
+#: graph walk affordable on a 4056x3040 mask.
+WORK_WIDTH = 960
 
 MODEL_PATH = Path(__file__).resolve().parent.parent / "data" / "models" / "endpoint_model.pkl"
 ENV_FLAG = "LINKU_ENDPOINT_MODEL"
@@ -51,14 +61,50 @@ class EndpointFinder:
         """Return ``(start, end)`` as (x, y) tuples, or None to fall back."""
         try:
             from synthetic.endpoints import predict_pair
-            p1, p2, _ = predict_pair(self.model, self.feature_names, mask)
+            h, w = mask.shape[:2]
+            scale = 1.0
+            work = mask
+            if w > WORK_WIDTH:
+                scale = WORK_WIDTH / float(w)
+                work = cv2.resize(mask, (WORK_WIDTH, max(1, int(round(h * scale)))),
+                                  interpolation=cv2.INTER_NEAREST)
+            p1, p2, _ = predict_pair(self.model, self.feature_names, work)
             if p1 is None or p2 is None:
                 return None
+            if scale != 1.0:
+                inv = 1.0 / scale
+                p1 = _snap_to_mask(mask, p1[0] * inv, p1[1] * inv, int(inv * 3))
+                p2 = _snap_to_mask(mask, p2[0] * inv, p2[1] * inv, int(inv * 3))
+                if p1 is None or p2 is None:
+                    return None
             return p1, p2
         except Exception as exc:  # noqa: BLE001
             logger.warning("endpoint model failed, falling back to the "
                            "classical detector: %s", exc)
             return None
+
+
+def _snap_to_mask(mask, x, y, radius):
+    """Nearest mask pixel to (x, y), searched in a local window.
+
+    A point scored at WORK_WIDTH and scaled back up can land a few pixels off
+    the full-resolution mask, and the tracker needs its seed ON the cable.
+    """
+    h, w = mask.shape[:2]
+    xi = int(np.clip(round(x), 0, w - 1))
+    yi = int(np.clip(round(y), 0, h - 1))
+    if mask[yi, xi] > 0:
+        return (xi, yi)
+    r = max(2, radius)
+    x0, x1 = max(0, xi - r), min(w, xi + r + 1)
+    y0, y1 = max(0, yi - r), min(h, yi + r + 1)
+    win = mask[y0:y1, x0:x1]
+    ys, xs = np.nonzero(win)
+    if len(ys) == 0:
+        return None
+    d = (ys - (yi - y0)) ** 2 + (xs - (xi - x0)) ** 2
+    k = int(np.argmin(d))
+    return (int(x0 + xs[k]), int(y0 + ys[k]))
 
 
 def get_finder(path: Path | None = None):

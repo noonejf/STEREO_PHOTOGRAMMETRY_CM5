@@ -798,7 +798,13 @@ def detect_wire_endpoints(mask: np.ndarray,
     if finder is not None:
         found = finder.find(mask)
         if found is not None:
-            return found
+            # misma normalizacion canonica que EndpointDetector: start es el
+            # punto con menor Y (y menor X en empate), para que el resto del
+            # sistema vea el mismo contrato venga de donde venga el par
+            a, b = found
+            if (a[1], a[0]) > (b[1], b[0]):
+                a, b = b, a
+            return a, b
 
     detector = EndpointDetector(mask, side=side)
     # debug siempre activo — las imágenes van a data/results/debug/endpoints_{side}/

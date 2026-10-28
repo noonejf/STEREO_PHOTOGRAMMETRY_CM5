@@ -160,7 +160,12 @@ def main(argv=None):
     ap.add_argument("--batch", type=int, default=20,
                     help="trees per checkpoint; the run resumes from the last one")
     ap.add_argument("--fresh", action="store_true", help="ignore any checkpoint")
-    ap.add_argument("--max-depth", type=int, default=18)
+    ap.add_argument("--max-depth", type=int, default=14)
+    ap.add_argument("--min-leaf", type=int, default=150,
+                    help="min samples per leaf. This is what bounds the model "
+                         "size: with millions of training pixels and no floor "
+                         "the forest grows past 400 MB, which GitHub refuses "
+                         "and the CM5 cannot load")
     ap.add_argument("--neg-ratio", type=float, default=8.0,
                     help="background pixels kept per wire pixel")
     ap.add_argument("--class-weight", default="none", choices=["none", "balanced"],
@@ -211,6 +216,7 @@ def main(argv=None):
     def make():
         return RandomForestClassifier(
             n_estimators=0, warm_start=True, max_depth=args.max_depth,
+            min_samples_leaf=args.min_leaf,
             n_jobs=-1, random_state=args.seed, class_weight=cw)
 
     ckpt = Path(args.out).with_suffix(".ckpt")

@@ -13,6 +13,7 @@ synthetic/
   appearance.py      buffers -> photograph, in the lab or the orbital family
   branches.py        mask + known path -> labelled (features, chosen branch) rows
   endpoints.py       mask -> per-skeleton-pixel features for finding the two ends
+  evaluate.py        trace vs true centreline: recall, precision, F1
   checkpoint.py      resumable CPU training, shared by the three trainers
   generate.py        CLI for mass generation
   train_mask.py      the segmenter, with a held-out split
@@ -78,12 +79,29 @@ Results, 1500 masks, 200 trees, 79 s on CPU, 40 held-out masks:
 | knot | 8 px | 62% |
 
 On the simple shapes a tensioned cable actually is: 1 px median, 100% within
-25 px. The learned finder is 9 MB and takes 171 ms per mask.
+25 px. Retrained on 4000 samples with joint top-K pair decoding: 90% within
+25 px, 23 MB, 223 ms per mask.
 
-**The gain is in the tail, not the median.** Both find the end to about a
-pixel when they find it at all; the difference is how often they miss
-completely, which is what p75 and the within-25-px column show. Read those,
-not the median.
+**And none of that survived the end-to-end test.** Measured by
+`tools/benchmark_endpoint_model.py` over 60 fresh scenes, with the trace
+scored against the true centreline: the learned finder's seeds produce a
+WORSE final trace, F1 83.7 against the classical detector's 88.1, 7 wins to
+12 losses. The mechanism is the failure mode, not the failure rate. A
+classical miss lands on a skeleton tip, which is a safe place to start a
+trace even when it is far from the true end; a learned miss lands mid-cord
+on a crossing and the whole trace starts lost. It misses less often and its
+misses cost far more.
+
+The number that closes the case: seeding the tracker with the TRUE endpoints
+gives F1 90.9, so everything endpoint accuracy could ever buy over the
+classical detector was 2.8 points. After the thickness fix, stage 2 is not
+the bottleneck. The remaining losses are tracker recall across mask breaks,
+which no endpoint finder and no branch scorer can recover; bridging breaks
+in `SmartWireTracker` is where the next real gain lives.
+
+`LINKU_ENDPOINT_MODEL` therefore stays **off** by default, same standard as
+the branch scorer: the only number that switches a learned component on is
+the end-to-end one.
 
 ### What an earlier version of this file claimed, and why it was wrong
 
@@ -186,8 +204,10 @@ python -m synthetic.train_endpoints --harvest   # harvest only, resumable
 python -m synthetic.train_endpoints             # train, resumable
 python -m synthetic.train_endpoints --fresh     # ignore the checkpoint
 
-# what actually decides whether the branch scorer ships
-python tools/benchmark_branch_scorer.py --count 30
+# what actually decides whether either learned component ships: the trace
+# against the true centreline, on fresh scenes the trainers never saw
+python tools/benchmark_branch_scorer.py --count 40
+python tools/benchmark_endpoint_model.py --count 60
 ```
 
 **Checkpoints.** There is no GPU here and there will not be one on the
@@ -260,17 +280,16 @@ sample, never by row and never by decision: candidates within a decision are
 mutually exclusive and decisions within one image share a wire, so anything
 finer leaks.
 
-**And that number is still not enough.** The first model trained here scored
-0.692 against the formula's 0.456 over 25317 held-out decisions, then went
-11 wins, 12 losses, 7 ties on end-to-end coverage over 30 masks, at 3.8
-times the runtime. Per-step accuracy is not what determines where the
-tracker ends up. Always finish with
-`python3 tools/benchmark_branch_scorer.py --count 30`, and treat coverage as
-the only verdict. The scorer stays off unless `LINKU_BRANCH_SCORER=1`.
-
-If Model 2 is picked up again, the lever is the training objective, not more
-data: it has to be optimised against the whole traced path rather than
-against the isolated decision.
+**And that number is still not enough.** Closed twice. The model trained on
+the fat dataset won offline 0.692 to 0.456 and then tied on end-to-end
+coverage. Retrained on the corrected thin dataset it won offline again,
+0.838 to 0.714 over 33529 held-out decisions, and on 40 fresh scenes scored
+by true-path F1 it went 1 win, 3 losses, 36 ties, 89.1 against the
+formula's 90.0, at 4.5x the runtime. The hand-tuned formula already traces
+with 100% precision and a median F1 of 100 when the endpoints are right:
+there is nothing left for a per-decision scorer to win. The scorer stays
+off unless `LINKU_BRANCH_SCORER=1`, and it is not worth picking up again
+while the formula sits at the ceiling.
 
 ## Known limits
 

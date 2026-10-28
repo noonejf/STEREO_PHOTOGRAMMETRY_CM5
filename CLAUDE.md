@@ -93,6 +93,15 @@ and traverse it at the same rate. When an endpoint is occluded or a path leaves
 the frame, the error is systematic and silent. There is no epipolar check to
 catch it.
 
+The one failure this no longer allows is the two paths running in **opposite
+directions**. Each path used to be flipped independently by its own endpoint
+Y, so on a near-horizontal cable a few pixels of noise could invert one image
+and not the other, silently pairing the start of one with the end of the
+other. `orient_right_path_to_left` (`processing/stereo_processor.py`) now
+orients the right path against the left over the whole resampled curve, logs
+the margin, and warns below 1.15x; the decision lands in the result as
+`right_path_flipped` and `orientation_margin`.
+
 Triangulation is written out by hand (`processing/wire_metrics.py:95`), not via
 `cv2.triangulatePoints` or `cv2.reprojectImageTo3D`, neither of which is used
 anywhere in the repo.
@@ -111,7 +120,13 @@ tensorflow, onnx or tflite anywhere in the repo.
 - 9 hand-crafted per-pixel features: B, G, R, H, S, V, 3x3 blur, 9x9 blur,
   local contrast (`gui/ai_page.py:70`).
 - Trains at 256x192, augments with flips and brightness, balances 1:4.
-- Pickled to `data/models/mask_model.pkl`.
+- Pickled to `data/models/mask_model.pkl`. `synthetic/train_mask.py
+  --mix-real` trains a stronger one from synthetic plus real data (its
+  default run beat the GUI model on all 20 real pairs, IoU 0.538 against
+  0.470, even on the pairs the GUI model trained on), but watch the file
+  size: without `--min-leaf` the forest passes 400 MB, which GitHub refuses
+  and the CM5 cannot load. Compare against the incumbent on the real pairs
+  before replacing the pickle.
 - Consumed as an **optional alternative segmenter at pipeline step 1**, in
   `_apply_ai_mask` (`edge_detection_tuner.py:1345`).
 
@@ -188,23 +203,28 @@ Output lands in `data/synthetic/`, which **is** gitignored, unlike
 `data/captures/`.
 
 Two optional learned components sit behind env flags, both **off by
-default** and both refusing to load a model that lost to the code it would
-replace:
+default**, both measured to the end and both found not to pay. The verdict
+metric is `synthetic/evaluate.py`: F1 of the trace against the true
+centreline on fresh scenes, never the tracker's own coverage, which counts
+mask pixels visited and rewards wandering.
 
-- `processing/branch_scorer.py`, `LINKU_BRANCH_SCORER=1`. Currently **not
-  worth enabling**: it wins the offline metric, 0.692 top-1 against 0.456,
-  and then goes 11 wins, 12 losses, 7 ties on end-to-end coverage over 30
-  masks at 3.8x the runtime. Measure with
-  `tools/benchmark_branch_scorer.py`.
+- `processing/branch_scorer.py`, `LINKU_BRANCH_SCORER=1`. Wins offline twice
+  (0.838 against 0.714 per decision on the corrected dataset) and still
+  loses end to end: true-path F1 89.1 against the formula's 90.0 over 40
+  fresh scenes, at 4.5x the runtime. The formula already traces at 100%
+  precision when the endpoints are right. `tools/benchmark_branch_scorer.py`.
 - `processing/endpoint_model.py`, `LINKU_ENDPOINT_MODEL=1`, consulted from
-  `detect_wire_endpoints`. Over 40 held-out masks it gives 1.2 px median
-  error against the shipped detector's 1.3, and the real difference is the
-  tail: p75 2.0 px against 25.5, and 85% within 25 px against 75%. 9 MB,
-  171 ms per mask. **The medians are nearly equal**, so the reason to enable
-  it is how often the tip detector misses completely, not its accuracy when
-  it hits.
+  `detect_wire_endpoints`. Finds the ends better than the tip detector (83%
+  against 78% within 25 px, p75 1.7 px against 14.3) and still produces a
+  worse trace: F1 83.7 against 88.1 over 60 fresh scenes, 7 wins to 12
+  losses. A classical miss lands on a skeleton tip, a safe seed; a learned
+  miss lands mid-cord on a crossing and the trace starts lost. Seeding with
+  the TRUE ends gives 90.9, so endpoints had at most 2.8 points to offer.
+  `tools/benchmark_endpoint_model.py`.
 
-Both are trained by `synthetic/`, all three trainers checkpoint and resume.
+The remaining trace losses are tracker recall across mask breaks: bridging
+breaks in `SmartWireTracker` is the next real lever, not either model.
+All three trainers checkpoint and resume on CPU.
 
 ## Calibration
 

@@ -141,7 +141,13 @@ def make_mask_sample(seed: int, size, jpeg_quality: int):
 
 # --------------------------------------------------------------- path set
 
-def make_path_sample(seed: int, size, stride: int, min_options: int):
+def make_path_scene(seed: int, size):
+    """Mask, ground-truth path and metadata, without the feature harvest.
+
+    The benchmarks consume this: they need fresh scenes the trainers never
+    saw, which a seed offset guarantees, and harvesting features there would
+    only burn time.
+    """
     rng = np.random.default_rng(seed)
     kind = _weighted_pick(PATH_SHAPE_WEIGHTS, rng)
     oof = rng.random() < config.OUT_OF_FRAME_RATE * 0.5
@@ -150,13 +156,18 @@ def make_path_sample(seed: int, size, stride: int, min_options: int):
     # a severed path has no traversable ground truth to label against.
     mask, _, info = rasterize.rasterize(xy, depth, size, rng,
                                         base_radius=radius, degrade_strength=0.45)
+    meta = {"seed": seed, "shape": kind, "out_of_frame": bool(oof),
+            "ends_free": bool(free), "size": list(size), **info}
+    return mask, xy, meta, rng
+
+
+def make_path_sample(seed: int, size, stride: int, min_options: int):
+    mask, xy, scene_meta, rng = make_path_scene(seed, size)
     visible = rasterize.visible_path(xy, size)
     harvest = branches.harvest(mask, xy, min_options=min_options, stride=stride, rng=rng)
-    meta = {"seed": seed, "shape": kind, "out_of_frame": bool(oof),
-            "ends_free": bool(free),
-            "size": list(size), "crossings": len(geometry.crossings(xy)),
+    meta = {**scene_meta,
+            "crossings": len(geometry.crossings(xy)),
             "visible_fraction": round(float(visible.mean()), 4),
-            **info,
             "n_decisions": harvest["n_decisions"],
             "n_branch_points": harvest["n_branch_points"],
             "n_unlabelled": harvest["n_unlabelled"],

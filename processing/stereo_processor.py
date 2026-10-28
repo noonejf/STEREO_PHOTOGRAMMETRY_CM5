@@ -16,6 +16,60 @@ from processing.wire_matcher import WireMatcher
 
 logger = get_logger(__name__)
 
+
+def _resample_polyline(arr: np.ndarray, n: int) -> np.ndarray:
+    """Remuestrea una polilinea a n puntos equiespaciados en longitud de arco."""
+    arr = np.asarray(arr, dtype=float)
+    seg = np.linalg.norm(np.diff(arr, axis=0), axis=1)
+    s = np.concatenate([[0.0], np.cumsum(seg)])
+    if s[-1] <= 0:
+        return np.repeat(arr[:1], n, axis=0)
+    t = np.linspace(0.0, s[-1], n)
+    return np.stack([np.interp(t, s, arr[:, 0]),
+                     np.interp(t, s, arr[:, 1])], axis=1)
+
+
+def orient_right_path_to_left(path_left_arr: np.ndarray,
+                              path_right_arr: np.ndarray,
+                              y_weight: float = 4.0,
+                              n: int = 64):
+    """Orienta el path derecho para que corresponda punto a punto con el izquierdo.
+
+    El matching de disparidad es parametrico: el punto i% del path izquierdo
+    se empareja con el punto i% del derecho. Si uno de los dos esta invertido,
+    el inicio fisico del cable en una imagen se empareja con el final en la
+    otra y todo el mapa de disparidad sale mal EN SILENCIO, porque ninguna
+    comprobacion posterior mira la correspondencia.
+
+    Normalizar cada path por su propia Y, que es lo que se hacia antes, falla
+    con un cable casi horizontal: unos pixeles de ruido en los extremos
+    deciden el volteo en una imagen y no en la otra. Aqui la orientacion del
+    derecho se decide CONTRA el izquierdo, comparando el path completo
+    remuestreado en las dos orientaciones posibles. En un par estereo la
+    disparidad desplaza X y casi no toca Y, por eso Y pesa mas en el costo;
+    el peso vale tambien sin rectificar, donde Y corresponde solo
+    aproximadamente.
+
+    Returns:
+        (path_right_orientado, invertido, margen) donde margen dice cuanto
+        mejor fue la orientacion elegida (1.0 = empate exacto, >1.3 = clara).
+    """
+    L = _resample_polyline(path_left_arr, n)
+    R = _resample_polyline(path_right_arr, n)
+
+    def cost(r):
+        return float(np.mean(y_weight * np.abs(L[:, 1] - r[:, 1])
+                             + np.abs(L[:, 0] - r[:, 0])))
+
+    c_keep, c_flip = cost(R), cost(R[::-1])
+    flipped = c_flip < c_keep
+    margin = max(c_keep, c_flip) / max(min(c_keep, c_flip), 1e-9)
+    out = np.asarray(path_right_arr)
+    if flipped:
+        out = out[::-1]
+    return out, bool(flipped), float(margin)
+
+
 class StereoProcessor:
     """Procesador principal para visión estéreo"""
     
@@ -899,43 +953,42 @@ class StereoProcessor:
         from scipy import interpolate
 
         # === NORMALIZACIÓN CANÓNICA DE DIRECCIÓN ===
-        # Forzar ambos paths a ir de ARRIBA hacia ABAJO (menor Y → mayor Y)
-        # independientemente de cómo fueron detectados los endpoints.
-        # Esto evita el problema de que un path vaya top→bottom y el otro bottom→top.
+        # El izquierdo toma la orientación canónica (de arriba hacia abajo).
+        # El derecho NO se normaliza solo: se orienta CONTRA el izquierdo,
+        # comparando el path completo en las dos orientaciones posibles.
+        # Normalizar cada uno por su propia Y, que es lo que se hacía antes,
+        # con un cable casi horizontal dejaba que unos píxeles de ruido
+        # voltearan una imagen y no la otra, y el start de una se emparejaba
+        # con el end de la otra sin que nada lo detectara.
 
         y_start_left = path_left_arr[0][1]
         y_end_left = path_left_arr[-1][1]
-        y_start_right = path_right_arr[0][1]
-        y_end_right = path_right_arr[-1][1]
 
         logger.info(f"   Pre-normalización: LEFT Y=[{y_start_left:.1f} → {y_end_left:.1f}], "
-                     f"RIGHT Y=[{y_start_right:.1f} → {y_end_right:.1f}]")
+                     f"RIGHT Y=[{path_right_arr[0][1]:.1f} → {path_right_arr[-1][1]:.1f}]")
 
         # Normalizar path izquierdo: si va de abajo hacia arriba, invertir
         if y_start_left > y_end_left:
             logger.info("   Invirtiendo path LEFT (iba de abajo hacia arriba)")
             path_left_arr = path_left_arr[::-1]
 
-        # Normalizar path derecho: si va de abajo hacia arriba, invertir
-        if y_start_right > y_end_right:
-            logger.info("   Invirtiendo path RIGHT (iba de abajo hacia arriba)")
-            path_right_arr = path_right_arr[::-1]
+        # Orientar el derecho contra el izquierdo, path completo, Y pesa más
+        path_right_arr, right_flipped, orient_margin = orient_right_path_to_left(
+            path_left_arr, path_right_arr)
 
-        # Cross-check: verificar que ambos starts estén en Y similar
-        y_start_left_norm = path_left_arr[0][1]
-        y_start_right_norm = path_right_arr[0][1]
-        y_diff_starts = abs(y_start_left_norm - y_start_right_norm)
-        path_height_left = abs(path_left_arr[-1][1] - path_left_arr[0][1])
-        path_height_right = abs(path_right_arr[-1][1] - path_right_arr[0][1])
-        avg_height = max((path_height_left + path_height_right) / 2, 1.0)
-
-        if y_diff_starts > avg_height * 0.4:
-            logger.warning(f"⚠️ Cross-check: Y_start difieren mucho tras normalización "
-                          f"(LEFT={y_start_left_norm:.1f}, RIGHT={y_start_right_norm:.1f}, "
-                          f"diff={y_diff_starts:.1f}, avg_height={avg_height:.1f}). "
-                          f"Posible cable en forma de U o detección inconsistente.")
+        if right_flipped:
+            logger.info(f"   Invirtiendo path RIGHT para corresponder con LEFT "
+                        f"(margen {orient_margin:.2f}x)")
         else:
-            logger.info(f"   ✓ Dirección normalizada OK (diff_starts_Y={y_diff_starts:.1f}px)")
+            logger.info(f"   ✓ Orientación RIGHT consistente con LEFT "
+                        f"(margen {orient_margin:.2f}x)")
+
+        if orient_margin < 1.15:
+            logger.warning(f"⚠️ Orientación estéreo ambigua (margen {orient_margin:.2f}x): "
+                          "las dos orientaciones del path derecho cuestan casi lo "
+                          "mismo. Cable en U casi simétrico, o los dos paths no "
+                          "cubren el mismo tramo del cable. Revisar matching_debug.png "
+                          "antes de confiar en las métricas de este par.")
 
         # === SMART CONDITIONAL BORDER TRIMMING ===
         # Decide cuándo y cómo recortar basándose en si los extremos tocan
@@ -1377,7 +1430,9 @@ class StereoProcessor:
             'median_disparity': float(np.median(valid_disparities)) if len(disparities) > 0 else 0,
             'std_disparity': float(np.std(valid_disparities)) if len(disparities) > 0 else 0,
             'matches': matches,
-            'disparities': disparities
+            'disparities': disparities,
+            'right_path_flipped': bool(right_flipped),
+            'orientation_margin': float(orient_margin)
         }
 
         logger.info(f"✓ Disparidad geométrica calculada:")

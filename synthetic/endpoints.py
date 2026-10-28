@@ -250,13 +250,21 @@ def harvest(mask: np.ndarray, path_xy: np.ndarray, tol_radii: float = 2.0):
             "reachable": reachable, "ambiguous": ambiguous}
 
 
-def predict_pair(model, feature_names, mask, min_separation_frac: float = 0.35):
+def predict_pair(model, feature_names, mask, min_separation_frac: float = 0.35,
+                 top_k: int = 12):
     """Score every skeleton pixel and return the two endpoints.
 
-    The second point is the best-scoring pixel that is at least
-    ``min_separation_frac`` of the skeleton diameter away from the first,
-    geodesically. Without that constraint both picks land on the same end,
-    which is the obvious failure mode of scoring pixels independently.
+    The pair is chosen jointly: among the ``top_k`` best-scoring pixels,
+    take the pair with the highest summed score whose geodesic separation is
+    at least ``min_separation_frac`` of the skeleton diameter. The earlier
+    version was greedy, best pixel first and then the best far-away one, and
+    its failure mode was exactly the one that matters: when the single best
+    pixel sits on the wrong strand of a crossing, every choice after it is
+    already lost. Joint selection lets a slightly weaker first pick win when
+    it comes with a strong, well-separated partner.
+
+    The separation constraint is what makes the pair an actual pair rather
+    than two points on the same end.
     """
     X, points, info = features(mask)
     if len(X) < 2:
@@ -264,17 +272,34 @@ def predict_pair(model, feature_names, mask, min_separation_frac: float = 0.35):
     keep = [FEATURE_NAMES.index(n) for n in feature_names]
     score = model.predict_proba(X[:, keep])[:, 1]
 
-    first = int(np.argmax(score))
     built = _build_graph(skeleton_of(mask))
     if built is None:
         return None, None, info
     pts, neighbours = built
-    d_first = _bfs(pts, neighbours, first).astype(np.float32)
-    d_first = np.where(d_first < 0, info["diameter"], d_first)
-    far = d_first >= min_separation_frac * info["diameter"]
-    second = int(np.argmax(np.where(far, score, -1.0))) if far.any() else int(
-        np.argmax(np.where(np.arange(len(score)) != first, score, -1.0)))
 
+    k = min(top_k, len(score))
+    cand = np.argsort(score)[-k:][::-1]
+    need = min_separation_frac * info["diameter"]
+
+    best, best_sum = None, -1.0
+    for a in cand:
+        d_a = _bfs(pts, neighbours, int(a)).astype(np.float32)
+        d_a = np.where(d_a < 0, info["diameter"], d_a)
+        for b in cand:
+            if b == a or d_a[b] < need:
+                continue
+            ssum = float(score[a] + score[b])
+            if ssum > best_sum:
+                best_sum, best = ssum, (int(a), int(b))
+
+    if best is None:
+        # nothing satisfies the separation, fall back to the greedy pair
+        first = int(np.argmax(score))
+        second = int(np.argmax(np.where(np.arange(len(score)) != first,
+                                        score, -1.0)))
+        best = (first, second)
+
+    first, second = best
     p1 = (int(points[first][0]), int(points[first][1]))
     p2 = (int(points[second][0]), int(points[second][1]))
     info["score_first"] = float(score[first])
