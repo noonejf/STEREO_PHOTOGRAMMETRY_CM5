@@ -141,6 +141,16 @@ not trained on by default, and the number that matters is the one printed for
 real images from a model fitted only on synthetic ones. Treat the synthetic
 held-out score as a sanity check and the real score as the result.
 
+Measured, the synthetic data helps the segmenter only when the forest is
+allowed to be huge. Unbounded (430 MB) it beats the GUI-trained model
+clearly, IoU 0.538 against 0.470 on all 20 real pairs; capped to what a CM5
+can load it ties at best (82 MB, 0.613 against 0.620 F1) and loses when
+compact (27 MB). With a per-pixel RandomForest on 9 features the capacity
+is the bottleneck, not the data, so the GUI model stays. `--min-leaf`
+(default 150) exists so nobody produces a 430 MB pickle by accident. If
+this is picked up again, the levers are richer features or more REAL
+samples, not more trees.
+
 ## What was measured, and from what
 
 Every constant in `config.py` came from the 26 image and mask pairs already
