@@ -106,3 +106,16 @@ Thumbs.db
 # .claude/borat/memory/ is knowledge and should be committed.
 .claude/borat/events.jsonl
 .claude/borat/state.json
+
+# --- Datasets sinteticos ---
+# Los genera `python -m synthetic.generate`. Son decenas de miles de imagenes
+# y se reconstruyen exactamente desde la semilla, asi que no tiene sentido
+# versionarlas: lo que vale es el generador, no su salida.
+/data/synthetic/
+
+# El scorer de ramas entrenado. Con los valores por defecto sale en 119 MB,
+# por encima del limite de 100 MB por archivo de GitHub, y demasiado grande
+# para correr por paso en la CM5. Se regenera con:
+#   python -m synthetic.generate path --count 2000
+#   python -m synthetic.train_path --trees 60 --max-depth 10 --min-leaf 200
+/data/models/path_model.pkl

@@ -549,7 +549,29 @@ class SmartWireTracker:
 
         # Ordenar descendente (mayor score primero)
         scores.sort(key=lambda x: x[0], reverse=True)
-        return [x[1] for x in scores]
+        ordered = [x[1] for x in scores]
+
+        # Modelo 2, opcional. Solo entra si existe data/models/path_model.pkl
+        # Y ese modelo registro que le gana a la formula de arriba en
+        # decisiones que no vio al entrenar. Si no, se queda la formula.
+        # Devuelve None ante cualquier fallo, asi que nunca aborta una
+        # reconstruccion: cae a la formula y lo escribe en el log.
+        scorer = self._branch_scorer()
+        if scorer is not None:
+            learned = scorer.rank(self, current, options, momentum)
+            if learned:
+                return learned
+        return ordered
+
+    def _branch_scorer(self):
+        """Carga perezosa del scorer aprendido. None si no corresponde usarlo."""
+        if not hasattr(self, "_scorer_cache"):
+            try:
+                from processing.branch_scorer import get_scorer
+                self._scorer_cache = get_scorer()
+            except Exception:
+                self._scorer_cache = None
+        return self._scorer_cache
 
     def _debug_decision_point(self, dp_num: int, current, momentum,
                                flow_options, sorted_options):

@@ -10,6 +10,17 @@ import os
 import logging
 from pathlib import Path
 
+# El pipeline imprime arrows, checkmarks y box-drawing en sus mensajes de
+# progreso. En Windows la consola es cp1252 por defecto, asi que cualquiera de
+# esos caracteres lanza UnicodeEncodeError y mata la operacion en curso, no
+# solo el mensaje. Pasa, por ejemplo, en el auto-escalado de SmartWireTracker,
+# que se dispara con cualquier cable grueso.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 # Agregar directorio del proyecto al path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))

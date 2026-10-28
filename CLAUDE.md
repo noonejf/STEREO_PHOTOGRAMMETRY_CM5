@@ -153,6 +153,33 @@ data/ai_dataset/path_dataset/   # images + masks + paths JSON, for the model tha
 
 Browse either with `DatasetViewerDialog` (`gui/dataset_viewer.py:135`).
 
+### Synthetic data (`synthetic/`)
+
+Neither model has enough real data, so `synthetic/` generates both datasets.
+See `synthetic/README.md`. Three things to know before using it:
+
+- **The branch scorer has no domain gap.** `SmartWireTracker.__init__` takes
+  `(mask, start, end)` and every feature comes from the distance transform of
+  that mask, so a synthetic mask and a real one are the same kind of object.
+  The segmenter *does* see pixels, so `train_mask.py` evaluates on real
+  samples it never trained on and prints that number separately.
+- **`synthetic/branches.py` is the harvester** the D5 report lists as the
+  blocker for Model 2. It drives the real tracker along a known path, so the
+  features are identical by construction to what the tracker computes at run
+  time. Changing `FEATURE_NAMES` invalidates every stored shard, and the
+  loader checks for it.
+- **Constants in `config.py` were measured**, by
+  `tools/measure_real_samples.py`, off the 26 real pairs. Re-run it with
+  `--compare` after adding real samples.
+
+Output lands in `data/synthetic/`, which **is** gitignored, unlike
+`data/captures/`.
+
+`processing/branch_scorer.py` lets a trained Model 2 replace the hand-tuned
+branch formula. It is off unless a model exists **and** that model recorded
+that it beat the formula on held-out decisions. `LINKU_BRANCH_SCORER=0`
+forces the formula back on for an A/B run.
+
 ## Calibration
 
 ### How it works today
