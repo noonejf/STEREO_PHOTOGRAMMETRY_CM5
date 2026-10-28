@@ -786,6 +786,20 @@ def detect_wire_endpoints(mask: np.ndarray,
     Returns:
         (start_point, end_point) en formato (x, y)
     """
+    # Modelo aprendido, opcional. Solo entra con LINKU_ENDPOINT_MODEL=1 y si
+    # ese modelo registro que le gana al detector clasico. Puntua todo el
+    # esqueleto, no solo las puntas, que es lo que le permite encontrar un
+    # extremo apoyado sobre otra hebra, donde no existe punta que detectar.
+    try:
+        from processing.endpoint_model import get_finder
+        finder = get_finder()
+    except Exception:
+        finder = None
+    if finder is not None:
+        found = finder.find(mask)
+        if found is not None:
+            return found
+
     detector = EndpointDetector(mask, side=side)
     # debug siempre activo — las imágenes van a data/results/debug/endpoints_{side}/
     start, end = detector.detect_endpoints(method=method, save_debug=True)

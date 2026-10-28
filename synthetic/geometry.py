@@ -199,13 +199,32 @@ SHAPES = {
 
 # ---------------------------------------------------------------- assembly
 
-def make_centreline(kind: str, size, rng, allow_out_of_frame: bool = False):
+#: Minimum separation between the two ends, as a fraction of the shape's
+#: own extent. The cord is an open curve with two free ends and the whole
+#: path capability depends on that: a closed loop has no start and no stop,
+#: so a generator that emitted one would be teaching both models something
+#: that cannot happen. Enforced in `make_centreline`, not merely hoped for.
+MIN_END_SEPARATION = 0.12
+
+
+def _is_open(xy: np.ndarray) -> bool:
+    extent = max(np.ptp(xy[:, 0]), np.ptp(xy[:, 1]))
+    if extent < 1e-9:
+        return False
+    return np.linalg.norm(xy[0] - xy[-1]) / extent >= MIN_END_SEPARATION
+
+
+def make_centreline(kind: str, size, rng, allow_out_of_frame: bool = False,
+                    _attempt: int = 0):
     """Build one wire.
 
     Returns ``(xyz, depth)`` where ``xyz`` is an (N, 3) array whose first two
     columns are pixel coordinates in an image of ``size = (w, h)``, ordered
     end to end, and ``depth`` is the per-point relative depth used to scale
     the radius.
+
+    The curve is always open: a shape whose ends come closer than
+    `MIN_END_SEPARATION` of its extent is rejected and drawn again.
     """
     w, h = size
     ctrl = SHAPES[kind](rng)
@@ -258,6 +277,10 @@ def make_centreline(kind: str, size, rng, allow_out_of_frame: bool = False):
 
     xyz = np.column_stack([xy, depth])
     xyz = resample_uniform(xyz, step=rng.uniform(1.5, 3.0))
+
+    if not _is_open(xyz[:, :2]) and _attempt < 8:
+        return make_centreline(kind, size, rng, allow_out_of_frame, _attempt + 1)
+
     return xyz[:, :2], xyz[:, 2]
 
 

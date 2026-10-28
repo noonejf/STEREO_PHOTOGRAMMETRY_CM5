@@ -7,15 +7,62 @@ months of captures. This package generates both datasets instead.
 
 ```
 synthetic/
-  config.py       constants measured off the real archive, with the measurement
-  geometry.py     3D centrelines: straight, catenary, smooth, loop, coil, knot, tangle
-  rasterize.py    centreline -> mask, depth buffer, coverage, lateral position
-  appearance.py   buffers -> photograph, in the lab or the orbital family
-  branches.py     mask + known path -> labelled (features, chosen branch) rows
-  generate.py     CLI for mass generation
-  train_mask.py   Model 1, with a held-out split
-  train_path.py   Model 2, measured against the rule it would replace
+  config.py          constants measured off the real archive, with the measurement
+  geometry.py        3D centrelines: straight, catenary, smooth, loop, coil, knot, tangle
+  rasterize.py       centreline -> mask, depth buffer, coverage, lateral position
+  appearance.py      buffers -> photograph, in the lab or the orbital family
+  branches.py        mask + known path -> labelled (features, chosen branch) rows
+  endpoints.py       mask -> per-skeleton-pixel features for finding the two ends
+  checkpoint.py      resumable CPU training, shared by the three trainers
+  generate.py        CLI for mass generation
+  train_mask.py      the segmenter, with a held-out split
+  train_path.py      the branch scorer, measured against the rule it would replace
+  train_endpoints.py the endpoint finder, measured against the shipped detector
 ```
+
+**The cord is always an open curve.** It has two free ends, and the whole
+path capability depends on that: a closed loop has no start and no stop.
+`geometry.MIN_END_SEPARATION` enforces it, and a shape whose ends come too
+close is rejected and drawn again rather than merely hoped to be rare.
+
+## Finding the two ends
+
+Tracing a mask is useless without knowing where to begin and where to stop,
+so this is half of the path capability rather than a side quest.
+
+The shipped detector takes skeleton tips and picks the geodesically farthest
+pair. Measured over 80 synthetic masks, that cannot work on a third of the
+cases: 47 of 138 true endpoints have no skeleton tip within two wire radii,
+and 44 of those sit squarely on the mask. They concentrate in 83% of loop
+ends and 71% of knot ends, for one structural reason. When the free end lies
+across another part of the cord the skeleton merges straight through it and
+leaves no tip, and no tuning recovers an end that leaves no tip.
+
+`endpoints.py` scores **every** skeleton pixel instead, which lifts the
+ceiling on those same masks from 66% to 100%, then takes the best pixel plus
+the best one geodesically far from it. Twelve features; the one that carries
+the most weight is one-sidedness, which measures whether the nearby skeleton
+lies to one side, and that still fires where no tip exists.
+
+Results, 1500 masks, 200 trees, 102 s on CPU, against the shipped detector:
+
+| shape | learned | shipped | within 25 px |
+|---|---|---|---|
+| straight | 3 px | 5 px | 100% |
+| smooth | 3 px | 6 px | 92% |
+| catenary | 6 px | 11 px | 100% |
+| coil | 11 px | 59 px | 55% |
+| loop | 106 px | 156 px | 22% |
+| knot | 109 px | 113 px | 9% |
+| tangle | 111 px | 137 px | 0% |
+
+It wins in every family. **Read the per-shape rows, not the aggregate.** The
+aggregate is 51.5 px against 118.5, and it misleads, because this dataset is
+40% knot and tangle on purpose, which is right for the branch scorer and
+badly unrepresentative of the real tether. On the simple shapes, which is
+what a tensioned cable is, the learned finder gives 3 px median and 94%
+within 25 px. Heavy tangles stay hard and partly unrecoverable from a binary
+mask alone.
 
 ## Why synthetic data works here, and where it does not
 
@@ -73,11 +120,24 @@ python -m synthetic.generate both --count 2000 --workers 16
 python -m synthetic.generate mask --count 4000
 python -m synthetic.generate path --count 2000 --stride 3
 
-# training
-python -m synthetic.train_mask                 # Model 1
-python -m synthetic.train_mask --mix-real      # once the transfer number is understood
-python -m synthetic.train_path                 # Model 2
+# training, all three resume from their checkpoint after a Ctrl-C
+python -m synthetic.train_mask --mix-real
+python -m synthetic.train_path --trees 60 --max-depth 10 --min-leaf 200
+python -m synthetic.train_endpoints --harvest   # harvest only, resumable
+python -m synthetic.train_endpoints             # train, resumable
+python -m synthetic.train_endpoints --fresh     # ignore the checkpoint
+
+# what actually decides whether the branch scorer ships
+python tools/benchmark_branch_scorer.py --count 30
 ```
+
+**Checkpoints.** There is no GPU here and there will not be one on the
+flight computer, so training is CPU-bound and long, and a run that has to
+start over is the real obstacle to using a large dataset.
+`checkpoint.py` adds trees in batches with `warm_start`, writing the whole
+forest to `<model>.ckpt` after each batch through a temporary file, so an
+interrupt cannot leave a half-written model that a later run would trust.
+Re-running the same command continues from the tree count it reached.
 
 Output goes to `data/synthetic/`, which is git-ignored. It is regenerated
 exactly from the seed, so the generator is the thing worth versioning, not

@@ -36,6 +36,7 @@ if str(_ROOT) not in sys.path:
 
 import synthetic  # noqa: F401,E402
 from synthetic.branches import FEATURE_NAMES  # noqa: E402
+from synthetic.checkpoint import train_forest  # noqa: E402
 
 MODEL_PATH = _ROOT / "data" / "models" / "path_model.pkl"
 FEATURES_DIR = _ROOT / "data" / "synthetic" / "path" / "features"
@@ -102,6 +103,9 @@ def main(argv=None):
     ap.add_argument("--trees", type=int, default=240)
     ap.add_argument("--max-depth", type=int, default=14)
     ap.add_argument("--min-leaf", type=int, default=20)
+    ap.add_argument("--batch", type=int, default=30,
+                    help="trees per checkpoint; the run resumes from the last one")
+    ap.add_argument("--fresh", action="store_true", help="ignore any checkpoint")
     ap.add_argument("--drop-rank", action="store_true",
                     help="train without the heuristic_rank feature, to see "
                          "what the model learns on its own")
@@ -136,12 +140,24 @@ def main(argv=None):
     used = [FEATURE_NAMES[c] for c in cols]
 
     t0 = time.time()
-    clf = RandomForestClassifier(n_estimators=args.trees, max_depth=args.max_depth,
-                                 min_samples_leaf=args.min_leaf, n_jobs=-1,
-                                 random_state=args.seed,
-                                 class_weight="balanced_subsample")
-    clf.fit(X[~is_val][:, cols], y[~is_val])
-    print(f"  fitted in {time.time() - t0:.0f}s")
+    from sklearn.utils.class_weight import compute_class_weight
+    classes = np.unique(y[~is_val])
+    wts = compute_class_weight("balanced", classes=classes, y=y[~is_val])
+    cw = {int(c): float(v) for c, v in zip(classes, wts)}
+
+    def make():
+        return RandomForestClassifier(
+            n_estimators=0, warm_start=True, max_depth=args.max_depth,
+            min_samples_leaf=args.min_leaf, n_jobs=-1,
+            random_state=args.seed, class_weight=cw)
+
+    ckpt = Path(args.out).with_suffix(".ckpt")
+    clf, state = train_forest(make, X[~is_val][:, cols], y[~is_val], args.trees,
+                              args.batch, ckpt, resume=not args.fresh,
+                              label="path", extra={"features": used})
+    print(f"  fitted in {time.time() - t0:.0f}s"
+          + (f", resumed from {state['resumed_from']} trees"
+             if state["resumed_from"] else ""))
 
     # the comparison that decides whether this is worth shipping
     p_tr = clf.predict_proba(X[~is_val][:, cols])[:, 1]

@@ -119,3 +119,7 @@ Thumbs.db
 #   python -m synthetic.generate path --count 2000
 #   python -m synthetic.train_path --trees 60 --max-depth 10 --min-leaf 200
 /data/models/path_model.pkl
+
+# Checkpoints de entrenamiento: binarios grandes, se regeneran solos.
+/data/models/*.ckpt
+/data/models/endpoint_model.pkl

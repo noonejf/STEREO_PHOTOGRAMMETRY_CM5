@@ -36,6 +36,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 import synthetic  # noqa: F401,E402  (console encoding fix)
+from synthetic.checkpoint import train_forest  # noqa: E402
 
 TARGET_W, TARGET_H = 256, 192
 MODEL_PATH = _ROOT / "data" / "models" / "mask_model.pkl"
@@ -156,6 +157,9 @@ def main(argv=None):
     ap.add_argument("--limit", type=int, default=None, help="cap synthetic samples")
     ap.add_argument("--val-fraction", type=float, default=0.2)
     ap.add_argument("--trees", type=int, default=120)
+    ap.add_argument("--batch", type=int, default=20,
+                    help="trees per checkpoint; the run resumes from the last one")
+    ap.add_argument("--fresh", action="store_true", help="ignore any checkpoint")
     ap.add_argument("--max-depth", type=int, default=18)
     ap.add_argument("--neg-ratio", type=float, default=8.0,
                     help="background pixels kept per wire pixel")
@@ -203,11 +207,18 @@ def main(argv=None):
           f"({100 * y.mean():.1f}% wire)")
 
     cw = None if args.class_weight == "none" else "balanced_subsample"
-    clf = RandomForestClassifier(n_estimators=args.trees, max_depth=args.max_depth,
-                                 n_jobs=-1, random_state=args.seed,
-                                 class_weight=cw)
-    clf.fit(X, y)
-    print(f"  fitted in {time.time() - t0:.0f}s")
+
+    def make():
+        return RandomForestClassifier(
+            n_estimators=0, warm_start=True, max_depth=args.max_depth,
+            n_jobs=-1, random_state=args.seed, class_weight=cw)
+
+    ckpt = Path(args.out).with_suffix(".ckpt")
+    clf, state = train_forest(make, X, y, args.trees, args.batch, ckpt,
+                              resume=not args.fresh, label="mask")
+    print(f"  fitted in {time.time() - t0:.0f}s"
+          + (f", resumed from {state['resumed_from']} trees"
+             if state["resumed_from"] else ""))
 
     print("\nScores, whole-image and unbalanced:")
     s_train = _scores(clf, train[:40], "synthetic (train)")

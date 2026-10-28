@@ -175,10 +175,23 @@ See `synthetic/README.md`. Three things to know before using it:
 Output lands in `data/synthetic/`, which **is** gitignored, unlike
 `data/captures/`.
 
-`processing/branch_scorer.py` lets a trained Model 2 replace the hand-tuned
-branch formula. It is off unless a model exists **and** that model recorded
-that it beat the formula on held-out decisions. `LINKU_BRANCH_SCORER=0`
-forces the formula back on for an A/B run.
+Two optional learned components sit behind env flags, both **off by
+default** and both refusing to load a model that lost to the code it would
+replace:
+
+- `processing/branch_scorer.py`, `LINKU_BRANCH_SCORER=1`. Currently **not
+  worth enabling**: it wins the offline metric, 0.692 top-1 against 0.456,
+  and then goes 11 wins, 12 losses, 7 ties on end-to-end coverage over 30
+  masks at 3.8x the runtime. Measure with
+  `tools/benchmark_branch_scorer.py`.
+- `processing/endpoint_model.py`, `LINKU_ENDPOINT_MODEL=1`, consulted from
+  `detect_wire_endpoints`. It beats the skeleton-tip detector in every
+  shape family, and on the simple shapes the real tether actually is it
+  gives 3 px median error against the shipped 5 px, 94% within 25 px. The
+  tip detector structurally cannot find an end that lies across another
+  strand, which is 83% of loop ends.
+
+Both are trained by `synthetic/`, all three trainers checkpoint and resume.
 
 ## Calibration
 
