@@ -38,6 +38,7 @@ import synthetic  # noqa: F401,E402  (console encoding fix)
 from synthetic import generate  # noqa: E402
 from synthetic.evaluate import path_agreement  # noqa: E402
 from processing import geodesic_tracer  # noqa: E402
+from processing import graph_tracer  # noqa: E402
 from processing.endpoint_detector import EndpointDetector  # noqa: E402
 from processing.smart_wire_tracker import SmartWireTracker  # noqa: E402
 
@@ -75,6 +76,19 @@ def run_geodesic(mask, a, b, gt, radius, beta):
     return ag
 
 
+def run_graph(mask, a, b, gt, radius):
+    t0 = time.time()
+    path, info = graph_tracer.trace(mask, tuple(int(v) for v in a),
+                                    tuple(int(v) for v in b),
+                                    wire_radius=radius)
+    h, w = mask.shape[:2]
+    ag = path_agreement(path or [], gt, (w, h), radius)
+    ag["seconds"] = time.time() - t0
+    ag["off_cable"] = 0.0
+    ag["reached"] = float(bool(info.get("reached")))
+    return ag
+
+
 def summarise(name, rows, base=None):
     f1 = 100 * float(np.mean([r["f1"] for r in rows]))
     rec = 100 * float(np.mean([r["recall"] for r in rows]))
@@ -102,7 +116,8 @@ def main(argv=None):
           f"{args.size[0]}x{args.size[1]}\n")
 
     betas = BETAS if args.beta_sweep else [args.beta]
-    rows = {"smart (detected ends)": [], "smart (true ends)": []}
+    rows = {"smart (detected ends)": [], "smart (true ends)": [],
+            "graph (detected ends)": [], "graph (true ends)": []}
     for b in betas:
         rows[f"geodesic b={b:g} (detected)"] = []
         rows[f"geodesic b={b:g} (true)"] = []
@@ -121,6 +136,10 @@ def main(argv=None):
             run_smart(mask, det[0], det[1], xy, radius, args.max_iter))
         rows["smart (true ends)"].append(
             run_smart(mask, tru[0], tru[1], xy, radius, args.max_iter))
+        rows["graph (detected ends)"].append(
+            run_graph(mask, det[0], det[1], xy, radius))
+        rows["graph (true ends)"].append(
+            run_graph(mask, tru[0], tru[1], xy, radius))
         for b in betas:
             rows[f"geodesic b={b:g} (detected)"].append(
                 run_geodesic(mask, det[0], det[1], xy, radius, b))
@@ -147,6 +166,10 @@ def main(argv=None):
             f"{100 * np.mean([rows[n][i]['f1'] for i in idx]):>15.1f}"
             for n in order)
         print(f"  {sh:<10}{len(idx):>4}{cells}")
+
+    g = rows["graph (detected ends)"]
+    print(f"\n  the graph tracer reached the far endpoint on "
+          f"{int(sum(r['reached'] for r in g))}/{len(g)} scenes")
 
     key = f"geodesic b={args.beta:g} (detected)"
     if key in rows:

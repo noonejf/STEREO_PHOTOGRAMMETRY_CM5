@@ -110,7 +110,21 @@ what `tools/compare_mask_models.py` reports for the shipped segmenter, is
 what would let that question be asked. Until then, do not quote a
 break-bridging number from this benchmark.
 
-**And the alternative tracers do not close that gap either.** An oracle
+**One alternative tracer does close it, and by a lot.**
+`processing/graph_tracer.py` resolves every crossing at once by pairing
+branches at each skeleton node, then searches the resulting graph for the
+path that reaches the far endpoint covering the most cable. 96.4 against
+the DFS's 88.1 over 60 scenes, 96.4 against 80.4 on knots, in 0.14 s
+against 1.76 s, and it passes the 90.9 that the DFS reaches with perfect
+endpoints. `synthetic/pairings.py` harvests the labelled pairings and
+`synthetic/train_pairings.py` fits the model that decides them, which is
+the first learned component in this repo to win the end-to-end
+measurement and therefore the first to ship on by default.
+
+On real frames it is a tie rather than a win, because real masks come in
+pieces and a graph in pieces cannot be walked end to end. See CLAUDE.md.
+
+**The geodesic alternatives do not close it.** An oracle
 that picked, per scene, the best of `SmartWireTracker` and five geodesic
 variants scores 87.4 against the tracker's own 87.3 over 40 scenes: the
 geodesic is best on 3 scenes and by a hair. So there is no headroom for a

@@ -76,8 +76,9 @@ Processing page, mode **`Geometric (Wire Tracking)`**, which is the **default**
 | 1 | Segment the cable into binary masks (L+R) | `open_cable_detection_tuner_with_switch()`, `edge_detection_tuner.py:1426` |
 | 2 | Find the two endpoints (skeletonize, prune, geodesic-farthest pair) | `detect_wire_endpoints()`, `processing/endpoint_detector.py:771` |
 | 3 | Trace the path: automatic **or** hand-drawn | `WireMethodChoiceDialog`, `gui/wire_method_choice.py:85` |
-| 3a | Auto: DFS over the mask with backtracking and momentum | `SmartWireTracker.track_wire()`, `processing/smart_wire_tracker.py:88` |
-| 3c | Auto, alternative: globally optimal geodesic between the two ends | `geodesic_tracer.trace()`, `processing/geodesic_tracer.py` |
+| 3a | Auto, **tried first**: resolve every crossing, then read the cable off the skeleton graph | `graph_tracer.track_wire()`, `processing/graph_tracer.py` |
+| 3b | Auto, fallback when 3a does not reach the far endpoint | `SmartWireTracker.track_wire()`, `processing/smart_wire_tracker.py:88` |
+| 3d | Not in the flow: globally optimal geodesic between the two ends | `geodesic_tracer.trace()`, `processing/geodesic_tracer.py` |
 | 3b | Manual: user clicks points along the wire | `WirePathDrawerDialog`, `gui/wire_path_drawer.py:176` |
 | 4 | Rectify both images | `StereoProcessor.rectify_images()`, `processing/stereo_processor.py:403` |
 | 5 | Match left to right | `compute_disparity_from_wire_paths()`, `processing/stereo_processor.py:852` |
@@ -110,6 +111,76 @@ anywhere in the repo.
 `compute_wire_metrics` drops points with `disp <= 0` or `Z` outside 0.05 to
 50.0 m **before** computing arc length, so `total_length_m` under-reports if a
 mid-wire segment gets filtered.
+
+### The graph tracer, which is now tried first
+
+`SmartWireTracker` decides **one crossing at a time**: it steps, picks a
+branch from a weighted formula, and discovers a wrong turn much later, if
+at all. `processing/graph_tracer.py` asks a different question. The
+skeleton of the mask is a graph, nodes where strands meet and edges where
+the cable runs alone, so a crossing is not "where do I step next" but
+"**which two of these branches are the same strand passing through**".
+Answer that at every node and the cable reads off the graph.
+
+Two things had to be right before it worked at all, both worth knowing
+before touching the file.
+
+**Thinning does not turn a crossing into one node.** A cable with real
+width crosses itself and the skeleton produces *two* T nodes a few pixels
+apart, joined by a stub. On the mask that prompted this, 27 nodes of
+degree 3 and only 3 of degree 4, with the shortest edges 3 to 6 px at a
+wire radius of 4.4. A degree-3 node has no pair to make, so the walk dies
+at the first crossing. Branch pixels are dilated before labelling, which
+glues each split crossing back into the single node it physically is.
+
+**The walk has to be a search.** Reduced to a few dozen edges instead of
+tens of thousands of pixels, the tracer can afford depth-first search with
+backtracking, and it keeps the path that reaches the far endpoint
+**covering the most cable**, not the shortest one. Bounded by both an
+expansion cap and a 3 s wall clock, because three real frames otherwise
+ran 15 to 18 s.
+
+Measured over 60 fresh synthetic scenes with `tools/benchmark_geodesic_tracer.py`:
+
+| tracer | true-path F1 | knots | seconds |
+|--------|--------------|-------|---------|
+| `SmartWireTracker` | 88.1 | 80.4 | 1.76 |
+| `SmartWireTracker`, true endpoints | 90.9 | 79.0 | 2.29 |
+| graph, geometric pairing | 95.2 | 91.3 | 0.11 |
+| **graph + learned pairing** | **96.4** | **96.4** | **0.14** |
+
+**That 90.9 was never the ceiling it was quoted as.** It is what the DFS
+reaches when handed perfect endpoints, which is a property of the DFS, not
+of the problem. The graph tracer passes it with the endpoints the shipped
+detector finds.
+
+**On real frames, measured as the pipeline actually runs** (graph first,
+DFS whenever the graph result is rejected), against the hand-drawn masks
+of the 20 real pairs:
+
+| | cable covered | precision | seconds |
+|---|---|---|---|
+| DFS alone | 63.8% | 56.3% | 6.62 |
+| **graph, DFS as fallback** | **69.8%** | **60.0%** | **1.23** |
+
+The graph answer is used on 16 of the 20 frames and rejected on 4.
+
+**Two guards decide that, and both are necessary.** Reaching the far
+endpoint is the first, and it is not sufficient: one real frame reached
+the end having covered 0.9% of the mask, because the pairing sent the
+path down a shortcut that happened to arrive. So a result is also
+rejected when it covers less than `MIN_MASK_COVERAGE` of the mask. On
+synthetic scenes the pair of guards fires once in forty, so they are not
+quietly throwing away good paths.
+
+**Build the graph at 960 px, not at capture resolution.** This was worth
+more than any other single change here: the three slowest real frames went
+from 15 to 18 seconds down to 0.03, *and* their coverage rose (43% to 60%,
+27% to 53%). Speed was expected; the accuracy was not, and the reason is
+that a skeleton taken at full resolution carries edge-noise junctions that
+simply are not there at half. Two of the 18 seconds were a separate bug
+worth not repeating: `np.nonzero(lab == i)` once per node scans the whole
+frame per node, 92 times.
 
 ### The geodesic tracer, and where each tracer belongs
 
@@ -254,8 +325,30 @@ See `synthetic/README.md`. Four things to know before using it:
 Output lands in `data/synthetic/`, which **is** gitignored, unlike
 `data/captures/`.
 
-Two optional learned components sit behind env flags, both **off by
-default**, both measured to the end and both found not to pay. The verdict
+Three learned components sit beside the hand-written code. **One of them
+is on by default, and it is the only one that ever won the end-to-end
+measurement.**
+
+- `processing/pair_model.py`, `LINKU_PAIR_MODEL=0` to disable. It decides,
+  at each node of the skeleton graph, which two branches are the same
+  strand passing through. True-path F1 **96.4 against the geometric
+  rule's 95.2** over 60 fresh scenes, and **96.4 against 91.3 on knots**.
+  0.4 MB. Trained by `synthetic/train_pairings.py` on labels that are
+  exact, because the generator knows the true centreline and therefore the
+  true pairing. It refuses to load a pickle that did not record
+  `beats_geometric`, same guard as the other two.
+  - **Why this one works where the branch scorer did not.** The branch
+    scorer scored one step of a pixel walk, and at a crossing the two
+    strands are locally identical, so the evidence was not in its input.
+    Here the unit is a pair of whole branches and the features are their
+    properties: the direction each leaves in, how far it runs, how thick
+    it is. Those do differ between the right pairing and the wrong one.
+  - Headroom, measured before fitting anything: a perfect pairing scores
+    96.9 against the geometric rule's 94.6, and 97.2 against 83.4 on
+    knots. The model collected most of it.
+
+The other two are **off by default**, both measured to the end and both
+found not to pay. The verdict
 metric is `synthetic/evaluate.py`: F1 of the trace against the true
 centreline on fresh scenes, never the tracker's own coverage, which counts
 mask pixels visited and rewards wandering.
@@ -286,7 +379,8 @@ mask pixels visited and rewards wandering.
   `tools/benchmark_endpoint_model.py`, `tools/sweep_endpoint_gate.py`.
 
 **The remaining trace losses are wrong turns at self-crossings, not mask
-breaks.** This was stated the other way round here until it was measured:
+breaks,** on the synthetic benchmark. On real frames the masks do break,
+and that is the graph tracer's open problem rather than the DFS's. This was stated the other way round here until it was measured:
 over the 60 benchmark scenes, **1 mask in 60** has a break the centreline
 actually spans, while **42 in 60** bring the cable within 2.5 radii of a
 distant part of itself. The geodesic tracer below confirms it from the
