@@ -37,6 +37,41 @@ logger = logging.getLogger(__name__)
 #: graph walk affordable on a 4056x3040 mask.
 WORK_WIDTH = 960
 
+#: How much better than the classical pair of farthest tips the learned pair
+#: has to score before it is used at all. The learned finder is better only
+#: on the masks where an end leaves no skeleton tip, so it answers only when
+#: the evidence says this is one of those; otherwise it abstains and the
+#: shipped detector runs. Overridable for sweeps, not for production.
+DEFAULT_MARGIN = 1.5
+MARGIN_ENV = "LINKU_ENDPOINT_MARGIN"
+
+#: Weight on the geodesic span when the model reranks the classical
+#: candidates. The shipped detector takes the pair that spans the most
+#: cable; this keeps that as one term of the ranking instead of throwing it
+#: away, because on the masks that are hard the true ends often leave no
+#: skeleton tip and no candidate is an end at all. A large weight
+#: reproduces the classical choice, zero is the model on its own.
+DEFAULT_GEO_WEIGHT = 1.0
+GEO_WEIGHT_ENV = "LINKU_ENDPOINT_GEO_W"
+
+#: ``LINKU_ENDPOINT_MODEL`` takes three values rather than a boolean.
+#:
+#: ``0``      off, the shipped detector alone.
+#: ``1``      rerank. The shipped detector runs, and the model picks the
+#:            pair out of the candidates it proposed. Every answer is one
+#:            of those candidates, so this can only trade one skeleton tip
+#:            for another, which is the cheap kind of mistake.
+#: ``full``   the model scores the whole skeleton and answers on its own.
+#:            This is the arrangement that was measured and lost: better
+#:            endpoints, worse traces, because its mistakes land mid-cord.
+#:            Kept so the comparison stays reproducible.
+MODE_OFF, MODE_RERANK, MODE_FULL = "0", "1", "full"
+
+
+def mode() -> str:
+    v = os.environ.get(ENV_FLAG, MODE_OFF).strip().lower()
+    return v if v in (MODE_RERANK, MODE_FULL) else MODE_OFF
+
 MODEL_PATH = Path(__file__).resolve().parent.parent / "data" / "models" / "endpoint_model.pkl"
 ENV_FLAG = "LINKU_ENDPOINT_MODEL"
 
@@ -57,6 +92,41 @@ class EndpointFinder:
                 f"{m.get('median_error_px', float('nan')):.1f} px"
                 + (f" against the classical detector's {cl:.1f} px" if cl else ""))
 
+    def choose_among(self, mask, candidates):
+        """Pick the pair from a shortlist the classical detector proposed.
+
+        Returns ``(start, end)`` in the coordinates of ``mask``, or None to
+        leave the caller's own answer alone.
+        """
+        try:
+            from synthetic.endpoints import score_candidates
+            h, w = mask.shape[:2]
+            scale = 1.0
+            work = mask
+            cand = [(float(x), float(y)) for x, y in candidates]
+            if w > WORK_WIDTH:
+                scale = WORK_WIDTH / float(w)
+                work = cv2.resize(mask, (WORK_WIDTH, max(1, int(round(h * scale)))),
+                                  interpolation=cv2.INTER_NEAREST)
+                cand = [(x * scale, y * scale) for x, y in cand]
+            gw = float(os.environ.get(GEO_WEIGHT_ENV, DEFAULT_GEO_WEIGHT))
+            p1, p2, info = score_candidates(self.model, self.feature_names,
+                                            work, cand, geodesic_weight=gw)
+            self.last_info = info
+            if p1 is None or p2 is None:
+                return None
+            if scale != 1.0:
+                inv = 1.0 / scale
+                p1 = _snap_to_mask(mask, p1[0] * inv, p1[1] * inv, int(inv * 3))
+                p2 = _snap_to_mask(mask, p2[0] * inv, p2[1] * inv, int(inv * 3))
+                if p1 is None or p2 is None:
+                    return None
+            return p1, p2
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("endpoint rerank failed, keeping the classical "
+                           "pair: %s", exc)
+            return None
+
     def find(self, mask):
         """Return ``(start, end)`` as (x, y) tuples, or None to fall back."""
         try:
@@ -68,9 +138,18 @@ class EndpointFinder:
                 scale = WORK_WIDTH / float(w)
                 work = cv2.resize(mask, (WORK_WIDTH, max(1, int(round(h * scale)))),
                                   interpolation=cv2.INTER_NEAREST)
-            p1, p2, _ = predict_pair(self.model, self.feature_names, work)
+            margin = float(os.environ.get(MARGIN_ENV, DEFAULT_MARGIN))
+            p1, p2, info = predict_pair(self.model, self.feature_names, work,
+                                        classical_margin=margin)
+            self.calls = getattr(self, "calls", 0) + 1
+            self.last_info = info
             if p1 is None or p2 is None:
+                if info.get("deferred_to_classical"):
+                    self.deferred = getattr(self, "deferred", 0) + 1
+                else:
+                    self.abstained = getattr(self, "abstained", 0) + 1
                 return None
+            self.answered = getattr(self, "answered", 0) + 1
             if scale != 1.0:
                 inv = 1.0 / scale
                 p1 = _snap_to_mask(mask, p1[0] * inv, p1[1] * inv, int(inv * 3))
@@ -112,7 +191,7 @@ def get_finder(path: Path | None = None):
         return _cache["finder"]
     _cache["loaded"] = True
 
-    if os.environ.get(ENV_FLAG, "0") != "1":
+    if mode() == MODE_OFF:
         return None
 
     p = Path(path) if path else MODEL_PATH

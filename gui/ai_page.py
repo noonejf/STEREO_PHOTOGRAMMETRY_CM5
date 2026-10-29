@@ -65,25 +65,14 @@ class MaskTrainingThread(QThread):
         self.dm = dataset_manager
 
     # ── feature extraction ────────────────────────────────────────────
+    #: Version del juego de features con el que entrena esta pagina. La
+    #: definicion esta en processing/mask_features.py, compartida con el
+    #: entrenador offline y con la ruta de inferencia.
+    FEATURE_VERSION = 2
+
     def _features(self, img_bgr):
-        import cv2
-        import numpy as np
-        hsv  = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
-        gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY).astype(np.float32)
-        b3   = cv2.GaussianBlur(gray, (3, 3), 0)
-        b9   = cv2.GaussianBlur(gray, (9, 9), 0)
-        lc   = (gray - b9).clip(-127, 127) + 127   # local contrast
-        return (np.stack([
-            img_bgr[:, :, 0].ravel(),
-            img_bgr[:, :, 1].ravel(),
-            img_bgr[:, :, 2].ravel(),
-            hsv[:, :, 0].ravel(),
-            hsv[:, :, 1].ravel(),
-            hsv[:, :, 2].ravel(),
-            b3.ravel(),
-            b9.ravel(),
-            lc.ravel(),
-        ], axis=1).astype("float32") / 255.0)
+        from processing import mask_features
+        return mask_features.features(img_bgr, self.FEATURE_VERSION)
 
     def run(self):
         try:
@@ -205,6 +194,11 @@ class MaskTrainingThread(QThread):
                 "precision":   prec,
                 "recall":      rec,
                 "target_size": (TW, TH),
+                # sin esto la ruta de inferencia le daria las nueve columnas
+                # viejas a un modelo ajustado con las 22 nuevas
+                "feature_version": self.FEATURE_VERSION,
+                "model_kind": "rf",
+                "trained_by": "gui.ai_page",
             }
             with open(MASK_MODEL_PATH, "wb") as fh:
                 pickle.dump(model_data, fh)

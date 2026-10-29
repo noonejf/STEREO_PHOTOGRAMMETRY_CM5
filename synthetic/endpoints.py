@@ -250,21 +250,175 @@ def harvest(mask: np.ndarray, path_xy: np.ndarray, tol_radii: float = 2.0):
             "reachable": reachable, "ambiguous": ambiguous}
 
 
+def _farthest_tip_pair(pts, neighbours, nb_count):
+    """The pair the shipped detector would pick: geodesically farthest tips.
+
+    Recomputed here from the same graph rather than imported, so the learned
+    decoder can hold the classical answer as a candidate and compare the two
+    under one scoring rule.
+    """
+    tips = np.flatnonzero(nb_count <= 1.0)
+    if len(tips) < 2:
+        return None
+    d0 = _bfs(pts, neighbours, int(tips[0])).astype(np.float32)
+    a = int(tips[np.argmax(np.where(d0[tips] < 0, 0.0, d0[tips]))])
+    da = _bfs(pts, neighbours, a).astype(np.float32)
+    b = int(tips[np.argmax(np.where(da[tips] < 0, 0.0, da[tips]))])
+    return None if a == b else (a, b)
+
+
+def score_candidates(model, feature_names, mask, candidates,
+                     min_separation_frac: float = 0.35,
+                     geodesic_weight: float = 1.0):
+    """Choose the best pair out of a shortlist somebody else proposed.
+
+    This is the opposite arrangement to `predict_pair`, and the one that
+    survives contact with the pipeline. There the model scores every
+    skeleton pixel, which lets it find an end that leaves no tip but also
+    lets it answer with a pixel in the middle of the cord, where the tracker
+    starts with two directions to choose from and loses half the cable.
+    Here the shipped detector proposes its clustered skeleton tips and the
+    model only decides which two of them are the ends.
+
+    The decision gets easier and the failure gets cheaper at the same time.
+    Easier, because picking two out of a handful of candidates is a far
+    smaller problem than picking two out of several thousand pixels, and it
+    is the problem the classical rule is actually weak at: it takes the
+    geodesically farthest pair, which is wrong whenever a pruning spur
+    reaches further than a real end. Cheaper, because every possible answer
+    is a skeleton tip, so the worst case is another one of the candidates
+    the classical detector was already choosing between.
+
+    **The classical criterion is kept, not discarded.** A pair is ranked by
+    ``score_a + score_b + geodesic_weight * d_ab / diameter``, so the
+    geodesic span the shipped detector maximises is one term and the
+    model's opinion is the other. At a large weight this reproduces the
+    classical choice exactly; at zero it is the model alone.
+
+    Keeping it matters because of what the candidates are. The median mask
+    here has **one** skeleton tip: on a loop or a knot the free end lies
+    across another strand and the skeleton runs straight through it, so
+    frequently no candidate is a true end at all. The model is then
+    choosing among negatives and has no basis for it, while the geodesic
+    rule still returns two points that span the cable, which is a good
+    seed even when it is not the end. Measured with the model alone, that
+    is where it loses: knots 74.4 against 80.4, tangles 82.7 against 93.7.
+
+    ``candidates`` are (x, y) in the coordinates of ``mask``. Returns
+    ``(p1, p2, info)``, or ``(None, None, info)`` when there is nothing
+    sensible to say, in which case the caller keeps its own answer.
+    """
+    X, points, info = features(mask)
+    info["n_candidates"] = len(candidates)
+    if len(X) < 2 or len(candidates) < 2:
+        return None, None, info
+
+    built = _build_graph(skeleton_of(mask))
+    if built is None:
+        return None, None, info
+    pts, neighbours = built
+
+    # a candidate is a skeleton pixel already, but it is produced by a
+    # separate skeletonisation pass, so map by nearest rather than trust it
+    idx = []
+    for cx, cy in candidates:
+        d = ((points[:, 0] - float(cx)) ** 2 +
+             (points[:, 1] - float(cy)) ** 2)
+        j = int(np.argmin(d))
+        if d[j] <= 64.0 and j not in idx:   # within 8 px
+            idx.append(j)
+    info["n_mapped"] = len(idx)
+    if len(idx) < 2:
+        return None, None, info
+
+    keep = [FEATURE_NAMES.index(n) for n in feature_names]
+    score = model.predict_proba(X[idx][:, keep])[:, 1]
+
+    need = min_separation_frac * info["diameter"]
+    diameter = max(info["diameter"], 1.0)
+    best, best_val = None, -1e18
+    for ai, a in enumerate(idx):
+        d_a = _bfs(pts, neighbours, int(a)).astype(np.float32)
+        d_a = np.where(d_a < 0, 0.0, d_a)
+        for bi, b in enumerate(idx):
+            if b == a or d_a[b] < need:
+                continue
+            val = (float(score[ai] + score[bi])
+                   + geodesic_weight * float(d_a[b]) / diameter)
+            if val > best_val:
+                best_val, best = val, (ai, bi)
+
+    if best is None:
+        # no two candidates are far enough apart. The separation rule is
+        # there to stop both ends landing on the same end of the cord, and
+        # when nothing clears it the mask is degenerate rather than the
+        # model wrong, so the caller keeps its own pair.
+        return None, None, info
+
+    ai, bi = best
+    info["score_first"] = float(score[ai])
+    info["score_second"] = float(score[bi])
+    info["best_sum"] = float(score[ai] + score[bi])
+    info["best_value"] = float(best_val)
+    info["geodesic_weight"] = float(geodesic_weight)
+    p1 = (int(points[idx[ai]][0]), int(points[idx[ai]][1]))
+    p2 = (int(points[idx[bi]][0]), int(points[idx[bi]][1]))
+    return p1, p2, info
+
+
 def predict_pair(model, feature_names, mask, min_separation_frac: float = 0.35,
-                 top_k: int = 12):
+                 top_k: int = 12, min_one_sided: float = 0.30,
+                 tip_snap_steps: float = 2.5, tip_score_ratio: float = 0.5,
+                 gate: bool = True, classical_margin: float = 1.5):
     """Score every skeleton pixel and return the two endpoints.
 
-    The pair is chosen jointly: among the ``top_k`` best-scoring pixels,
-    take the pair with the highest summed score whose geodesic separation is
-    at least ``min_separation_frac`` of the skeleton diameter. The earlier
-    version was greedy, best pixel first and then the best far-away one, and
-    its failure mode was exactly the one that matters: when the single best
-    pixel sits on the wrong strand of a crossing, every choice after it is
-    already lost. Joint selection lets a slightly weaker first pick win when
-    it comes with a strong, well-separated partner.
+    The pair is chosen jointly: among the candidate pixels, take the pair
+    with the highest summed score whose geodesic separation is at least
+    ``min_separation_frac`` of the skeleton diameter. Greedy selection, best
+    pixel first and then the best far-away one, fails exactly where it
+    matters: when the single best pixel sits on the wrong strand of a
+    crossing, every later choice is already lost.
 
-    The separation constraint is what makes the pair an actual pair rather
-    than two points on the same end.
+    **What the candidate set excludes is what makes this usable.** Scoring
+    accuracy is not the quantity the pipeline cares about; the seed's effect
+    on the trace is, and the two come apart. A classical miss lands on a
+    skeleton tip, which is a safe place to start even when it is the wrong
+    end, because the tracker can only walk forwards from there. A learned
+    miss used to land in the *middle* of the cord, where the tracker has two
+    directions to choose from and immediately commits to one, losing the
+    other half. Measured end to end, that asymmetry cost more than the
+    better accuracy won: F1 83.7 against the classical detector's 88.1.
+
+    So a candidate now has to look like an end before its score is
+    considered. ``one_sidedness`` is already in the feature set and measures
+    precisely this: near a real end the skeleton continues in one direction
+    only and it approaches 1, while through the middle of a cord the two
+    directions cancel and it approaches 0. Candidates below
+    ``min_one_sided`` are dropped unless they are skeleton tips, and a
+    winner that is not itself a tip is pulled onto a nearby tip when one
+    scores comparably.
+
+    **And it defers by default.** Gating alone still lost, 86.4 against
+    88.1, because it answered every mask instead of only the ones it is
+    better at. Broken down by shape the division is sharp and it is the one
+    the model was built for: where an end lies across another strand and
+    leaves no skeleton tip it wins clearly (loops 91.4 against 87.1 with a
+    92.6 ceiling, coils 100.0 against 89.7), and where tips are plentiful
+    but numerous it loses (knots 67.9 against 80.4). The shape label is not
+    available at run time, but the thing that actually distinguishes the two
+    regimes is: whether the classical pair of farthest tips already looks
+    like a pair of ends. So that pair is scored by the same model, and the
+    learned answer is used only when it beats the classical one by
+    ``classical_margin``. Otherwise the function abstains and the shipped
+    detector runs untouched.
+
+    An abstention is not a failure here, it is the design. The two
+    detectors fail in different currencies: a classical miss lands on a
+    skeleton tip, where the tracker can still only walk forwards, while a
+    learned miss lands mid-cord, where it immediately commits to one of two
+    directions and loses the other half of the cable. Deferring unless the
+    evidence is strong buys the wins on tipless ends without paying for the
+    losses elsewhere.
     """
     X, points, info = features(mask)
     if len(X) < 2:
@@ -277,15 +431,42 @@ def predict_pair(model, feature_names, mask, min_separation_frac: float = 0.35,
         return None, None, info
     pts, neighbours = built
 
-    k = min(top_k, len(score))
-    cand = np.argsort(score)[-k:][::-1]
-    need = min_separation_frac * info["diameter"]
+    nb_count = X[:, FEATURE_NAMES.index("n_neighbours")]
+    one_sided = X[:, FEATURE_NAMES.index("one_sidedness")]
+    is_tip = nb_count <= 1.0
+    end_like = is_tip | (one_sided >= min_one_sided)
+    info["n_end_like"] = int(end_like.sum())
 
+    order = np.argsort(score)[::-1]
+    if gate:
+        pool = [int(i) for i in order if end_like[i]][:top_k]
+    else:
+        pool = [int(i) for i in order[:top_k]]
+
+    classical = _farthest_tip_pair(pts, neighbours, nb_count)
+    classical_sum = (float(score[classical[0]] + score[classical[1]])
+                     if classical is not None else None)
+    info["gated"] = bool(gate)
+    info["pool"] = len(pool)
+    info["classical_sum"] = classical_sum
+
+    if len(pool) < 2:
+        # the model is pointing nowhere end-like. Abstaining here is not a
+        # failure, it is the whole point of the gate: the classical
+        # detector's mistakes are recoverable and this one's are not.
+        info["abstain"] = True
+        return None, None, info
+
+    need = min_separation_frac * info["diameter"]
+    dist_cache = {}
     best, best_sum = None, -1.0
-    for a in cand:
-        d_a = _bfs(pts, neighbours, int(a)).astype(np.float32)
-        d_a = np.where(d_a < 0, info["diameter"], d_a)
-        for b in cand:
+    for a in pool:
+        d_a = dist_cache.get(a)
+        if d_a is None:
+            d_a = _bfs(pts, neighbours, int(a)).astype(np.float32)
+            d_a = np.where(d_a < 0, info["diameter"], d_a)
+            dist_cache[a] = d_a
+        for b in pool:
             if b == a or d_a[b] < need:
                 continue
             ssum = float(score[a] + score[b])
@@ -293,15 +474,53 @@ def predict_pair(model, feature_names, mask, min_separation_frac: float = 0.35,
                 best_sum, best = ssum, (int(a), int(b))
 
     if best is None:
-        # nothing satisfies the separation, fall back to the greedy pair
-        first = int(np.argmax(score))
-        second = int(np.argmax(np.where(np.arange(len(score)) != first,
-                                        score, -1.0)))
-        best = (first, second)
+        # nothing in the pool is far enough from anything else. The mask is
+        # degenerate rather than the model wrong, so the shipped detector,
+        # which has its own pruning, is the honest answer.
+        info["abstain"] = True
+        return None, None, info
+
+    info["best_sum"] = float(best_sum)
+    if classical_sum is not None and best_sum <= classical_margin * classical_sum:
+        # the farthest-tip pair already scores comparably. There is no
+        # evidence here that this is one of the masks the model is better
+        # at, and the classical detector's mistakes are the recoverable
+        # kind, so say nothing.
+        info["abstain"] = True
+        info["deferred_to_classical"] = True
+        return None, None, info
 
     first, second = best
+
+    # pull a non-tip winner onto a tip that scores nearly as well. This keeps
+    # the model's one real advantage, finding an end that leaves no tip,
+    # while refusing a mid-cord seed whenever a genuine end is right there.
+    snap_r = max(3.0, tip_snap_steps * info["wire_radius"])
+    fixed = []
+    for idx in (first, second):
+        if is_tip[idx]:
+            fixed.append(idx)
+            continue
+        d = dist_cache.get(idx)
+        if d is None:
+            d = _bfs(pts, neighbours, int(idx)).astype(np.float32)
+            d = np.where(d < 0, info["diameter"], d)
+        near_tips = np.flatnonzero(is_tip & (d <= snap_r))
+        near_tips = [t for t in near_tips
+                     if score[t] >= tip_score_ratio * score[idx]]
+        if near_tips:
+            fixed.append(int(max(near_tips, key=lambda t: score[t])))
+            info["snapped_to_tip"] = info.get("snapped_to_tip", 0) + 1
+        else:
+            fixed.append(idx)
+    first, second = fixed[0], fixed[1]
+    if first == second:
+        info["abstain"] = True
+        return None, None, info
+
     p1 = (int(points[first][0]), int(points[first][1]))
     p2 = (int(points[second][0]), int(points[second][1]))
     info["score_first"] = float(score[first])
     info["score_second"] = float(score[second])
+    info["abstain"] = False
     return p1, p2, info

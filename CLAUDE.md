@@ -77,6 +77,7 @@ Processing page, mode **`Geometric (Wire Tracking)`**, which is the **default**
 | 2 | Find the two endpoints (skeletonize, prune, geodesic-farthest pair) | `detect_wire_endpoints()`, `processing/endpoint_detector.py:771` |
 | 3 | Trace the path: automatic **or** hand-drawn | `WireMethodChoiceDialog`, `gui/wire_method_choice.py:85` |
 | 3a | Auto: DFS over the mask with backtracking and momentum | `SmartWireTracker.track_wire()`, `processing/smart_wire_tracker.py:88` |
+| 3c | Auto, alternative: globally optimal geodesic between the two ends | `geodesic_tracer.trace()`, `processing/geodesic_tracer.py` |
 | 3b | Manual: user clicks points along the wire | `WirePathDrawerDialog`, `gui/wire_path_drawer.py:176` |
 | 4 | Rectify both images | `StereoProcessor.rectify_images()`, `processing/stereo_processor.py:403` |
 | 5 | Match left to right | `compute_disparity_from_wire_paths()`, `processing/stereo_processor.py:852` |
@@ -110,6 +111,35 @@ anywhere in the repo.
 50.0 m **before** computing arc length, so `total_length_m` under-reports if a
 mid-wire segment gets filtered.
 
+### The geodesic tracer, and where each tracer belongs
+
+`SmartWireTracker` is a greedy walk: it steps, picks a branch by a weighted
+formula, and backtracks when stuck. `processing/geodesic_tracer.py` is the
+textbook formulation of the same problem, the minimal geodesic path of
+Cohen and Kimmel between two prescribed points, which is a global optimum
+rather than a sequence of local choices. Measured over the same 60 scenes
+with `tools/benchmark_geodesic_tracer.py`:
+
+| shape | SmartWireTracker | geodesic | note |
+|-------|------------------|----------|------|
+| catenary, smooth, straight | 100.0 | **100.0** | 0.06 s against 1.93 s |
+| coil, loop, knot | 80 to 90 | 43 to 60 | the geodesic shortcuts the crossing |
+
+So the choice is not which is better, it is which shape is in front of the
+camera. **A tensioned tether between two satellites is a catenary and does
+not cross itself**, and on that class the geodesic matches the tracker
+exactly, 32 times faster, with no parameters to tune and no branch
+decisions to get wrong. On self-crossing shapes the isotropic minimal path
+has a known failure, documented in Chen and Cohen's survey: the cheapest
+curve jumps the crossing. The literature's fix is a curvature-penalised,
+orientation-lifted metric; `trace_curvature()` implements one and **did not
+recover the gap** in the settings swept so far, so it is not a drop-in.
+
+The other reason to prefer the geodesic where it applies: its cost comes
+from the segmenter's `predict_proba` directly. Thresholding into a binary
+mask discards the model's uncertainty exactly where masks are weakest, and
+the geodesic does not need the threshold at all.
+
 ## The AI page
 
 Real trained model, but **classical ML, not deep learning**. There is no torch,
@@ -117,16 +147,38 @@ tensorflow, onnx or tflite anywhere in the repo.
 
 - `RandomForestClassifier` from scikit-learn, per-pixel binary cable/background
   segmentation (`gui/ai_page.py:91`).
-- 9 hand-crafted per-pixel features: B, G, R, H, S, V, 3x3 blur, 9x9 blur,
-  local contrast (`gui/ai_page.py:70`).
+- Per-pixel features live in **`processing/mask_features.py`**, shared by
+  the app trainer, the offline trainer and the inference path. They used to
+  be copied into all three with nothing checking the copies agreed. The
+  pickle records `feature_version`, and a model whose column count
+  disagrees with it is refused rather than run on the wrong columns.
+  - v1 is the original nine: B, G, R, H, S, V, 3x3 blur, 9x9 blur, local
+    contrast. Every one describes the *colour* of a pixel.
+  - v2 adds the *shape* of its neighbourhood: Hessian ridge response at
+    three scales, which is the classical detector for vessels and cracks
+    and therefore for a cable, plus differences of Gaussians, gradient
+    magnitude, local deviation and the morphological hat transforms. 22
+    columns, 13 ms at 256x192.
 - Trains at 256x192, augments with flips and brightness, balances 1:4.
-- Pickled to `data/models/mask_model.pkl`. `synthetic/train_mask.py
-  --mix-real` trains a stronger one from synthetic plus real data (its
-  default run beat the GUI model on all 20 real pairs, IoU 0.538 against
-  0.470, even on the pairs the GUI model trained on), but watch the file
-  size: without `--min-leaf` the forest passes 400 MB, which GitHub refuses
-  and the CM5 cannot load. Compare against the incumbent on the real pairs
-  before replacing the pickle.
+- Pickled to `data/models/mask_model.pkl`. **The shipped pickle is not a
+  RandomForest and not trained by this page.** It is a
+  `HistGradientBoostingClassifier` from `synthetic/train_mask.py --model hgb
+  --features 2 --target 960x720 --mix-real`, and on the four real pairs it
+  never saw it scores IoU 0.851 against the GUI model's 0.516, F1 0.920
+  against 0.665, clDice 0.977 against 0.893, in 4 MB against 11. Retraining
+  from the AI page overwrites it with a weaker model; compare first with
+  `tools/compare_mask_models.py`.
+- **The feature set and the working resolution are what won, not capacity.**
+  An earlier round concluded the opposite, that only an unshippable 430 MB
+  forest could beat the incumbent. It was measuring the wrong axis. At
+  256x192 the cable is about three pixels wide and the mask is then
+  multiplied back up by seven and a half, so most of the error was
+  quantisation. Same model at 512 gives IoU 0.758, at 960 it gives 0.851.
+  The cost is runtime: 0.09 s per 4056x3040 frame for the old model, 2.05 s
+  at 512, 7.10 s at 960. The segmenter runs on the ground, so that is
+  affordable, and `mask_model_r512.pkl`, the same recipe at `--target 512x384`, is the
+  one to regenerate when it is not. Neither candidate is versioned: both
+  come back from `synthetic/train_mask.py` in half an hour.
 - Consumed as an **optional alternative segmenter at pipeline step 1**, in
   `_apply_ai_mask` (`edge_detection_tuner.py:1345`).
 
@@ -213,17 +265,41 @@ mask pixels visited and rewards wandering.
   loses end to end: true-path F1 89.1 against the formula's 90.0 over 40
   fresh scenes, at 4.5x the runtime. The formula already traces at 100%
   precision when the endpoints are right. `tools/benchmark_branch_scorer.py`.
-- `processing/endpoint_model.py`, `LINKU_ENDPOINT_MODEL=1`, consulted from
-  `detect_wire_endpoints`. Finds the ends better than the tip detector (83%
-  against 78% within 25 px, p75 1.7 px against 14.3) and still produces a
-  worse trace: F1 83.7 against 88.1 over 60 fresh scenes, 7 wins to 12
-  losses. A classical miss lands on a skeleton tip, a safe seed; a learned
-  miss lands mid-cord on a crossing and the trace starts lost. Seeding with
-  the TRUE ends gives 90.9, so endpoints had at most 2.8 points to offer.
-  `tools/benchmark_endpoint_model.py`.
+- `processing/endpoint_model.py`, consulted from `detect_wire_endpoints`.
+  The flag now takes three values, not two.
+  - `full`: the model scores every skeleton pixel and answers alone. F1
+    83.7 against the classical 88.1. It finds the ends better (83% against
+    78% within 25 px) and traces worse, because a classical miss lands on a
+    skeleton tip, which is a safe seed, while its own miss lands mid-cord
+    on a crossing and the trace starts lost.
+  - `1`: **rerank**. The classical detector runs and publishes its
+    clustered candidates (`EndpointDetector.candidates`); the model picks
+    the pair from that shortlist, ranked by its score plus the geodesic
+    span the classical rule maximises. Every answer is therefore one of the
+    candidates the classical detector was already choosing between, so the
+    expensive failure cannot happen. F1 87.8 against 88.1, 5 wins to 4
+    losses: a tie, not a loss, and it wins on loops (90.0 against 87.1).
+  - Still **off by default**. The honest reason it cannot win more: the
+    clustered shortlist has a median of **2** candidates, and with two
+    points there is nothing to choose. Seeding with the TRUE ends gives
+    90.9, so the whole stage is worth at most 2.8 points.
+  `tools/benchmark_endpoint_model.py`, `tools/sweep_endpoint_gate.py`.
 
-The remaining trace losses are tracker recall across mask breaks: bridging
-breaks in `SmartWireTracker` is the next real lever, not either model.
+**The remaining trace losses are wrong turns at self-crossings, not mask
+breaks.** This was stated the other way round here until it was measured:
+over the 60 benchmark scenes, **1 mask in 60** has a break the centreline
+actually spans, while **42 in 60** bring the cable within 2.5 radii of a
+distant part of itself. The geodesic tracer below confirms it from the
+other side: at its shipped cost steepness it never once leaves the cable,
+so there was no gap to bridge, and it still loses on those same shapes by
+taking the shortcut across the crossing.
+
+That also explains the branch scorer's two failures to pay. At a crossing
+the two strands are locally identical, so the information a per-decision
+classifier would need is not in its input. What disambiguates a crossing
+is global: the cable does not turn sharply. See
+`Documentation/Investigacion/Trazado_IA/` and `processing/geodesic_tracer.py`.
+
 All three trainers checkpoint and resume on CPU.
 
 ## Calibration

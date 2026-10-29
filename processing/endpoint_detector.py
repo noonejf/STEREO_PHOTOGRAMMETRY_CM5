@@ -99,6 +99,10 @@ class EndpointDetector:
         # el skeleton.
         endpoint_coords = self._cluster_nearby_endpoints(endpoint_coords, radius=80)
         print(f"DEBUG: {len(endpoint_coords)} candidatos tras agrupar duplicados cercanos")
+        # Publicada para que un reordenador externo pueda elegir sobre la
+        # misma lista en vez de inventar sus propios puntos. Ver
+        # processing/endpoint_model.py, modo rerank.
+        self.candidates = [(int(c[1]), int(c[0])) for c in endpoint_coords]
 
         if save_debug:
             self._save_debug_candidates_detailed(
@@ -128,6 +132,7 @@ class EndpointDetector:
             # antes de reintentar.
             print("DEBUG: Geodesica=0 con >2 candidatos. Aplicando filtros de borde/grosor como red de seguridad...")
             endpoint_coords = self._filter_border_and_thin_endpoints(endpoint_coords, skeleton_binary.shape)
+            self.candidates = [(int(c[1]), int(c[0])) for c in endpoint_coords]
             best_pair, max_geodesic_dist, all_pair_scores = self._find_best_geodesic_pair(
                 skeleton_for_geodesic, endpoint_coords
             )
@@ -786,29 +791,46 @@ def detect_wire_endpoints(mask: np.ndarray,
     Returns:
         (start_point, end_point) en formato (x, y)
     """
-    # Modelo aprendido, opcional. Solo entra con LINKU_ENDPOINT_MODEL=1 y si
-    # ese modelo registro que le gana al detector clasico. Puntua todo el
-    # esqueleto, no solo las puntas, que es lo que le permite encontrar un
-    # extremo apoyado sobre otra hebra, donde no existe punta que detectar.
+    # Modelo aprendido, opcional, apagado por defecto. Dos modos, ver
+    # processing/endpoint_model.py:
+    #
+    #   LINKU_ENDPOINT_MODEL=1      el detector clasico corre y propone sus
+    #                               candidatos; el modelo elige el par entre
+    #                               ellos. Toda respuesta es una punta de
+    #                               esqueleto, asi que el peor caso es otro
+    #                               candidato del propio detector.
+    #   LINKU_ENDPOINT_MODEL=full   el modelo puntua todo el esqueleto y
+    #                               responde solo. Encuentra extremos que no
+    #                               dejan punta, y cuando se equivoca cae en
+    #                               mitad del cordon, que es el error caro.
     try:
-        from processing.endpoint_model import get_finder
-        finder = get_finder()
+        from processing import endpoint_model as _em
+        finder = _em.get_finder()
+        mode = _em.mode()
     except Exception:
-        finder = None
-    if finder is not None:
+        finder, mode = None, "0"
+
+    def _canon(a, b):
+        # start es el punto con menor Y (y menor X en empate), para que el
+        # resto del sistema vea el mismo contrato venga de donde venga
+        return (b, a) if (a[1], a[0]) > (b[1], b[0]) else (a, b)
+
+    if finder is not None and mode == _em.MODE_FULL:
         found = finder.find(mask)
         if found is not None:
-            # misma normalizacion canonica que EndpointDetector: start es el
-            # punto con menor Y (y menor X en empate), para que el resto del
-            # sistema vea el mismo contrato venga de donde venga el par
-            a, b = found
-            if (a[1], a[0]) > (b[1], b[0]):
-                a, b = b, a
-            return a, b
+            return _canon(*found)
 
     detector = EndpointDetector(mask, side=side)
     # debug siempre activo — las imágenes van a data/results/debug/endpoints_{side}/
     start, end = detector.detect_endpoints(method=method, save_debug=True)
+
+    if finder is not None and mode == _em.MODE_RERANK:
+        cands = getattr(detector, "candidates", None)
+        if cands and len(cands) > 2:
+            # con dos candidatos no hay nada que elegir: el par es el par
+            found = finder.choose_among(mask, cands)
+            if found is not None:
+                start, end = _canon(*found)
 
     if visualize:
         detector.visualize_endpoints(start, end, vis_output_path)

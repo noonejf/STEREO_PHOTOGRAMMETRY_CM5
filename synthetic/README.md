@@ -95,9 +95,28 @@ misses cost far more.
 The number that closes the case: seeding the tracker with the TRUE endpoints
 gives F1 90.9, so everything endpoint accuracy could ever buy over the
 classical detector was 2.8 points. After the thickness fix, stage 2 is not
-the bottleneck. The remaining losses are tracker recall across mask breaks,
-which no endpoint finder and no branch scorer can recover; bridging breaks
-in `SmartWireTracker` is where the next real gain lives.
+the bottleneck. The remaining losses are **wrong turns at self-crossings**,
+which no endpoint finder and no branch scorer can recover.
+
+That sentence used to say mask breaks, and that was wrong. Measured over
+the 60 benchmark scenes: 1 mask in 60 has a break the centreline spans, 42
+in 60 contain a self-crossing. **The generator is why.** Its masks come out
+in one piece 59 times in 60, with 94.1% of the centreline inside the
+largest component, while the masks the real segmenters produce on the 20
+real pairs come out in one piece between 10 and 19 times in 20. So the
+synthetic benchmark cannot see break-bridging at all: there is nothing to
+bridge in it. Adding realistic fragmentation to `rasterize.py`, matched to
+what `tools/compare_mask_models.py` reports for the shipped segmenter, is
+what would let that question be asked. Until then, do not quote a
+break-bridging number from this benchmark.
+
+**And the alternative tracers do not close that gap either.** An oracle
+that picked, per scene, the best of `SmartWireTracker` and five geodesic
+variants scores 87.4 against the tracker's own 87.3 over 40 scenes: the
+geodesic is best on 3 scenes and by a hair. So there is no headroom for a
+path-level selector over this candidate set, which is the single-curve
+version of Turetken's path classifier. Wherever the tracker fails, every
+alternative tried fails worse. `tools/benchmark_geodesic_tracer.py`.
 
 `LINKU_ENDPOINT_MODEL` therefore stays **off** by default, same standard as
 the branch scorer: the only number that switches a learned component on is

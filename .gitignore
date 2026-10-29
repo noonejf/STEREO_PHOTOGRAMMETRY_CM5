@@ -123,3 +123,9 @@ Thumbs.db
 # Checkpoints de entrenamiento: binarios grandes, se regeneran solos.
 /data/models/*.ckpt
 /data/models/endpoint_model.pkl
+
+# modelos candidatos del barrido de segmentadores: regenerables con
+# synthetic/train_mask.py, no hace falta versionarlos
+data/models/mask_model_r*.pkl
+data/models/*.ckpt
+data/results/tracer_oracle.json

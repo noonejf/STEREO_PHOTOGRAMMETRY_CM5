@@ -97,6 +97,14 @@ def main(argv=None):
     ap.add_argument("--max-iter", type=int, default=3000)
     ap.add_argument("--seed-base", type=int, default=SEED_BASE)
     ap.add_argument("--verbose", action="store_true", help="one line per scene")
+    ap.add_argument("--margin-sweep", action="store_true",
+                    help="also print what every deferral margin would have "
+                         "scored. The learned column is then collected with "
+                         "the margin forced to zero, so the model answers "
+                         "every mask and each scene yields both outcomes; "
+                         "any margin is then a choice between two numbers "
+                         "already measured, which costs one run instead of "
+                         "one run per candidate margin")
     args = ap.parse_args(argv)
 
     os.environ[endpoint_model.ENV_FLAG] = "1"
@@ -119,7 +127,14 @@ def main(argv=None):
         radius = float(meta.get("base_radius_px", 6.0))
         row = {"shape": meta["shape"]}
         for name, learned in (("classical", False), ("learned", True)):
+            if learned and args.margin_sweep:
+                os.environ[endpoint_model.MARGIN_ENV] = "0.0"
             pair, t_det = detect(mask, learned)
+            if learned and args.margin_sweep:
+                f = endpoint_model.get_finder()
+                info = getattr(f, "last_info", {}) if f else {}
+                row["best_sum"] = info.get("best_sum")
+                row["classical_sum"] = info.get("classical_sum")
             trk = run_tracker(mask, pair[0], pair[1], args.max_iter, xy, radius)
             trk["err"] = endpoint_error(pair, true_a, true_b)
             trk["seconds"] += t_det
@@ -136,7 +151,28 @@ def main(argv=None):
                   f" (ceiling {row['ceiling']:5.1f})")
 
     os.environ[endpoint_model.ENV_FLAG] = "0"
+    os.environ.pop(endpoint_model.MARGIN_ENV, None)
     endpoint_model.reset()
+
+    if args.margin_sweep:
+        print("Deferral margin: use the learned pair only when it scores "
+              "more than m times the")
+        print("classical pair of farthest tips, otherwise abstain and let "
+              "the shipped detector run.")
+        print(f"  {'m':>6}{'answered':>10}{'F1 mean':>10}{'vs classical':>14}")
+        base = float(np.mean([r["classical"]["f1"] for r in rows]))
+        for m in (0.0, 1.0, 1.1, 1.25, 1.5, 2.0, 3.0, 5.0, float("inf")):
+            used, f1s = 0, []
+            for r in rows:
+                bs, cs = r.get("best_sum"), r.get("classical_sum")
+                speak = (bs is not None and
+                         (cs is None or (m != float("inf") and bs > m * cs)))
+                f1s.append(r["learned"]["f1"] if speak else r["classical"]["f1"])
+                used += int(speak)
+            mm = "inf" if m == float("inf") else f"{m:.2f}"
+            print(f"  {mm:>6}{used:>10}{np.mean(f1s):>10.1f}"
+                  f"{np.mean(f1s) - base:>+14.1f}")
+        print()
 
     def col(name, key):
         return [r[name][key] for r in rows]

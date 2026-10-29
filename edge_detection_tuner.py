@@ -651,13 +651,24 @@ class EdgeDetectionTuner(QDialog):
             if self._ai_model_cache is None:
                 with open(self._MASK_MODEL_PATH, "rb") as f:
                     self._ai_model_cache = pickle.load(f)
+            from processing import mask_features
             md = self._ai_model_cache
             clf = md["model"]
             tw, th = md.get("target_size", (self._AI_TARGET_W, self._AI_TARGET_H))
+            version = mask_features.version_of(md)
 
-            img_small = cv2.resize(img, (tw, th))
-            feats = self._ai_features(img_small)
-            pred = clf.predict(feats).reshape(th, tw).astype(np.uint8) * 255
+            # Un modelo que declara una version de features distinta al
+            # numero de columnas con el que lo ajustaron produciria una
+            # mascara plausible y equivocada, sin error. Mejor no correrlo.
+            want = getattr(clf, "n_features_in_", None)
+            if want is not None and want != mask_features.n_features(version):
+                print(f"ERROR: {self._MASK_MODEL_PATH.name} dice features "
+                      f"v{version} pero fue ajustado con {want} columnas. "
+                      f"No se usa.")
+                return None
+
+            img_small = cv2.resize(img, (tw, th), interpolation=cv2.INTER_AREA)
+            pred = mask_features.predict_mask(clf, img_small, md) * 255
 
             h_orig, w_orig = img.shape[:2]
             return cv2.resize(pred, (w_orig, h_orig), interpolation=cv2.INTER_NEAREST)
@@ -1323,24 +1334,15 @@ class EdgeDetectionTuner(QDialog):
             self.ai_model_status.setStyleSheet("font-size:11px; color:#EF4444;")
             self.btn_apply_ai.setEnabled(False)
 
-    def _ai_features(self, img_bgr):
-        """Mismas features que usa el entrenador."""
-        hsv  = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
-        gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY).astype(np.float32)
-        b3   = cv2.GaussianBlur(gray, (3, 3), 0)
-        b9   = cv2.GaussianBlur(gray, (9, 9), 0)
-        lc   = (gray - b9).clip(-127, 127) + 127
-        return (np.stack([
-            img_bgr[:, :, 0].ravel(),
-            img_bgr[:, :, 1].ravel(),
-            img_bgr[:, :, 2].ravel(),
-            hsv[:, :, 0].ravel(),
-            hsv[:, :, 1].ravel(),
-            hsv[:, :, 2].ravel(),
-            b3.ravel(),
-            b9.ravel(),
-            lc.ravel(),
-        ], axis=1).astype("float32") / 255.0)
+    def _ai_features(self, img_bgr, version=1):
+        """Mismas features que uso el entrenador, en su version.
+
+        La definicion vive en processing/mask_features.py. Antes estaba
+        copiada aqui, en gui/ai_page.py y en synthetic/train_mask.py, y nada
+        comprobaba que las tres copias siguieran siendo iguales.
+        """
+        from processing import mask_features
+        return mask_features.features(img_bgr, version)
 
     def _apply_ai_mask(self):
         """Corre el modelo IA sobre la imagen actual y actualiza la visualización."""
