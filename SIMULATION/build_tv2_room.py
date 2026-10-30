@@ -47,7 +47,7 @@ import sys
 
 try:
     import bpy
-    from mathutils import Vector
+    from mathutils import Euler, Vector
 except ImportError:  # pragma: no cover - lets the file be imported for its constants
     bpy = None
 
@@ -257,10 +257,33 @@ def build_sun(irradiance, blackbody_k, angle_rad, depth):
     nt.links.new(bb.outputs["Color"], emission.inputs["Color"])
 
     obj = bpy.data.objects.new("Sun", data)
-    # side-on and slightly above, so the cord is lit across its width and the
-    # lamp stays out of both camera frames
-    obj.location = (6.0, depth / 2.0, 6.0)
-    obj.rotation_euler = (math.radians(65.0), 0.0, math.radians(-70.0))
+
+    # The rotation is the whole of it. A Sun in Blender is directional and
+    # infinitely distant, so the object's position changes nothing about
+    # the light: only its local -Z axis matters, and every photon arrives
+    # travelling along that. The angles below put 95% of the beam
+    # perpendicular to a cord running down +Y, which is the component that
+    # lights it (the remaining 31% runs along the cord and hits it end-on,
+    # lighting nothing), and send it the same way the cameras look, so the
+    # cord is front-lit rather than rimmed.
+    rot = Euler((math.radians(65.0), 0.0, math.radians(-70.0)), "XYZ")
+    obj.rotation_euler = rot
+
+    # The position is cosmetic, and that is exactly why it is computed
+    # rather than typed. It used to be a hand-placed (6, depth/2, 6) with
+    # a comment about keeping the lamp out of frame, which is reasoning
+    # about a property the lamp does not have. Worse, it sat on +X while
+    # shining towards +X, so the gizmo in the viewport pointed away from
+    # the cord and looked like a bug every time anyone opened the file.
+    # Placing it upstream of the beam makes the arrow point at the subject
+    # and the viewport agree with the physics.
+    # from the Euler, not from matrix_world: assigning rotation_euler does
+    # not refresh matrix_world until the dependency graph is evaluated, so
+    # reading it here returns the identity and puts the lamp straight
+    # overhead, which is how this first went wrong.
+    direction = (rot.to_quaternion() @ Vector((0.0, 0.0, -1.0))).normalized()
+    target = Vector((0.0, depth / 2.0, 5.0))
+    obj.location = target - direction * 8.0
     bpy.context.collection.objects.link(obj)
     return obj
 
