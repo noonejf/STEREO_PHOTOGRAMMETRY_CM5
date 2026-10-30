@@ -21,9 +21,32 @@ IMX477 and its 1.55 um pixel, is:
     20 m     0.26 px
     40 m     0.13 px
 
-and the resolution limit of 1 px lands at 5.17 m. The far 35 m of the room
-produces nothing for the pipeline to segment, which the render will show
-correctly by simply not containing a visible thread past the first few metres.
+and the resolution limit of 1 px lands at 5.17 m.
+
+**That last number is a width, and width is not the same as visibility.**
+This paragraph used to continue "the far 35 m of the room produces nothing
+for the pipeline to segment", which the first actual render disproved. A
+bright object thinner than a pixel does not vanish; it deposits less energy
+into that pixel, and against a near-black field what is left is still well
+above the floor. Measured on the rendered pair, left camera, brightness out
+of 255 against distance:
+
+    0.6 m  157      5 px wide
+    1 m    143      3 px
+    2 m    116      2 px
+    5 m     91      2 px
+    12 m    55      2 px
+    20 m    45      1 px
+    30 m    41      1 px
+    38 m    37      lost
+
+So the cord stays detectable to roughly 29 m, not 5. Two cautions before
+anyone quotes that: this render has a perfectly black background and no
+sensor noise, so the real floor is higher and the real distance shorter;
+and past about 15 m the cord covers one pixel, which is enough to find it
+and not enough to measure its width or to locate its centre to the
+sub-pixel precision triangulation wants. Detectable and measurable are
+different questions, and this room answers the first one.
 
 A longer lens resolves the far end but cannot hold it in focus. At 62 mm the
 tether is 1.00 px at 40 m, but the depth of field at f/1.6 focused at 20 m is
