@@ -82,7 +82,21 @@ SUN = dict(
 
 TETHER = dict(diameter_mm=1.0, span_m=38.0, sag_m=0.0, material_albedo=0.65)
 
-RENDER = dict(view_transform="AgX", exposure=0.0, samples=256, engine="CYCLES")
+#: Exposure is a stop offset applied after the render, and it is the only
+#: correct place to control brightness: the light's value is a physical
+#: quantity and changing it would make the scene a different scene.
+#:
+#: At 0.0 the first render of this room came out uniformly white. That is
+#: arithmetic, not a surprise. A Lambertian surface of albedo rho under
+#: irradiance E radiates E*rho/pi, so a perfect white wall under the AM0
+#: 1361 W/m2 sits at 433, and even 2 percent black molton sits at 8.7,
+#: while the display maps 1.0 to white. The offset below puts a notional
+#: white Lambertian surface at 1.0, which leaves the black walls near 0.02
+#: where they belong and the lit tether well inside range.
+EXPOSURE_WHITE_REFERENCE = -math.log2(1361.0 / math.pi)   # about -8.76
+
+RENDER = dict(view_transform="AgX", exposure=EXPOSURE_WHITE_REFERENCE,
+              samples=256, engine="CYCLES")
 
 
 def projected_width_px(focal_mm, distance_m, diameter_mm=1.0, pixel_um=1.55):
@@ -146,10 +160,17 @@ def _cord_material(albedo=0.65):
 
 def build_room(depth, width, height):
     """An inward-facing box. Origin on the floor at the camera end."""
+    # size=1.0 gives a cube whose vertices sit at plus or minus 0.5, so the
+    # scale is the full dimension, not half of it. Halving it, which is what
+    # you write by reflex because the default cube is size=2.0, built the
+    # room at half scale: 10 x 20 x 5 instead of 20 x 40 x 10, centred at
+    # y=20 so that it spanned y=10 to y=30. The cameras sit at y=0.5 and
+    # were therefore outside the box, with the tether running through the
+    # wall. Nothing errored; the render would simply have been wrong.
     bpy.ops.mesh.primitive_cube_add(size=1.0)
     room = bpy.context.active_object
     room.name = "Room"
-    room.scale = (width / 2.0, depth / 2.0, height / 2.0)
+    room.scale = (width, depth, height)
     room.location = (0.0, depth / 2.0, height / 2.0)
     bpy.ops.object.transform_apply(scale=True, location=True)
 
@@ -160,6 +181,23 @@ def build_room(depth, width, height):
     bpy.ops.object.mode_set(mode="OBJECT")
 
     room.data.materials.append(_matte_black())
+
+    # The walls do not block the lamp. A Sun in Blender is directional and
+    # infinitely distant, so its rays arrive from outside the scene no
+    # matter where the object sits, and a sealed box stops every one of
+    # them: the first render of this scene came out uniformly black, which
+    # looks like a dark room working and is actually a dark room with the
+    # lights off. Turning off shadow visibility makes the box what it is
+    # meant to be, a light trap that absorbs stray bounces and reads black
+    # to the camera, rather than an occluder of the source.
+    #
+    # This encodes a choice worth knowing about. It simulates the orbital
+    # case, the AM0 sun of SUN["irradiance_w_m2"] falling on the tether
+    # inside an enclosure that reflects nothing. To simulate the TV2
+    # studio instead, where a real lamp stands inside the room, replace
+    # the Sun with an AREA or SPOT light at a position inside the box and
+    # leave the walls occluding.
+    room.visible_shadow = False
     return room
 
 
@@ -240,7 +278,7 @@ def configure_render(sensor, render):
     # rather than by changing the light value.
     try:
         scene.view_settings.view_transform = render["view_transform"]
-        scene.view_settings.exposure = render["exposure"]
+        scene.view_settings.exposure = float(render["exposure"])
     except (AttributeError, TypeError):
         pass
     scene.world = scene.world or bpy.data.worlds.new("World")
@@ -280,6 +318,10 @@ def main():
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="SIMULATION/TV2_Room_40x20x10.blend")
+    ap.add_argument("--exposure", type=float, default=RENDER["exposure"],
+                    help="stop offset applied after the render. The default "
+                         "places a white Lambertian surface under the AM0 "
+                         "sun at 1.0; raise it to see into the shadows")
     ap.add_argument("--focal", type=float, default=OPTICS["focal_mm"])
     ap.add_argument("--fnumber", type=float, default=OPTICS["f_number"])
     ap.add_argument("--baseline", type=float, default=OPTICS["baseline_mm"])
@@ -306,7 +348,8 @@ def main():
     cams = build_stereo_pair(args.focal, args.baseline, SENSOR, tz)
     build_sun(SUN["irradiance_w_m2"], SUN["blackbody_k"],
               SUN["angular_diameter_rad"], args.depth)
-    configure_render(SENSOR, RENDER)
+    render_cfg = dict(RENDER, exposure=args.exposure)
+    configure_render(SENSOR, render_cfg)
     bpy.context.scene.camera = cams[0]
 
     params = {
@@ -315,6 +358,7 @@ def main():
         "optics": {"focal_mm": args.focal, "f_number": args.fnumber,
                    "baseline_mm": args.baseline},
         "sun": SUN,
+        "exposure_stops": float(args.exposure),
         "tether": {**TETHER, "span_m": args.tether_span,
                    "height_m": tz, "sag_m": args.sag},
         "render": RENDER,
