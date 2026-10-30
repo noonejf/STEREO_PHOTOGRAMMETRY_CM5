@@ -74,6 +74,54 @@ OPTICS = dict(
 #: AM0, not the ground-level value. Most Blender tutorials and scene
 #: templates assume a terrestrial, atmosphere-filtered Sun at around
 #: 1050 W/m2, which is the single easiest way to get this scene wrong.
+#: Where the beam comes from, in degrees. Elevation is above the horizon;
+#: azimuth is measured about the vertical, and **zero puts the beam in the
+#: plane that bisects the stereo baseline**, which is the only azimuth that
+#: lights the cord the same for both cameras.
+#:
+#: That is not a preference, it is measured. The baseline runs along X, so
+#: an azimuth with an X component lights the cord on one side and leaves
+#: the other camera looking at the shadow, and with 2% walls there is no
+#: fill to even it out. Rendering the same scene at four azimuths, peak
+#: brightness and detectable pixels per camera:
+#:
+#:     azimuth   beam X   left   right   ratio   px left   px right
+#:       -70      0.852    173      34    5.09       310          0
+#:       -35      0.520    156      50    3.12       312         19
+#:         0      0.000     92      93    0.99       171        179
+#:        35     -0.520     48     156    0.31        20        306
+#:
+#: At -70, which this scene used until it was measured, the right camera
+#: sees **nothing**. Stage 5 of the pipeline pairs the left path against
+#: the right one, so a scene that blinds one camera cannot be used to
+#: measure anything stereo at all. Zero costs peak brightness, 92 against
+#: 173, and buys both cameras.
+#:
+#: In orbit the sun is wherever it is and this is a constraint rather than
+#: a choice, which is a result worth carrying into the illumination
+#: deliverable: the lamp in the TV2 studio has to sit in the plane that
+#: bisects the baseline, or one camera is wasted.
+#:
+#: Elevation is then a second, independent trade, and it is not the one
+#: intuition suggests. Measured at azimuth 0, where the two cameras are
+#: equal by construction:
+#:
+#:     elevation   beam            perp to cord   peak   px left   px right
+#:         0       (0, 0.00,-1.00)      100%       139      165        195
+#:        20       (0, 0.34,-0.94)       94%       135      180        199
+#:        40       (0, 0.64,-0.77)       77%       123      190        209
+#:        65       (0, 0.91,-0.42)       42%        92      171        179
+#:        85       (0, 1.00,-0.09)        9%        51       11         17
+#:
+#: Peak brightness is highest straight overhead, where the whole beam is
+#: perpendicular to a cord running down +Y. **Detectable length is not**,
+#: and detectable length is what this scene exists to measure. Overhead
+#: light puts the bright band on top of the cylinder while the cameras
+#: look at its side; tilting towards the cameras trades peak for the
+#: surface they actually see, and 40 degrees collects the most cord before
+#: the beam starts running along the cord instead of across it.
+SUN_GEOMETRY = dict(elevation_deg=40.0, azimuth_deg=0.0)
+
 SUN = dict(
     irradiance_w_m2=1361.0,       # IAU 2015 nominal
     blackbody_k=5772.0,           # IAU 2015 nominal effective temperature
@@ -244,7 +292,9 @@ def build_stereo_pair(focal_mm, baseline_mm, sensor, z, look_along=(0, 1, 0)):
     return cams
 
 
-def build_sun(irradiance, blackbody_k, angle_rad, depth):
+def build_sun(irradiance, blackbody_k, angle_rad, depth,
+              elevation_deg=SUN_GEOMETRY["elevation_deg"],
+              azimuth_deg=SUN_GEOMETRY["azimuth_deg"]):
     """A sun lamp. In Blender the strength of a Sun is W/m2 directly."""
     data = bpy.data.lights.new("Sun", type="SUN")
     data.energy = irradiance
@@ -266,7 +316,8 @@ def build_sun(irradiance, blackbody_k, angle_rad, depth):
     # lights it (the remaining 31% runs along the cord and hits it end-on,
     # lighting nothing), and send it the same way the cameras look, so the
     # cord is front-lit rather than rimmed.
-    rot = Euler((math.radians(65.0), 0.0, math.radians(-70.0)), "XYZ")
+    rot = Euler((math.radians(elevation_deg), 0.0,
+                 math.radians(azimuth_deg)), "XYZ")
     obj.rotation_euler = rot
 
     # The position is cosmetic, and that is exactly why it is computed
@@ -341,6 +392,13 @@ def main():
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="SIMULATION/TV2_Room_40x20x10.blend")
+    ap.add_argument("--sun-elevation", type=float,
+                    default=SUN_GEOMETRY["elevation_deg"])
+    ap.add_argument("--sun-azimuth", type=float,
+                    default=SUN_GEOMETRY["azimuth_deg"],
+                    help="0 keeps the beam in the plane that bisects the "
+                         "baseline, which is the only value that lights the "
+                         "cord equally for both cameras; see SUN_GEOMETRY")
     ap.add_argument("--exposure", type=float, default=RENDER["exposure"],
                     help="stop offset applied after the render. The default "
                          "places a white Lambertian surface under the AM0 "
@@ -370,7 +428,8 @@ def main():
     build_tether(args.tether_span, tz, TETHER["diameter_mm"], args.sag)
     cams = build_stereo_pair(args.focal, args.baseline, SENSOR, tz)
     build_sun(SUN["irradiance_w_m2"], SUN["blackbody_k"],
-              SUN["angular_diameter_rad"], args.depth)
+              SUN["angular_diameter_rad"], args.depth,
+              args.sun_elevation, args.sun_azimuth)
     render_cfg = dict(RENDER, exposure=args.exposure)
     configure_render(SENSOR, render_cfg)
     bpy.context.scene.camera = cams[0]
@@ -381,6 +440,8 @@ def main():
         "optics": {"focal_mm": args.focal, "f_number": args.fnumber,
                    "baseline_mm": args.baseline},
         "sun": SUN,
+        "sun_geometry": {"elevation_deg": float(args.sun_elevation),
+                         "azimuth_deg": float(args.sun_azimuth)},
         "exposure_stops": float(args.exposure),
         "tether": {**TETHER, "span_m": args.tether_span,
                    "height_m": tz, "sag_m": args.sag},

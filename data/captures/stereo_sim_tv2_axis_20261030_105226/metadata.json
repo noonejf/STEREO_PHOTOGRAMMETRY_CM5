@@ -1,0 +1,43 @@
+{
+    "capture_name": "stereo_sim_tv2_axis_20261030_105226",
+    "source": "blender_simulation",
+    "blend_file": "SIMULATION/TV2_Room_40x20x10.blend",
+    "timestamp": "2026-10-30T10:52:26",
+    "note": "Rendered from the scripted TV2 room. Ideal pinhole cameras with the nominal 8 mm optics, no lens distortion, principal point centred. Not a real camera capture and not the rig's measured calibration.",
+    "samples": 256,
+    "view_transform": "AgX",
+    "exposure_stops": -8.758955001831055,
+    "left_camera": {
+        "blender_object": "Cam_L",
+        "file": "data/captures/stereo_sim_tv2_axis_20261030_105226/left.jpg",
+        "location_m": [
+            -0.05,
+            0.5,
+            5.0
+        ],
+        "focal_mm": 8.0,
+        "sensor_width_mm": 6.2870001792907715,
+        "resolution": [
+            3040,
+            4056,
+            3
+        ]
+    },
+    "right_camera": {
+        "blender_object": "Cam_R",
+        "file": "data/captures/stereo_sim_tv2_axis_20261030_105226/right.jpg",
+        "location_m": [
+            0.05,
+            0.5,
+            5.0
+        ],
+        "focal_mm": 8.0,
+        "sensor_width_mm": 6.2870001792907715,
+        "resolution": [
+            3040,
+            4056,
+            3
+        ]
+    },
+    "baseline_mm": 100.0
+}
