@@ -97,8 +97,29 @@ class EndpointDetector:
         # separados confundia el filtro de borde de mas abajo. Se usa un
         # punto real del grupo (no un promedio) para que siga estando sobre
         # el skeleton.
-        endpoint_coords = self._cluster_nearby_endpoints(endpoint_coords, radius=80)
-        print(f"DEBUG: {len(endpoint_coords)} candidatos tras agrupar duplicados cercanos")
+        # El radio de agrupamiento sale del grosor del cable, no de un 80
+        # fijo. El 80 costo un fallo completo y silencioso: en una espiral
+        # cuyos dos extremos quedan a 56 px uno del otro, el esqueleto
+        # tenia LAS DOS puntas correctas, a 1.0 y 0.8 px de los extremos
+        # verdaderos, y el agrupamiento las fundio en un solo candidato.
+        # Con un candidato no hay par, la geodesica sale 0, el codigo de
+        # mas abajo concluye que el esqueleto esta fragmentado, reintenta
+        # con dilatacion y termina eligiendo dos puntos arbitrarios a 59
+        # px de error. El agrupamiento existe para colapsar el tenedor de
+        # 2 o 3 pixeles que deja el adelgazamiento en una punta real, y
+        # para eso bastan unos pocos radios de cable.
+        cluster_r = self._cluster_radius()
+        clustered = self._cluster_nearby_endpoints(endpoint_coords,
+                                                   radius=cluster_r)
+        # Y nunca por debajo de dos. Si agrupar deja un solo candidato, el
+        # radio se estaba comiendo extremos reales, no duplicados.
+        if len(clustered) < 2 and len(endpoint_coords) >= 2:
+            print(f"DEBUG: agrupar a {cluster_r:.0f} px dejo "
+                  f"{len(clustered)} candidato; se descarta el agrupamiento")
+            clustered = endpoint_coords
+        endpoint_coords = clustered
+        print(f"DEBUG: {len(endpoint_coords)} candidatos tras agrupar "
+              f"duplicados cercanos (radio {cluster_r:.0f} px)")
         # Publicada para que un reordenador externo pueda elegir sobre la
         # misma lista en vez de inventar sus propios puntos. Ver
         # processing/endpoint_model.py, modo rerank.
@@ -197,6 +218,21 @@ class EndpointDetector:
             pruned[to_remove] = 0
 
         return pruned
+
+    def _cluster_radius(self, radii: float = 4.0, floor: float = 6.0) -> float:
+        """Cuantos pixeles separan un duplicado de thinning de un extremo real.
+
+        Se mide del propio cable: la mediana de la transformada de
+        distancia sobre el esqueleto es su radio, y un tenedor de
+        adelgazamiento vive a uno o dos radios de la punta. Cuatro radios
+        deja margen y sigue siendo mucho menor que la separacion entre dos
+        extremos distintos.
+        """
+        dt = cv2.distanceTransform(self.mask_binary, cv2.DIST_L2, 5)
+        sk = self._create_skeleton() > 0
+        vals = dt[sk]
+        r = float(np.median(vals)) if vals.size else 3.0
+        return max(floor, radii * max(r, 1.0))
 
     def _cluster_nearby_endpoints(self, endpoint_coords: np.ndarray, radius: float = 80) -> np.ndarray:
         """

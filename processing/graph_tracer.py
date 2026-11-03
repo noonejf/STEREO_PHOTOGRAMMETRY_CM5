@@ -430,7 +430,25 @@ def _seeds(graph, xy):
     return uniq
 
 
-def _ordered_continuations(graph, node, eid, pairing, visited):
+def _ordered_continuations(graph, node, eid, pairing, used_halves):
+    """Branches to try on leaving ``node``, best first.
+
+    **The unit that gets consumed is a half-edge, not an edge**, and that
+    is the whole correction. A cord that crosses itself is a walk over the
+    skeleton, not a simple path: where the crossing is merged into one
+    node the two strands share the short edges that reach it, and a cord
+    that doubles back at a hairpin runs along one skeleton line twice.
+    Measured against the true centreline, the knot scene traverses three
+    of its edges twice and the tangle traverses a 710 px edge twice.
+    Forbidding a second traversal therefore does not prevent a mistake,
+    it makes the right answer unreachable, which is what left whole
+    strands uncovered.
+
+    Leaving ``node`` along edge ``e`` is one half-edge and may happen
+    once. An edge can thus be walked twice, once from each of its ends,
+    and never twice the same way, which is what would let the search spin
+    in place.
+    """
     """Branches to try on leaving ``node``, best first.
 
     The pairing decided at this node comes first: it is the answer to the
@@ -443,14 +461,17 @@ def _ordered_continuations(graph, node, eid, pairing, visited):
     edges the tracer can afford to be wrong and come back, which it cannot
     afford over tens of thousands of pixels.
     """
+    def free(e):
+        return (e, node) not in used_halves
+
     out = []
     nxt = pairing.get((node, eid))
-    if nxt is not None and nxt not in visited:
+    if nxt is not None and free(nxt):
         out.append(nxt)
     t_in = -graph.tangent_at(eid, node)       # direction of travel, arriving
     rest = []
     for cand in graph.incident[node]:
-        if cand == eid or cand in visited or cand in out:
+        if cand in out or not free(cand):
             continue
         t_out = graph.tangent_at(cand, node)
         rest.append((float(np.dot(t_in, t_out)), cand))
@@ -464,10 +485,19 @@ def _search(graph, seeds, pairing, target_edges, target_nodes,
     """Depth-first over the edge graph, keeping the best path to the end.
 
     "Best" is the one that **covers the most cable**, measured as the total
-    length of the edges it uses, not the shortest. That is the opposite of
-    the geodesic tracer's objective and it is deliberate: between two ends
-    of a tangled cable the true route is the long one, and the short one is
-    the mistake. Reaching the far endpoint always beats not reaching it.
+    length of the **distinct** edges it uses, not the shortest. That is the
+    opposite of the geodesic tracer's objective and it is deliberate:
+    between two ends of a tangled cable the true route is the long one, and
+    the short one is the mistake.
+
+    Distinct is the word that matters once an edge may be walked twice.
+    Counting a second traversal again turns the objective into a reward for
+    detours: the first version that allowed it sent simple shapes out along
+    a spur and back for the extra length, and catenary and smooth, the two
+    families the real tether belongs to, fell from 100.0 to 89.0. Counting
+    each edge once means a second traversal pays nothing by itself and is
+    taken only when it unlocks cable that is otherwise unreachable, which
+    is exactly when the cord really does pass that way twice. Reaching the far endpoint always beats not reaching it.
 
     The search is exhaustive up to ``max_expand`` expansions, which a graph
     of a few dozen edges reaches only in the worst tangles. The pairing is
@@ -486,9 +516,10 @@ def _search(graph, seeds, pairing, target_edges, target_nodes,
     for eid0, node0 in seeds:
         e0 = graph.edges[eid0]
         far0 = e0["v"] if e0["u"] == node0 else e0["u"]
-        stack = [(eid0, far0, (eid0,), graph.edge_length(eid0))]
+        stack = [(eid0, far0, (eid0,), graph.edge_length(eid0),
+                  frozenset({(eid0, node0)}), frozenset({eid0}))]
         while stack:
-            eid, node, used, length = stack.pop()
+            eid, node, used, length, halves, seen = stack.pop()
             expand += 1
             if expand > max_expand:
                 break
@@ -500,7 +531,7 @@ def _search(graph, seeds, pairing, target_edges, target_nodes,
                 if best is None or cand[:2] > best[:2]:
                     best = cand
                 continue
-            nxts = _ordered_continuations(graph, node, eid, pairing, set(used))
+            nxts = _ordered_continuations(graph, node, eid, pairing, halves)
             if not nxts:
                 cand = (False, length, used)
                 if best is None or cand[:2] > best[:2]:
@@ -510,15 +541,58 @@ def _search(graph, seeds, pairing, target_edges, target_nodes,
             for nxt in reversed(nxts):
                 e = graph.edges[nxt]
                 far = e["v"] if e["u"] == node else e["u"]
-                stack.append((nxt, far, used + (nxt,),
-                              length + graph.edge_length(nxt)))
+                gain = 0 if nxt in seen else graph.edge_length(nxt)
+                stack.append((nxt, far, used + (nxt,), length + gain,
+                              halves | {(nxt, node)}, seen | {nxt}))
         if expand > max_expand:
             break
     return best, expand
 
 
-def _attach(pts, start, end):
-    """Make the chain begin at ``start`` and finish at ``end``."""
+def _link_on_mask(mask, a, b, max_px):
+    """A short connection from a to b that stays on the cable, or None.
+
+    Returns the pixels between the two, exclusive, following the mask.
+    """
+    if a == b:
+        return []
+    gap = float(np.hypot(b[0] - a[0], b[1] - a[1]))
+    if gap > max_px:
+        return None
+    try:
+        from processing import geodesic_tracer
+        link, _ = geodesic_tracer.trace(mask, a, b, beta=8.0)
+    except Exception:                      # noqa: BLE001
+        return None
+    if not link or len(link) < 2:
+        return None
+    off = sum(1 for x, y in link
+              if not (0 <= y < mask.shape[0] and 0 <= x < mask.shape[1]
+                      and mask[y, x] > 127))
+    if off > max(2, 0.1 * len(link)):
+        return None
+    return [tuple(p) for p in link[1:-1]]
+
+
+def _attach(pts, start, end, mask=None, wire_radius=3.0):
+    """Make the chain begin at ``start`` and finish at ``end``.
+
+    **Never by drawing a straight line to get there.** The first version
+    of this function simply prepended the requested endpoint, and when the
+    stitched path happened to begin somewhere else that produced a
+    straight segment across whatever lay between. Measured on a coil
+    scene: a 113 px jump straight over the spiral, 93 invented pixels, and
+    the scoring metric did not notice because it only looked at the listed
+    vertices and both of those sat on the cable. That is the worst shape a
+    defect can take, a confident wrong answer that measures as perfect.
+
+    Now the gap is closed by a minimal path **through the mask**, which
+    follows the cable, and only when it is short enough to be a seam
+    rather than a shortcut. If no such connection exists the chain is left
+    as it is: a path that stops a little short is a small loss of recall,
+    while a path with cable invented down the middle of it is a wrong
+    measurement.
+    """
     if not pts:
         return pts
     s = (int(start[0]), int(start[1]))
@@ -527,25 +601,92 @@ def _attach(pts, start, end):
     dn = (pts[-1][0] - s[0]) ** 2 + (pts[-1][1] - s[1]) ** 2
     if dn < d0:
         pts = pts[::-1]
-    if (pts[0][0], pts[0][1]) != s:
-        pts = [s] + list(pts)
-    if (pts[-1][0], pts[-1][1]) != e:
-        pts = list(pts) + [e]
+    pts = list(pts)
+
+    near = max(6.0, 2.0 * wire_radius)
+    max_link = max(40.0, 12.0 * wire_radius)
+
+    head = (int(pts[0][0]), int(pts[0][1]))
+    if head != s:
+        if np.hypot(head[0] - s[0], head[1] - s[1]) <= near:
+            pts = [s] + pts
+        elif mask is not None:
+            link = _link_on_mask(mask, s, head, max_link)
+            if link is not None:
+                pts = [s] + link + pts
+
+    tail = (int(pts[-1][0]), int(pts[-1][1]))
+    if tail != e:
+        if np.hypot(tail[0] - e[0], tail[1] - e[1]) <= near:
+            pts = pts + [e]
+        elif mask is not None:
+            link = _link_on_mask(mask, tail, e, max_link)
+            if link is not None:
+                pts = pts + link + [e]
     return pts
 
 
 def _stitch(graph, used, first_node):
-    """Turn a sequence of edge ids into one chain of pixels."""
+    """Turn a sequence of edge ids into one chain of pixels.
+
+    Each edge is oriented by **which of its two ends is nearer the pixel
+    already emitted**, not by the node bookkeeping alone. The bookkeeping
+    is right about which node the walk is at and silent about where in
+    that node's blob the next edge happens to start, and after the
+    crossings are merged a node can be a dozen pixels across. Trusting it
+    produced a path that ran out to a junction, then jumped 86 pixels back
+    to where it had started and carried on, which draws a straight line
+    across the frame and measures as cable.
+    """
     pts = []
     node = first_node
     for i, eid in enumerate(used):
         e = graph.edges[eid]
-        seg = list(e["pts"]) if e["u"] == node else list(e["pts"])[::-1]
-        if i and pts and seg and pts[-1] == seg[0]:
+        seg = list(e["pts"])
+        if pts:
+            last = pts[-1]
+            d_fwd = (seg[0][0] - last[0]) ** 2 + (seg[0][1] - last[1]) ** 2
+            d_rev = (seg[-1][0] - last[0]) ** 2 + (seg[-1][1] - last[1]) ** 2
+            if d_rev < d_fwd:
+                seg = seg[::-1]
+        elif e["v"] == node and e["u"] != node:
+            seg = seg[::-1]
+        if pts and seg and pts[-1] == seg[0]:
             seg = seg[1:]
         pts.extend(seg)
         node = e["v"] if e["u"] == node else e["u"]
     return pts
+
+
+def _repair_gaps(pts, mask, wire_radius):
+    """Close, or cut at, any remaining gap between consecutive pixels.
+
+    A last line of defence rather than a fix for a known cause. Whatever
+    leaves a hole in the chain, the hole is the thing that must not reach
+    the caller: a straight segment over background reads as cable to
+    every downstream stage, and stage 7 turns it into arc length in
+    metres. Short holes are closed through the mask, and anything left is
+    cut, keeping the longer side, because a shorter true path beats a
+    longer invented one.
+    """
+    if len(pts) < 2:
+        return pts, 0
+    limit = max(8.0, 3.0 * wire_radius)
+    out = [pts[0]]
+    repaired = 0
+    for prev, cur in zip(pts[:-1], pts[1:]):
+        d = float(np.hypot(cur[0] - prev[0], cur[1] - prev[1]))
+        if d > limit:
+            link = _link_on_mask(mask, (int(prev[0]), int(prev[1])),
+                                 (int(cur[0]), int(cur[1])),
+                                 max(40.0, 12.0 * wire_radius))
+            if link is None:
+                tail = _repair_gaps(pts[pts.index(cur):], mask, wire_radius)[0]
+                return (out, repaired) if len(out) >= len(tail) else (tail, repaired)
+            out.extend(link)
+            repaired += 1
+        out.append(cur)
+    return out, repaired
 
 
 def default_score_fn():
@@ -639,7 +780,10 @@ def trace(mask, start, end, wire_radius=None, score_fn=None,
     # path stops a few pixels short at both ends, which costs nothing on a
     # tangle and showed up as 99.9 instead of 100.0 on a catenary, where
     # there is nothing else to lose.
-    pts = _attach(pts, start, end)
+    mask_full = (graph.binary * 255).astype(np.uint8)
+    pts, n_rep = _repair_gaps(pts, mask_full, graph.wire_radius)
+    info["gaps_repaired"] = n_rep
+    pts = _attach(pts, start, end, mask_full, graph.wire_radius)
 
     info["reached"] = bool(reached)
     info["edges_used"] = len(used)

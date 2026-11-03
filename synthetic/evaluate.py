@@ -30,6 +30,33 @@ except ImportError:  # pragma: no cover
     cKDTree = None
 
 
+def _densify(tr, step=1.0):
+    """Fill in the pixels between consecutive vertices before scoring.
+
+    Without this the metric is blind to the one failure that matters most.
+    A tracer that returns two points a hundred pixels apart has drawn a
+    straight line across whatever lies between them, and scoring only the
+    listed vertices never looks there: both ends sit on the cable, so the
+    jump is free. Measured on one coil scene, the graph tracer returned a
+    113 px jump straight across the spiral and still scored a perfect
+    100.0, because the 93 pixels it invented were never in the list.
+
+    Precision is what this restores. A jump now contributes a run of
+    points far from the true centreline, which is exactly what it is.
+    """
+    if len(tr) < 2:
+        return tr
+    out = [tr[0]]
+    for a, b in zip(tr[:-1], tr[1:]):
+        d = float(np.hypot(b[0] - a[0], b[1] - a[1]))
+        n = int(d / step)
+        if n > 1:
+            t = np.linspace(0.0, 1.0, n + 1)[1:-1].reshape(-1, 1)
+            out.extend(a + (b - a) * t)
+        out.append(b)
+    return np.asarray(out, dtype=float)
+
+
 def path_agreement(trace_pts, gt_xy, size, radius: float) -> dict:
     """Score a traced path against the true centreline.
 
@@ -51,7 +78,7 @@ def path_agreement(trace_pts, gt_xy, size, radius: float) -> dict:
     inside = (gt[:, 0] >= 0) & (gt[:, 0] < w) & (gt[:, 1] >= 0) & (gt[:, 1] < h)
     gt = gt[inside]
 
-    tr = np.asarray(list(trace_pts), dtype=float).reshape(-1, 2)
+    tr = _densify(np.asarray(list(trace_pts), dtype=float).reshape(-1, 2))
     tol = max(2.5 * float(radius), 6.0)
     if len(tr) == 0 or len(gt) == 0:
         return {"recall": 0.0, "precision": 0.0, "f1": 0.0, "tol_px": tol}
