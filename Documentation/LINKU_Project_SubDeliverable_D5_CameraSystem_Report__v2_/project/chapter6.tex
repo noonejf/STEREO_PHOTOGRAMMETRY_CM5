@@ -311,6 +311,77 @@ A second opportunity is tether segmentation, where a first implementation alread
 \\\\
 These results suggest that the most effective role of AI within LINKU is as a supporting technology for perception and ambiguity resolution, while geometric reconstruction remains the responsibility of the physics-based stereo pipeline.
 
+\subsection{Controlled comparison of two path-tracing strategies}
+\label{subsec:tracer-comparison}
+
+The claim that crossing disambiguation is the limiting step of geometric curve tracking was tested directly, by implementing a second tracer on a different principle and measuring both against known ground truth.
+
+The tracer used throughout the Phase II experiments walks the segmentation mask one pixel at a time and selects, at each ambiguous point, the continuation favoured by a fixed weighted rule. The alternative converts the skeleton of the same mask into a graph, in which nodes are the points where strands meet and edges are the stretches where the cable runs alone, and then answers a different question at every node: which two of the branches meeting there belong to the same strand passing through. Once every node has been answered, the cable is read off the graph by a bounded search for the route that joins the two endpoints while covering the greatest length of distinct cable. The two formulations differ in the unit of decision, a single step against a pair of whole branches, and therefore in the evidence available to each.
+
+\vspace{0.2cm}
+\noindent \textbf{Evaluation protocol}
+\vspace{0.2cm}
+
+Both tracers were run on sixty synthetic scenes drawn from a generator whose parameters were previously matched to the statistics of the laboratory masks, using random seeds disjoint from any used during development. Both receive the same mask and the same endpoints, produced by the operational detector, so the comparison isolates stage three of the pipeline. The score is the F1 agreement between the traced path and the known centreline, with a tolerance of two and a half cable radii.
+
+Two properties of the measurement are worth stating because the first version of it was wrong in a way that flattered one method. The agreement score is computed after filling in the pixels between consecutive returned vertices, since a tracer that returns two points a hundred pixels apart has drawn a straight line across whatever lies between them, and scoring only the returned vertices never looks there. Separately, every returned path is audited for the fraction of its pixels that fall outside the mask, which is the direct measure of cable that was invented rather than observed. That quantity matters beyond the score: stage six triangulates the traced path and stage seven converts it into arc length in metres, so an invented segment becomes a measurement that is wrong without looking wrong.
+
+\vspace{0.2cm}
+\noindent \textbf{Results}
+\vspace{0.2cm}
+
+Table \ref{tab:tracer-comparison} reports the mean agreement by geometric family. The graph formulation reaches 98.9 against 89.0 over the sixty scenes, winning on twenty, losing on two and tying on thirty-eight, with 0.09 per cent of its pixels falling off the mask against 0.57 per cent.
+
+\begin{table}[!ht]
+\centering
+\caption[Path-tracing agreement with ground truth by geometric family]{Agreement between the traced path and the known centreline, mean F1 per cent over sixty synthetic scenes. Both tracers receive identical masks and identical endpoints.}
+\label{tab:tracer-comparison}
+\begin{tabular}{lccc}
+\hline
+\textbf{Geometry} & \textbf{Scenes} & \textbf{Pixel walk} & \textbf{Skeleton graph} \\
+\hline
+Catenary & 3 & 100.0 & 100.0 \\
+Smooth curve & 2 & 100.0 & 100.0 \\
+Straight & 1 & 100.0 & 100.0 \\
+Coil & 6 & 100.0 & 100.0 \\
+Loop & 25 & 86.5 & 99.3 \\
+Knot & 14 & 81.0 & 99.8 \\
+Tangle & 9 & 93.9 & 95.2 \\
+\hline
+All & 60 & 89.0 & 98.9 \\
+\hline
+\end{tabular}
+\end{table}
+
+The separation is entirely in the self-intersecting families. On the catenary, smooth and straight scenes, which are the geometries a tensioned tether between two spacecraft actually presents, the two tracers are indistinguishable at 100.0. The advantage of the graph formulation appears only where the cable crosses itself, rising to 18.8 points on knots and 12.7 on loops. This is a quantitative confirmation of the qualitative argument of Section 6.3.4: crossing disambiguation, not curve following, is what limits geometric tracking, and it is the only place where a different formulation changes the outcome.
+
+Figure \ref{fig:tracer-comparison} shows three representative scenes. The thick line is the known centreline, so cable left exposed is cable the tracer did not reach.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Images/tracer_comparison.png}
+    \caption[Pixel-walk and skeleton-graph tracers on identical masks]{The same three masks traced by the pixel walk, left, and by the skeleton graph, right. The thick underlying line is the known centreline, the thin line is the returned path, hollow circles mark the true endpoints and filled circles the detected ones. Both tracers receive identical input. On the coil and the tangle the two agree at 100.0; on the knot the pixel walk reaches 39 per cent of the cable against 100 per cent, and the exposed centreline shows precisely which strands it did not follow.}
+    \label{fig:tracer-comparison}
+\end{figure}
+
+\vspace{0.2cm}
+\noindent \textbf{What the comparison required correcting}
+\vspace{0.2cm}
+
+Three findings emerged from the comparison that apply to the pipeline independently of which tracer is adopted, and are recorded here because each was a silent failure rather than an error.
+
+The first concerns endpoint detection rather than tracing. On one coil scene the pixel walk scored 37.9, which initially read as a tracing failure. The skeleton in fact contained both correct tips, within one pixel of the true ends, and they were lost by the clustering step that collapses the two or three pixel fork left at a real tip by thinning. That step used a fixed radius of eighty pixels, and the two ends of that particular coil lie fifty-six pixels apart, so they merged into a single candidate; with one candidate there is no pair to evaluate, and the detector fell through to a fallback that returned two arbitrary points. Supplied with correct endpoints, the same tracer scores 100.0 on the same scene. The clustering radius is now derived from the measured cable radius, and clustering is discarded whenever it would leave fewer than two candidates.
+
+The second concerns the model of the traced route. Treating the route as a simple path, in which each skeleton edge is used at most once, makes the correct answer unreachable as soon as the cable crosses itself, because merging a crossing into a single graph node means both strands share the short edges that reach it. Measured against the ground truth, one knot scene traverses three of its edges twice and one tangle scene traverses a seven hundred pixel edge twice. The quantity consumed once is therefore not an edge but a half-edge, the act of leaving a given node along a given edge, which permits an edge to be walked once from each end and never twice the same way.
+
+The third concerns the objective. An intermediate version permitted repeated traversal only of dead-end branches, which recovered hairpins and simultaneously reduced the catenary and smooth families from 100.0 to 89.0, because an objective that maximises distance walked rewards a detour as soon as a repeated edge is counted again. Counting each edge once however often it is walked removes that incentive, so a second traversal is taken only when it reaches cable that is otherwise unreachable.
+
+\vspace{0.2cm}
+\noindent \textbf{Scope of these results}
+\vspace{0.2cm}
+
+These measurements are made on synthetic masks, where the centreline is known by construction, and they should not be read as a reconstruction accuracy figure. Two limits in particular bound their transfer. The generator returns a connected mask in fifty-nine of sixty scenes, whereas the segmentation models produce masks in several disconnected pieces on real frames, so the benchmark cannot exercise behaviour across breaks. And the agreement score measures the path in the image plane; metric accuracy in three dimensions additionally depends on the stereo calibration, which the system's own quality flag currently rejects.
+
 \section{Comparative discussion}
 
 The experimental investigation evaluated three distinct approaches for tether reconstruction under space-emulated observation conditions: conventional photogrammetry, geometry-driven stereo reconstruction, and AI-assisted reconstruction. Each approach exhibited different capabilities, limitations, and operational requirements.

@@ -140,19 +140,49 @@ backtracking, and it keeps the path that reaches the far endpoint
 expansion cap and a 3 s wall clock, because three real frames otherwise
 ran 15 to 18 s.
 
-Measured over 60 fresh synthetic scenes with `tools/benchmark_geodesic_tracer.py`:
+Measured over 60 fresh synthetic scenes with `tools/audit_tracer_jumps.py`,
+which scores agreement with the true centreline **and** audits how many
+traced pixels fall off the mask:
 
-| tracer | true-path F1 | knots | seconds |
-|--------|--------------|-------|---------|
-| `SmartWireTracker` | 88.1 | 80.4 | 1.76 |
-| `SmartWireTracker`, true endpoints | 90.9 | 79.0 | 2.29 |
-| graph, geometric pairing | 95.2 | 91.3 | 0.11 |
-| **graph + learned pairing** | **96.4** | **96.4** | **0.14** |
+| tracer | true-path F1 | knots | loops |
+|--------|--------------|-------|-------|
+| `SmartWireTracker` | 89.0 | 81.0 | 86.5 |
+| graph, first version | 96.0 | 95.7 | 94.9 |
+| **graph, half-edge model** | **98.9** | **99.8** | **99.3** |
+
+Wins 20, loses 2, ties 38, and 0.09% of its pixels fall off the mask
+against the DFS's 0.57%. On catenary, smooth and straight, which is what a
+tensioned tether is, both tracers sit at 100.0 and always have.
+
+**The route is a walk, not a simple path.** This is the correction that
+took it from 96.0 to 98.9 and it is easy to get wrong again. Each skeleton
+edge used at most once makes the right answer unreachable as soon as the
+cord crosses itself: merging a crossing into one node means both strands
+share the short edges reaching it. Measured against ground truth, one knot
+scene walks three of its edges twice and one tangle walks a 710 px edge
+twice, and thickness does not give them away (1.0 to 1.3 radii). What is
+consumed once is a **half-edge**, leaving node n along edge e.
+
+**And the objective must count each edge once however often it is walked.**
+An intermediate version allowed a second traversal only of dead ends,
+which fixed hairpins and dropped catenary and smooth from 100.0 to 89.0,
+because maximising distance *walked* rewards a detour the moment a
+repeated edge counts twice.
 
 **That 90.9 was never the ceiling it was quoted as.** It is what the DFS
 reaches when handed perfect endpoints, which is a property of the DFS, not
 of the problem. The graph tracer passes it with the endpoints the shipped
 detector finds.
+
+**The agreement metric densifies before scoring, and must keep doing so.**
+It used to score only the vertices a tracer returned, and a tracer that
+returns two points 113 px apart has both of them on the cable, so the
+straight line between them was free: one coil scored a perfect 100.0 while
+inventing 93 pixels. Three defects were invisible until the instrument
+could see them. Audit any new tracer with `tools/audit_tracer_jumps.py`,
+and read its "px inventados" column, not its jump count: the DFS returns a
+polyline with 12 px steps along the cable, which that column flags as 46
+false positives in 60.
 
 **On real frames, measured as the pipeline actually runs** (graph first,
 DFS whenever the graph result is rejected), against the hand-drawn masks
