@@ -136,7 +136,39 @@ SMOOTH_RADII = 0.3
 
 #: Where the mask is this much wider than the cable, two strands are
 #: lying side by side and the skeleton runs up the middle of both.
-WIDE_FACTOR = 1.30
+#:
+#: Swept against the quantity it exists to fix, which is arc length. With
+#: no doubling the traced path comes out 5.7 per cent SHORT, because
+#: every fused stretch is walked once where the cord runs twice:
+#:
+#:     factor   agreement   order   length
+#:      1.15        94.7     77.0    1.210
+#:      1.30        94.8     85.3    1.097
+#:      1.50        94.9     91.6    0.980
+#:      1.75        94.8     92.8    0.946
+#:      off         94.8     93.6    0.943
+#:
+#: 1.50 is where length lands nearest the truth. Below it the threshold
+#: starts calling ordinary thickness variation a doubled strand and the
+#: path grows 10 to 21 per cent too long; above it the doubling stops
+#: happening at all. Agreement does not move anywhere in the sweep, and
+#: traversal order costs two points, which is the price of walking a
+#: stretch twice where the skeleton offers one line to follow.
+WIDE_FACTOR = 1.50
+
+#: Off, and the measurement that closed it is worth keeping. Splitting a
+#: wide stretch into two strands assumes width means doubling, and it
+#: does not: the generator varies the cord's own thickness along its
+#: length, so a thick run and two touching strands look identical in the
+#: distance transform. Counted directly, over the skeleton pixels wider
+#: than 1.5 times nominal, the fraction with two separate parts of the
+#: TRUE centreline nearby is 17 per cent on a tangle and **zero** on a
+#: smooth curve, where 262 pixels read 1.86 times nominal and every one
+#: of them is simply thick cable. Doubling them invented geometry, and
+#: the smooth family, which is what a tensioned tether is, fell from
+#: 100.0 to 94.9. Reviving this needs a signal that separates a fat cord
+#: from two thin ones, which width alone is not.
+DOUBLE_WIDE_EDGES = False
 
 #: Width the graph is built at. Skeletonising a 1920x1440 mask and walking
 #: its chains costs about four seconds; at 960 it is under one, and the
@@ -167,6 +199,8 @@ class SkeletonGraph:
                                           (self.skel > 0).any() else 3.0, 1.0))
         self._build()
         self.split_loops = self._split_self_loops()
+        self.doubled_edges = (self._duplicate_wide_edges()
+                              if DOUBLE_WIDE_EDGES else 0)
         self.bridges = self._bridge_gaps(max_gap_radii)
 
     # -- construction ----------------------------------------------------
@@ -314,6 +348,86 @@ class SkeletonGraph:
             self.nodes[node]["degree"] = len(inc)
             split += 1
         return split
+
+    def nominal_radius(self):
+        """The cable's own radius: the median width along ordinary skeleton."""
+        if getattr(self, "_nominal", None) is None:
+            v = self.dt[self.skel > 0]
+            self._nominal = float(np.median(v)) if v.size else self.wire_radius
+        return self._nominal
+
+    def _offset_copy(self, pts, sign, nominal):
+        """One strand of a doubled stretch, offset from the shared skeleton."""
+        a = np.asarray(pts, dtype=np.float64)
+        if len(a) < 3:
+            return None
+        t = np.gradient(a, axis=0)
+        n = np.hypot(t[:, 0], t[:, 1])
+        n[n < 1e-9] = 1.0
+        t = t / n[:, None]
+        nor = np.column_stack([-t[:, 1], t[:, 0]])
+        h, w = self.dt.shape[:2]
+        xi = np.clip(np.round(a[:, 0]).astype(int), 0, w - 1)
+        yi = np.clip(np.round(a[:, 1]).astype(int), 0, h - 1)
+        off = np.maximum(self.dt[yi, xi].astype(np.float64) - nominal, 0.0)
+        out = a + nor * (sign * off)[:, None]
+        # a strand has to stay on the cable; pull back anything that left it
+        xo = np.clip(np.round(out[:, 0]).astype(int), 0, w - 1)
+        yo = np.clip(np.round(out[:, 1]).astype(int), 0, h - 1)
+        bad = self.binary[yo, xo] == 0
+        out[bad] = a[bad]
+        return [(int(round(x)), int(round(y))) for x, y in out]
+
+    def _duplicate_wide_edges(self, wide_factor=None, min_px=8):
+        """Split a doubled stretch of cable into its two strands.
+
+        Thinning gives one line wherever two strands touch, so the graph
+        says "one branch" about a place the cord passes through twice.
+        Every later stage then inherits that: the search walks it once,
+        the pairing sees one tangent, and the reported arc length is half
+        of what the cord actually runs there. Measured on twenty scenes,
+        every one contains such a stretch, a median of 352 skeleton
+        pixels, and only 8 per cent of them were being walked on both
+        sides.
+
+        Width is what identifies them, and width also says where the
+        strands are: two cords of radius r with centres d apart make a
+        shape of half-width d/2 + r, so DT reads d/2 + r on the shared
+        skeleton and the strands sit at plus and minus (DT - r). Both
+        quantities come from the image; nothing is tuned here except how
+        much wider than r counts as doubled.
+
+        Replacing the edge with two ordinary edges, rather than teaching
+        the search about doubling, is the point. The pairing, the
+        half-edge bookkeeping and the coverage objective then handle the
+        stretch with no special case, and they already know how to walk
+        two branches between the same pair of nodes.
+        """
+        wf = WIDE_FACTOR if wide_factor is None else wide_factor
+        nominal = self.nominal_radius()
+        made = 0
+        for eid in range(len(self.edges)):
+            e = self.edges[eid]
+            if e.get("absorbed") or e.get("bridge") or len(e["pts"]) < min_px:
+                continue
+            widths = [self.dt[y, x] for x, y in e["pts"]]
+            if float(np.median(widths)) <= wf * nominal:
+                continue
+            a = self._offset_copy(e["pts"], +1.0, nominal)
+            b = self._offset_copy(e["pts"], -1.0, nominal)
+            if a is None or b is None:
+                continue
+            self.edges[eid] = {"u": e["u"], "v": e["v"], "pts": a,
+                               "doubled": True}
+            twin = len(self.edges)
+            self.edges.append({"u": e["u"], "v": e["v"], "pts": b,
+                               "doubled": True})
+            self.incident[e["u"]].append(twin)
+            self.incident[e["v"]].append(twin)
+            self.nodes[e["u"]]["degree"] = len(self.incident[e["u"]])
+            self.nodes[e["v"]]["degree"] = len(self.incident[e["v"]])
+            made += 1
+        return made
 
     def _bridge_gaps(self, max_gap_radii):
         """Join loose ends that are evidently the same cable across a gap.
@@ -496,7 +610,17 @@ def pair_branches(graph, score_fn=_pair_score):
     # two plausible continuations apart by width and context, and loses
     # the failure it cannot recover from.
     by_node = {}
+    # A node with exactly two branches has nothing to choose: whatever the
+    # angle between them, the cord that arrives on one leaves on the other.
+    # This matters at the tip of a hairpin, where the two strands of a
+    # doubled stretch meet and leave in almost the same direction, which
+    # the straightness veto would otherwise reject as a 180 degree turn.
+    for nid, eids in graph.incident.items():
+        if len(eids) == 2 and eids[0] != eids[1]:
+            by_node[nid] = [(1e9, eids[0], eids[1])]
     for k, (nid, a, b) in enumerate(items):
+        if nid in by_node and by_node[nid] and by_node[nid][0][0] >= 1e9:
+            continue
         sc = scores[k] if scores is not None else score_fn(graph, nid, a, b)
         if sc <= 0:
             continue
