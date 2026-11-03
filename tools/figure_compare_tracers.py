@@ -32,7 +32,7 @@ if str(_ROOT) not in sys.path:
 
 import synthetic  # noqa: F401,E402
 from synthetic import generate  # noqa: E402
-from synthetic.evaluate import path_agreement  # noqa: E402
+from synthetic.evaluate import path_agreement, parametric_agreement  # noqa: E402
 from processing.endpoint_detector import EndpointDetector  # noqa: E402
 from processing.smart_wire_tracker import SmartWireTracker  # noqa: E402
 from processing import graph_tracer as grt  # noqa: E402
@@ -53,8 +53,21 @@ def panel(mask, gt, path, det, true_ends, colour, title, scores, radius):
     thick = max(5, int(round(2.0 * radius)))
     cv2.polylines(img, [pts.reshape(-1, 1, 2)], False, TRUTH, thick)
     if path:
-        p = np.asarray(path, np.int32).reshape(-1, 1, 2)
-        cv2.polylines(img, [p], False, colour, 2)
+        # Coloured by progress along the trace, dark at the start and
+        # bright at the end, because a flat colour cannot show the thing
+        # that matters here. Two traces that cover the same cable look
+        # identical when drawn in one colour, and one of them can be
+        # walking the cable in a scrambled order, which scores a perfect
+        # F1 and makes stage 5 pair the point at i% of the left path with
+        # the wrong point on the right. With the gradient, a trace in
+        # order flows smoothly from dark to bright along the cord, and a
+        # scrambled one shows bright next to dark.
+        pa = np.asarray(path, np.int32)
+        n = len(pa)
+        for i in range(n - 1):
+            t = i / max(n - 2, 1)
+            c = tuple(int(40 + (v - 40) * (0.25 + 0.75 * t)) for v in colour)
+            cv2.line(img, tuple(pa[i]), tuple(pa[i + 1]), c, 2)
     for e in true_ends:
         cv2.circle(img, (int(e[0]), int(e[1])), 11, (255, 255, 255), 2)
     for e in det:
@@ -107,12 +120,16 @@ def main(argv=None):
 
         s_a = path_agreement(trk.path, xy, (w, h), r)
         g_a = path_agreement(gp or [], xy, (w, h), r)
-        fmt = (lambda d: f"cubre {100*d['recall']:.0f}%  de lo trazado "
-                         f"{100*d['precision']:.0f}% es cable  F1 {100*d['f1']:.1f}")
+        s_p = parametric_agreement(trk.path, xy, (w, h), r)
+        g_p = parametric_agreement(gp or [], xy, (w, h), r)
+
+        def fmt(d, q):
+            return (f"cubre {100*d['recall']:.0f}%   EN ORDEN "
+                    f"{100*q['order']:.0f}%   F1 {100*d['f1']:.1f}")
         left = panel(mask, xy, trk.path, [a, b], true_ends, SMART,
-                     "SmartWireTracker", fmt(s_a), r)
+                     "SmartWireTracker", fmt(s_a, s_p), r)
         right = panel(mask, xy, gp, [a, b], true_ends, GRAPH,
-                      "graph_tracer", fmt(g_a), r)
+                      "graph_tracer", fmt(g_a, g_p), r)
         sep = np.full((PANEL_H, 3, 3), 40, np.uint8)
         band = np.hstack([left, sep, right])
         tag = np.zeros((30, band.shape[1], 3), np.uint8)
@@ -120,15 +137,16 @@ def main(argv=None):
                          f"error de los extremos detectados: {e_err:.0f} px",
                     (12, 21), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1)
         rows.append(np.vstack([tag, band]))
-        print(f"{meta['shape']:<9} seed {seed}  endpoints {e_err:5.1f} px  "
-              f"smart F1 {100*s_a['f1']:5.1f}  grafo F1 {100*g_a['f1']:5.1f}",
+        print(f"{meta['shape']:<9} seed {seed}  ends {e_err:5.1f} px  "
+              f"smart F1 {100*s_a['f1']:5.1f} orden {100*s_p['order']:5.1f}  "
+              f"grafo F1 {100*g_a['f1']:5.1f} orden {100*g_p['order']:5.1f}",
               flush=True)
 
     legend = np.zeros((34, rows[0].shape[1], 3), np.uint8)
-    cv2.putText(legend, "azul grueso = hilo verdadero     linea fina = lo trazado"
-                        "     circulo blanco = extremo real     punto amarillo = "
-                        "extremo detectado",
-                (12, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
+    cv2.putText(legend, "azul grueso = hilo verdadero    linea fina = lo trazado, "
+                        "OSCURO donde empieza y CLARO donde acaba    "
+                        "circulo = extremo real    punto = extremo detectado",
+                (12, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (200, 200, 200), 1)
     gap = np.full((8, rows[0].shape[1], 3), 20, np.uint8)
     fig = legend
     for r_ in rows:

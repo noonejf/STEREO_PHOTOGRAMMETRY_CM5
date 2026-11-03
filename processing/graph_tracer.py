@@ -78,6 +78,28 @@ SPUR_RADII = 2.5
 #: one end of the cable to the other at all.
 MAX_GAP_RADII = 8.0
 
+#: What a sharp turn costs, in pixels of coverage, when the search ranks
+#: one route against another.
+#:
+#: Coverage alone is not enough and the reason is easy to miss, because
+#: the symptom hides behind a perfect score. Two routes can both cover
+#: 100% of the cable while traversing it in completely different orders,
+#: and F1 cannot tell them apart: it treats the trace as a set of points.
+#: Stage 5 does not. It pairs the point at i% along the left path with the
+#: point at i% along the right one, so a route that covers everything in a
+#: scrambled order produces a correspondence that is wrong while every
+#: coverage number says it is perfect. Measured on the knot scene: the
+#: same 100.0 F1, and a rank correlation against true arc length of 0.373
+#: with 32 reversals of direction, against the pixel walk's 0.792 with 4.
+#:
+#: So the objective carries a second term. Continuing straight through a
+#: node costs nothing, turning away from the arriving direction costs this
+#: many pixels, and reversing costs twice that. It is deliberately small
+#: against the length of a real strand: a sharp turn that reaches a
+#: hundred more pixels of cable is still taken, a sharp turn that reaches
+#: ten is not.
+TURN_COST_PX = 25.0
+
 #: Width the graph is built at. Skeletonising a 1920x1440 mask and walking
 #: its chains costs about four seconds; at 960 it is under one, and the
 #: cable is still ten pixels wide there, so nothing that matters is lost.
@@ -106,6 +128,7 @@ class SkeletonGraph:
                                  else max(np.median(dt[self.skel > 0]) if
                                           (self.skel > 0).any() else 3.0, 1.0))
         self._build()
+        self.split_loops = self._split_self_loops()
         self.bridges = self._bridge_gaps(max_gap_radii)
 
     # -- construction ----------------------------------------------------
@@ -198,6 +221,61 @@ class SkeletonGraph:
 
         for nid in self.nodes:
             self.nodes[nid]["degree"] = len(self.incident[nid])
+
+    def _split_self_loops(self):
+        """Cut every edge that starts and ends at the same node in half.
+
+        A self loop is a closed loop of cord hanging off a crossing, and
+        it breaks two assumptions at once. It leaves its node in **two**
+        directions, but `tangent_at` can only report one, so the pairing
+        compares the wrong angle: at one such node the true continuation
+        measured as a 0.299 turn while a wrong one measured 0.988 and was
+        chosen. And the half-edge bookkeeping keys a traversal by
+        (edge, node), which for a loop is the same key for both of its
+        ends, so the two cannot be told apart either.
+
+        Splitting the loop at its midpoint, with a synthetic degree-2
+        node in between, removes the special case instead of handling it.
+        Two ordinary edges have two ordinary tangents and two distinct
+        half-edge keys, and a degree-2 node pairs its only two branches
+        trivially, so nothing downstream needs to know this happened.
+
+        It is worth the trouble: over 60 scenes the 19 containing a self
+        loop traced at 95.7 coverage and 65.5 traversal order, against
+        98.7 and 80.9 for the 41 without one.
+        """
+        split = 0
+        for eid in range(len(self.edges)):
+            e = self.edges[eid]
+            if e["u"] != e["v"] or len(e["pts"]) < 6:
+                continue
+            node = e["u"]
+            pts = e["pts"]
+            mid = len(pts) // 2
+            mx, my = pts[mid]
+            new_id = (max(self.nodes) + 1) if self.nodes else 1
+            self.nodes[new_id] = {"xy": (float(mx), float(my)),
+                                  "px": [(int(mx), int(my))], "degree": 2}
+            # first half keeps this edge id, second half gets a new one
+            self.edges[eid] = {"u": node, "v": new_id,
+                               "pts": pts[:mid + 1]}
+            second = len(self.edges)
+            self.edges.append({"u": new_id, "v": node,
+                               "pts": pts[mid:]})
+            # the loop appeared twice in its node's incident list; one of
+            # those occurrences now belongs to the second half
+            inc = self.incident[node]
+            first_seen = False
+            for k, x in enumerate(inc):
+                if x == eid:
+                    if first_seen:
+                        inc[k] = second
+                        break
+                    first_seen = True
+            self.incident[new_id] = [eid, second]
+            self.nodes[node]["degree"] = len(inc)
+            split += 1
+        return split
 
     def _bridge_gaps(self, max_gap_radii):
         """Join loose ends that are evidently the same cable across a gap.
@@ -363,11 +441,42 @@ def pair_branches(graph, score_fn=_pair_score):
     scores = None
     if batched is not None and hasattr(batched, "score_many"):
         scores = batched.score_many(graph, items)
+
+    # The geometric veto applies whoever is scoring. `_pair_score` refuses
+    # to call two branches one strand unless they leave the node close to
+    # opposite, and a learned scorer that replaces the function replaces
+    # that refusal along with it. Measured at one degree-4 node: the model
+    # paired a branch leaving at -85.9 degrees with one leaving at -22.6,
+    # a 63 degree turn, while the branch leaving at 90.0, a 176 degree
+    # continuation of the first, sat unpaired. The trace still covered
+    # 100% of the cable and traversed it in a scrambled order, which is
+    # invisible to a coverage score and fatal to stage 5, where the point
+    # at i% of the left path is paired with the point at i% of the right.
+    #
+    # So the model chooses among geometrically admissible pairs rather
+    # than instead of them. It keeps what it is good at, which is telling
+    # two plausible continuations apart by width and context, and loses
+    # the failure it cannot recover from.
     by_node = {}
     for k, (nid, a, b) in enumerate(items):
         sc = scores[k] if scores is not None else score_fn(graph, nid, a, b)
-        if sc > 0:
-            by_node.setdefault(nid, []).append((sc, a, b))
+        if sc <= 0:
+            continue
+        t1 = graph.tangent_at(a, nid)
+        t2 = graph.tangent_at(b, nid)
+        straight = -float(np.dot(t1, t2)) if (t1.any() and t2.any()) else 0.0
+        if straight < MIN_STRAIGHTNESS:
+            continue
+        # and the two opinions are multiplied, not substituted. A veto
+        # alone was not enough: at the node above the model still ranked a
+        # 102 degree turn (straightness 0.21) over the 176 degree
+        # continuation (0.998) sitting right there, because its own score
+        # was the only thing being compared. Multiplying means the model
+        # has to be roughly five times more confident to overrule that
+        # much geometry, which is the bar its measured reliability
+        # deserves: it wins on average and is occasionally, locally,
+        # absurd.
+        by_node.setdefault(nid, []).append((sc * straight, a, b))
 
     pairing = {}
     for nid, cand in by_node.items():
@@ -414,6 +523,24 @@ def _seeds(graph, xy):
     out = []
     eid, ed = _nearest_edge(graph, xy)
     nid, nd = _nearest_node(graph, xy)
+
+    # A requested endpoint sitting on a dead end is not ambiguous: the walk
+    # has to leave from there. Offering the other orientation as well let
+    # the search pick a route that covers the same cable and simply starts
+    # somewhere else, since both score the same length. On one tangle that
+    # left the 65 px stub running out to the endpoint untraced and the
+    # path beginning 86 px away from the point it was asked to start at,
+    # which downstream is worse than it looks: stage 5 pairs by fraction
+    # of the path, so a path that starts in the wrong place misaligns
+    # every pair after it.
+    # The tolerance matters: the endpoint sits ON the dead-end edge too, so
+    # the edge is often a hair closer than the node and a strict
+    # comparison never fires. Anything within a couple of cable radii of a
+    # degree-1 node is that node.
+    near_node = max(ed + 1e-6, 2.0 * graph.wire_radius)
+    if nid is not None and nd <= near_node and len(graph.incident[nid]) == 1:
+        return [(graph.incident[nid][0], nid)]
+
     if nid is not None and nd <= ed + 1e-6:
         for e in graph.incident[nid]:
             out.append((e, nid))
@@ -430,7 +557,8 @@ def _seeds(graph, xy):
     return uniq
 
 
-def _ordered_continuations(graph, node, eid, pairing, used_halves):
+def _ordered_continuations(graph, node, eid, pairing, used_halves,
+                           strict=False):
     """Branches to try on leaving ``node``, best first.
 
     **The unit that gets consumed is a half-edge, not an edge**, and that
@@ -468,6 +596,18 @@ def _ordered_continuations(graph, node, eid, pairing, used_halves):
     nxt = pairing.get((node, eid))
     if nxt is not None and free(nxt):
         out.append(nxt)
+        if strict:
+            # The pairing is an answer, not a suggestion. Offering the
+            # alternatives alongside it let the search trade the right
+            # continuation for a little more coverage, and coverage is
+            # exactly what cannot see the difference: on one knot the
+            # trace covered 100% of the cable with a rank correlation
+            # against true arc length of 0.373. Handing the oracle
+            # pairing to the old search changed nothing, 52.3 against
+            # 52.4, which is what proved the pairing was never the thing
+            # being ignored by accident. Where a node has an answer, take
+            # it; the search exists for the nodes that do not.
+            return out
     t_in = -graph.tangent_at(eid, node)       # direction of travel, arriving
     rest = []
     for cand in graph.incident[node]:
@@ -480,8 +620,19 @@ def _ordered_continuations(graph, node, eid, pairing, used_halves):
     return out
 
 
+def _turn_penalty(graph, node, eid, nxt, weight):
+    """Cost of arriving at ``node`` along ``eid`` and leaving along ``nxt``."""
+    t_in = -graph.tangent_at(eid, node)
+    t_out = graph.tangent_at(nxt, node)
+    if not t_in.any() or not t_out.any():
+        return 0.0
+    straight = float(np.dot(t_in, t_out))        # 1 straight on, -1 back
+    return weight * (1.0 - straight)
+
+
 def _search(graph, seeds, pairing, target_edges, target_nodes,
-            max_expand=40000, time_budget_s=3.0):
+            max_expand=40000, time_budget_s=3.0, turn_cost=TURN_COST_PX,
+            strict=False):
     """Depth-first over the edge graph, keeping the best path to the end.
 
     "Best" is the one that **covers the most cable**, measured as the total
@@ -531,7 +682,9 @@ def _search(graph, seeds, pairing, target_edges, target_nodes,
                 if best is None or cand[:2] > best[:2]:
                     best = cand
                 continue
-            nxts = _ordered_continuations(graph, node, eid, pairing, halves)
+
+            nxts = _ordered_continuations(graph, node, eid, pairing, halves,
+                                          strict)
             if not nxts:
                 cand = (False, length, used)
                 if best is None or cand[:2] > best[:2]:
@@ -542,6 +695,7 @@ def _search(graph, seeds, pairing, target_edges, target_nodes,
                 e = graph.edges[nxt]
                 far = e["v"] if e["u"] == node else e["u"]
                 gain = 0 if nxt in seen else graph.edge_length(nxt)
+                gain -= _turn_penalty(graph, node, eid, nxt, turn_cost)
                 stack.append((nxt, far, used + (nxt,), length + gain,
                               halves | {(nxt, node)}, seen | {nxt}))
         if expand > max_expand:
@@ -709,7 +863,8 @@ def default_score_fn():
 
 
 def trace(mask, start, end, wire_radius=None, score_fn=None,
-          max_expand=40000, time_budget_s=3.0, work_width=WORK_WIDTH):
+          max_expand=40000, time_budget_s=3.0, work_width=WORK_WIDTH,
+          turn_cost=TURN_COST_PX, strict_pairing=False):
     """Resolve every crossing, then read the cable off the graph.
 
     ``start`` and ``end`` are (x, y). Returns ``(path, info)``.
@@ -751,7 +906,8 @@ def trace(mask, start, end, wire_radius=None, score_fn=None,
 
     seeds = _seeds(graph, start)
     best, expand = _search(graph, seeds, pairing, target_edges, target_nodes,
-                           max_expand, time_budget_s)
+                           max_expand, time_budget_s, turn_cost,
+                           strict_pairing)
     info["expansions"] = expand
     if best is None:
         return None, info
