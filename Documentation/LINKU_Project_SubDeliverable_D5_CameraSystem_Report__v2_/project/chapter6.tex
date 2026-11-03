@@ -324,43 +324,52 @@ The tracer used throughout the Phase II experiments walks the segmentation mask 
 
 Both tracers were run on sixty synthetic scenes drawn from a generator whose parameters were previously matched to the statistics of the laboratory masks, using random seeds disjoint from any used during development. Both receive the same mask and the same endpoints, produced by the operational detector, so the comparison isolates stage three of the pipeline. The score is the F1 agreement between the traced path and the known centreline, with a tolerance of two and a half cable radii.
 
-Two properties of the measurement are worth stating because the first version of it was wrong in a way that flattered one method. The agreement score is computed after filling in the pixels between consecutive returned vertices, since a tracer that returns two points a hundred pixels apart has drawn a straight line across whatever lies between them, and scoring only the returned vertices never looks there. Separately, every returned path is audited for the fraction of its pixels that fall outside the mask, which is the direct measure of cable that was invented rather than observed. That quantity matters beyond the score: stage six triangulates the traced path and stage seven converts it into arc length in metres, so an invented segment becomes a measurement that is wrong without looking wrong.
+Three properties of the measurement are worth stating, because the first two versions of it were wrong in ways that flattered one method or the other.
+
+The agreement score is computed after filling in the pixels between consecutive returned vertices, since a tracer that returns two points a hundred pixels apart has drawn a straight line across whatever lies between them, and scoring only the returned vertices never looks there. Separately, every returned path is audited for the fraction of its pixels that fall outside the mask, which is the direct measure of cable that was invented rather than observed. That quantity matters beyond the score: stage six triangulates the traced path and stage seven converts it into arc length in metres, so an invented segment becomes a measurement that is wrong without looking wrong.
+
+Agreement alone, however, is not sufficient, and the reason is specific to how the traced path is consumed. Agreement treats the path as a set of points and asks how much of the cable it touches. Stage five treats it as a parametrisation: it pairs the point at a given fraction along the left path with the point at the same fraction along the right one. A path that touches every pixel of the cable while visiting those pixels out of sequence therefore scores a perfect agreement and yields correspondences that are meaningless. This is not hypothetical. On one knot scene the skeleton-graph tracer scored a perfect agreement with a rank correlation against true arc length of 0.373 and thirty-two reversals of direction, against 0.792 and four reversals for the pixel walk. Traversal order is therefore reported as a separate quantity, the rank correlation between position along the returned path and position along the true centreline.
+
+A fourth quantity, how evenly the path is paced against the true centreline, was tried and discarded. It conflated two different failures: one tangle scene scored eight per cent on it while its traversal order was 0.997, because the returned path wanders and runs eleven per cent longer than the centreline, which displaces its pacing by under two per cent, and two per cent of a two and a half thousand pixel cable exceeds the tolerance. Pacing measured against ground truth is in any case not what stage five requires, since it compares the left path against the right path and both are produced by the same code from similar masks.
 
 \vspace{0.2cm}
 \noindent \textbf{Results}
 \vspace{0.2cm}
 
-Table \ref{tab:tracer-comparison} reports the mean agreement by geometric family. The graph formulation reaches 98.9 against 89.0 over the sixty scenes, winning on twenty, losing on two and tying on thirty-eight, with 0.09 per cent of its pixels falling off the mask against 0.57 per cent.
+Table \ref{tab:tracer-comparison} reports both quantities by geometric family. The graph formulation covers substantially more cable, 97.7 against 89.0 over the sixty scenes, with 0.04 per cent of its pixels falling off the mask against 0.57 per cent. On traversal order the pixel walk remains ahead, 87.7 against 83.3, and the gap is concentrated on loops, 93.9 against 79.5. The two tracers therefore fail differently rather than one dominating, which is the result this comparison exists to establish.
 
 \begin{table}[!ht]
 \centering
-\caption[Path-tracing agreement with ground truth by geometric family]{Agreement between the traced path and the known centreline, mean F1 per cent over sixty synthetic scenes. Both tracers receive identical masks and identical endpoints.}
+\caption[Path-tracing agreement with ground truth by geometric family]{Agreement between the traced path and the known centreline, over sixty synthetic scenes with identical masks and identical endpoints for both tracers. Cable covered is the F1 agreement treating the path as a set of points. Traversal order is the rank correlation between position along the path and position along the centreline, which is what stage five requires and what agreement alone cannot see.}
 \label{tab:tracer-comparison}
-\begin{tabular}{lccc}
+\begin{tabular}{lccccc}
 \hline
-\textbf{Geometry} & \textbf{Scenes} & \textbf{Pixel walk} & \textbf{Skeleton graph} \\
+ & & \multicolumn{2}{c}{\textbf{Cable covered}} & \multicolumn{2}{c}{\textbf{Traversal order}} \\
+\textbf{Geometry} & \textbf{Scenes} & Pixel walk & Graph & Pixel walk & Graph \\
 \hline
-Catenary & 3 & 100.0 & 100.0 \\
-Smooth curve & 2 & 100.0 & 100.0 \\
-Straight & 1 & 100.0 & 100.0 \\
-Coil & 6 & 100.0 & 100.0 \\
-Loop & 25 & 86.5 & 99.3 \\
-Knot & 14 & 81.0 & 99.8 \\
-Tangle & 9 & 93.9 & 95.2 \\
+Catenary & 3 & 100.0 & 100.0 & 100.0 & 100.0 \\
+Smooth curve & 2 & 100.0 & 100.0 & 100.0 & 100.0 \\
+Straight & 1 & 100.0 & 100.0 & 100.0 & 100.0 \\
+Coil & 6 & 100.0 & 100.0 & 100.0 & 100.0 \\
+Loop & 25 & 86.5 & 99.1 & 93.9 & 79.5 \\
+Knot & 14 & 81.0 & 94.7 & 70.5 & 75.1 \\
+Tangle & 9 & 93.9 & 95.5 & 81.1 & 84.5 \\
 \hline
-All & 60 & 89.0 & 98.9 \\
+All & 60 & 89.0 & 97.7 & 87.7 & 83.3 \\
 \hline
 \end{tabular}
 \end{table}
 
-The separation is entirely in the self-intersecting families. On the catenary, smooth and straight scenes, which are the geometries a tensioned tether between two spacecraft actually presents, the two tracers are indistinguishable at 100.0. The advantage of the graph formulation appears only where the cable crosses itself, rising to 18.8 points on knots and 12.7 on loops. This is a quantitative confirmation of the qualitative argument of Section 6.3.4: crossing disambiguation, not curve following, is what limits geometric tracking, and it is the only place where a different formulation changes the outcome.
+The separation is entirely in the self-intersecting families. On the catenary, smooth and straight scenes, which are the geometries a tensioned tether between two spacecraft actually presents, the two tracers are indistinguishable and both are exact on both measures. Everything that follows concerns geometries the operational tether does not adopt, and is reported because it bounds the method rather than because it limits the mission.
+
+Where the cable crosses itself the two formulations trade. The graph covers more, by 13.7 points on knots and 12.6 on loops, which is a quantitative confirmation of the qualitative argument of Section 6.3.4: crossing disambiguation, not curve following, is what limits geometric tracking. But the pixel walk preserves order better on loops, by 14.4 points, because momentum carries it through an ambiguous junction in the direction it arrived while the graph search selects a route by how much cable it reaches. Neither property is optional downstream, so neither tracer is yet sufficient for stereo correspondence on an entangled cable.
 
 Figure \ref{fig:tracer-comparison} shows three representative scenes. The thick line is the known centreline, so cable left exposed is cable the tracer did not reach.
 
 \begin{figure}[!ht]
     \centering
     \includegraphics[width=0.92\textwidth]{Images/tracer_comparison.png}
-    \caption[Pixel-walk and skeleton-graph tracers on identical masks]{The same three masks traced by the pixel walk, left, and by the skeleton graph, right. The thick underlying line is the known centreline, the thin line is the returned path, hollow circles mark the true endpoints and filled circles the detected ones. Both tracers receive identical input. On the coil and the tangle the two agree at 100.0; on the knot the pixel walk reaches 39 per cent of the cable against 100 per cent, and the exposed centreline shows precisely which strands it did not follow.}
+    \caption[Pixel-walk and skeleton-graph tracers on identical masks]{The same three masks traced by the pixel walk, left, and by the skeleton graph, right. The thick underlying line is the known centreline, so any of it left exposed is cable the tracer did not reach. The returned path is drawn over it, shaded from dark where the traversal begins to bright where it ends, because a path drawn in a single colour cannot show the order in which it was walked and two paths covering the same cable in completely different orders are otherwise indistinguishable. Hollow circles mark the true endpoints and filled circles the detected ones; both tracers receive identical input.}
     \label{fig:tracer-comparison}
 \end{figure}
 
@@ -376,11 +385,17 @@ The second concerns the model of the traced route. Treating the route as a simpl
 
 The third concerns the objective. An intermediate version permitted repeated traversal only of dead-end branches, which recovered hairpins and simultaneously reduced the catenary and smooth families from 100.0 to 89.0, because an objective that maximises distance walked rewards a detour as soon as a repeated edge is counted again. Counting each edge once however often it is walked removes that incentive, so a second traversal is taken only when it reaches cable that is otherwise unreachable.
 
+The fourth concerns closed loops of cord. Where a loop hangs off a crossing the skeleton contains an edge that leaves and returns to the same node, and such an edge violates two assumptions simultaneously: the tangent of an edge at a node is a single direction while the loop departs in two, so the pairing compares the wrong angle, and a traversal keyed by the pair of edge and node cannot distinguish the loop's two ends. At one such node the true continuation measured 0.299 of straightness while an incorrect one measured 0.988 and was selected. Over the sixty scenes, the nineteen containing at least one self loop traced at 95.7 coverage and 65.5 order, against 98.7 and 80.9 for the forty-one without. Cutting each loop at its midpoint with a synthetic intermediate node removes the special case instead of handling it, and raised traversal order from 76.0 to 83.3 overall and from 63.3 to 79.5 on loops.
+
+A related distinction had to be drawn between a loop of cord and a loop in the skeleton. Where the cord doubles back in a tight hairpin the two sides touch, the mask fuses into a blob, and the skeleton of a blob is a small ring rather than a line, which the tracer would follow as a thin detour around the tip. The two cases are not close in size: over the sixty scenes the thirty-six self loops present are sharply bimodal, eighteen below ten cable radii and seventeen above thirty, the largest nearly eight hundred. Rings below the threshold are absorbed into their node.
+
+The fifth concerns where a trace is allowed to begin. A requested endpoint lying on a dead-end node admits exactly one sensible start, the one departing from it, but offering both orientations let the search select a route covering the same cable while beginning eighty-six pixels away, which discards the stub running out to the endpoint and displaces every subsequent pairing in stage five.
+
 \vspace{0.2cm}
 \noindent \textbf{Scope of these results}
 \vspace{0.2cm}
 
-These measurements are made on synthetic masks, where the centreline is known by construction, and they should not be read as a reconstruction accuracy figure. Two limits in particular bound their transfer. The generator returns a connected mask in fifty-nine of sixty scenes, whereas the segmentation models produce masks in several disconnected pieces on real frames, so the benchmark cannot exercise behaviour across breaks. And the agreement score measures the path in the image plane; metric accuracy in three dimensions additionally depends on the stereo calibration, which the system's own quality flag currently rejects.
+These measurements are made on synthetic masks, where the centreline is known by construction, and they should not be read as a reconstruction accuracy figure. Nor is the comparison closed: on self-intersecting geometries the two tracers remain complementary, one covering more cable and the other preserving order better, and a formulation that achieves both has not been demonstrated. Two limits in particular bound their transfer. The generator returns a connected mask in fifty-nine of sixty scenes, whereas the segmentation models produce masks in several disconnected pieces on real frames, so the benchmark cannot exercise behaviour across breaks. And the agreement score measures the path in the image plane; metric accuracy in three dimensions additionally depends on the stereo calibration, which the system's own quality flag currently rejects.
 
 \section{Comparative discussion}
 
