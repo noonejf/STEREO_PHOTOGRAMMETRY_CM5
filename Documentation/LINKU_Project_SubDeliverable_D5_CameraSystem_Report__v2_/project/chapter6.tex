@@ -336,7 +336,7 @@ A fourth quantity, how evenly the path is paced against the true centreline, was
 \noindent \textbf{Results}
 \vspace{0.2cm}
 
-Table \ref{tab:tracer-comparison} reports both quantities by geometric family. The graph formulation covers substantially more cable, 97.7 against 89.0 over the sixty scenes, with 0.04 per cent of its pixels falling off the mask against 0.57 per cent. On traversal order the pixel walk remains ahead, 87.7 against 83.3, and the gap is concentrated on loops, 93.9 against 79.5. The two tracers therefore fail differently rather than one dominating, which is the result this comparison exists to establish.
+Table \ref{tab:tracer-comparison} reports both quantities by geometric family. The graph formulation covers substantially more cable, 97.6 against 89.0 over the sixty scenes, with 0.00 per cent of its pixels falling off the mask against 0.57 per cent. On traversal order the pixel walk remains ahead, 87.7 against 85.1, and the gap is concentrated on loops, 93.9 against 78.6. The two tracers therefore fail differently rather than one dominating, which is the result this comparison exists to establish.
 
 \begin{table}[!ht]
 \centering
@@ -351,18 +351,18 @@ Catenary & 3 & 100.0 & 100.0 & 100.0 & 100.0 \\
 Smooth curve & 2 & 100.0 & 100.0 & 100.0 & 100.0 \\
 Straight & 1 & 100.0 & 100.0 & 100.0 & 100.0 \\
 Coil & 6 & 100.0 & 100.0 & 100.0 & 100.0 \\
-Loop & 25 & 86.5 & 99.1 & 93.9 & 79.5 \\
-Knot & 14 & 81.0 & 94.7 & 70.5 & 75.1 \\
-Tangle & 9 & 93.9 & 95.5 & 81.1 & 84.5 \\
+Loop & 25 & 86.5 & 99.0 & 93.9 & 78.6 \\
+Knot & 14 & 81.0 & 94.7 & 70.5 & 78.9 \\
+Tangle & 9 & 93.9 & 95.2 & 81.1 & 92.6 \\
 \hline
-All & 60 & 89.0 & 97.7 & 87.7 & 83.3 \\
+All & 60 & 89.0 & 97.6 & 87.7 & 85.1 \\
 \hline
 \end{tabular}
 \end{table}
 
 The separation is entirely in the self-intersecting families. On the catenary, smooth and straight scenes, which are the geometries a tensioned tether between two spacecraft actually presents, the two tracers are indistinguishable and both are exact on both measures. Everything that follows concerns geometries the operational tether does not adopt, and is reported because it bounds the method rather than because it limits the mission.
 
-Where the cable crosses itself the two formulations trade. The graph covers more, by 13.7 points on knots and 12.6 on loops, which is a quantitative confirmation of the qualitative argument of Section 6.3.4: crossing disambiguation, not curve following, is what limits geometric tracking. But the pixel walk preserves order better on loops, by 14.4 points, because momentum carries it through an ambiguous junction in the direction it arrived while the graph search selects a route by how much cable it reaches. Neither property is optional downstream, so neither tracer is yet sufficient for stereo correspondence on an entangled cable.
+Where the cable crosses itself the two formulations trade. The graph covers more, by 13.7 points on knots and 12.5 on loops, which is a quantitative confirmation of the qualitative argument of Section 6.3.4: crossing disambiguation, not curve following, is what limits geometric tracking. But the pixel walk preserves order better on loops, by 15.3 points, because momentum carries it through an ambiguous junction in the direction it arrived while the graph search selects a route by how much cable it reaches. Neither property is optional downstream, so neither tracer is yet sufficient for stereo correspondence on an entangled cable.
 
 Figure \ref{fig:tracer-comparison} shows three representative scenes. The thick line is the known centreline, so cable left exposed is cable the tracer did not reach.
 
@@ -390,6 +390,13 @@ The fourth concerns closed loops of cord. Where a loop hangs off a crossing the 
 A related distinction had to be drawn between a loop of cord and a loop in the skeleton. Where the cord doubles back in a tight hairpin the two sides touch, the mask fuses into a blob, and the skeleton of a blob is a small ring rather than a line, which the tracer would follow as a thin detour around the tip. The two cases are not close in size: over the sixty scenes the thirty-six self loops present are sharply bimodal, eighteen below ten cable radii and seventeen above thirty, the largest nearly eight hundred. Rings below the threshold are absorbed into their node.
 
 The fifth concerns where a trace is allowed to begin. A requested endpoint lying on a dead-end node admits exactly one sensible start, the one departing from it, but offering both orientations let the search select a route covering the same cable while beginning eighty-six pixels away, which discards the stub running out to the endpoint and displaces every subsequent pairing in stage five.
+
+The sixth concerns stretches the cord traverses twice. Where the cord doubles back in a tight hairpin the two sides touch and the mask fuses, so thinning draws a single line up the middle of the fused region. The graph then describes as one branch a place the cord passes through twice, the trace runs up the middle instead of around, and the arc length reported for that stretch is half of what the cord actually runs there. Because stage seven converts the traced path into metres, this is a measurement error and not a drawing defect.
+
+Two questions have to be separated, and only one of them the image can answer. Where the two strands lie is fixed by geometry: two cords of radius $r$ whose centres are $d$ apart form a region of half-width $d/2 + r$, so the distance transform reads $d/2 + r$ on the shared skeleton and the strands sit at $\pm(\mathrm{DT} - r)$ from it. Whether there are two strands at all, width cannot answer. The cord's own thickness varies along its length, and over the sixty scenes the skeleton pixels measuring more than 1.5 times the nominal radius include, on one smooth curve, 262 pixels reading 1.86 times nominal of which not one has a second part of the true centreline anywhere near. Splitting on width alone therefore invented geometry, and the smooth family, which is the class a tensioned tether belongs to, fell from 100.0 to 94.9.
+
+The signal that does answer comes from the traversal rather than the image. The search already reports which edges it had to walk twice, and it needs an edge twice precisely when the cord ascends a stretch and descends it. The trace is therefore run twice: the first walk identifies where the cord doubles back, those edges are divided into their two strands, and the second walk decides again on the graph that now contains them. On the simple families no edge repeats, so no candidate exists and those families are untouched, which the measurement confirms to the decimal. Two conditions govern the replacement, the second of which is not cosmetic: the second walk must still reach the far endpoint, and it must return with no more repeated edges than it began with. Without the latter, one knot scene whose first walk already repeated eight edges, meaning the pairing had failed and the route was wrong before anything was divided, returned repeating thirteen and its traced length rose from 1.39 to 1.84 times the truth, that single scene accounting for almost the entire knot family's loss. With both conditions in place, traversal order over the sixty scenes rises from 83.6 to 85.1 and the mean absolute arc-length error falls from 11.1 to 10.9 per cent, at 1.13 times the runtime, with coverage unchanged within a tenth of a point. The clearest single gain is a tangle scene moving from 36.7 to 99.9 on traversal order.
+
 
 \vspace{0.2cm}
 \noindent \textbf{Scope of these results}

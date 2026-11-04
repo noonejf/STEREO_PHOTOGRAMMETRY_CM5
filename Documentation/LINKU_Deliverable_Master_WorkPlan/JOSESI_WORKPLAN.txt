@@ -579,6 +579,72 @@ Done when: El pipeline de reconstruccion corre sobre un par estereo del experime
         end: 2026-12-17 19:00
         due: 2026-12-18 05:00
         assigned: 1
+  deliverable: Sesion en el estudio TV2, primeras semanas de diciembre #346
+    description: NUEVO, acordado en la reunion del 4 nov 2026. La fecha de la sesion se fija en las primeras semanas de diciembre. El experimento TV2 sigue sin correrse: su capitulo de resultados esta vacio a proposito y sus criterios de aceptacion ya estan registrados por adelantado en el capitulo 2 de Documentation/LINKU_Experiment_TV2, de modo que no se re-derivan al analizar. Lo que falta para poder ir es informacion que esta del lado de la Facultad de Comunicaciones, no trabajo propio, asi que este deliverable es sobre todo coordinacion y verificacion previa.
+    package: Correo a Luis Domingues con los datos que faltan #1592
+      description: Luis Domingues, servicios internos de la Facultad de Comunicaciones, es el contacto por el que ya se pidio espacio en octubre. Se pide en un solo correo todo lo que bloquea: ficha tecnica de la lampara, logistica de acceso, permiso, presupuesto y quien opera los equipos.
+
+Done when: Correo enviado y respuesta recibida con la marca y modelo de la lampara, la via de permiso y el costo si lo hay
+      priority: critical
+      hours: 2
+      start: 2026-11-04
+      due: 2026-11-08
+      assigned: 1
+      task: Redactar y enviar el correo #861
+        description: Pide marca y modelo de la luminaria, potencia, temperatura de color, CRI o TLCI, tipo de balasto y modo libre de parpadeo, metodo de atenuacion y frecuencia PWM si es LED, y si lleva lente fresnel o algun colimador.
+        priority: critical
+        status: pending
+        start: 2026-11-04
+        end: 2026-11-04
+        due: 2026-11-05
+        assigned: 1
+      task: Pedir en el mismo correo acceso, permiso, presupuesto y contacto de operacion #862
+        description: Fechas disponibles en las primeras semanas de diciembre, que tramite de permiso hace falta y quien lo firma, si el uso tiene costo y con cargo a que, y si un tecnico del estudio tiene que operar los equipos.
+        priority: critical
+        status: pending
+        start: 2026-11-04
+        end: 2026-11-04
+        due: 2026-11-05
+        assigned: 1
+      task: Verificar la ficha recibida contra los criterios A2.1 a A2.8 antes de reservar #863
+        description: Con la marca y modelo se descarga la hoja de datos y se contrastan los umbrales ya registrados: 5600 a 6000 K, penumbra menor o igual a 35 mm a 1 m, uniformidad menor o igual a 5 por ciento, iluminancia mayor o igual a 2320 lx en la posicion del tether, estabilidad menor o igual a 2 por ciento y sin parpadeo. Si la luminaria no puede cumplir alguno, mejor saberlo antes de reservar el estudio que estando dentro.
+        priority: critical
+        start: 2026-11-08
+        end: 2026-11-12
+        due: 2026-11-14
+        assigned: 1
+        depends-on: Redactar y enviar el correo
+    package: Fondos orbitales esperados, para el entrenamiento #1593
+      description: Pedido en la reunion del 4 nov. Hoy los modelos se entrenan sobre fondo negro de estudio y sobre sintetico, y no hay ninguna evidencia reunida de contra que fondos aparece realmente un tether en orbita: Tierra iluminada, limbo, terminador, espacio profundo, o el propio satelite. Eso cambia que tan dificil es la segmentacion y que debe generar synthetic/.
+
+Done when: Reunidas imagenes reales de satelite representativas de cada clase de fondo, con su fuente, y escrito que exige cada una al segmentador
+      priority: high
+      hours: 6
+      start: 2026-11-16
+      due: 2026-11-27
+      assigned: 1
+      task: Reunir imagenes publicas de satelite por clase de fondo y versionarlas con su procedencia #864
+        start: 2026-11-16
+        end: 2026-11-22
+        due: 2026-11-27
+        assigned: 1
+      task: Escribir que implica cada fondo para el segmentador y si synthetic/ debe generarlos #865
+        description: Contrastar con lo que el generador produce hoy. Si un fondo real rompe el supuesto de fondo oscuro, es un cambio en synthetic/ y no solo una nota.
+        start: 2026-11-23
+        end: 2026-11-26
+        due: 2026-11-27
+        assigned: 1
+        depends-on: Reunir imagenes publicas de satelite por clase de fondo y versionarlas con su procedencia
+    package: Tiempo de exposicion de referencia #1594
+      description: Pedido en la reunion del 4 nov. Dos preguntas que se parecen y no son la misma. Cuanto expone el estudio con esa lampara es un dato prestado que sirve de contraste de cordura sobre el nivel de luz. Cuanto puede exponer LINKU lo fija la tasa de rotacion y el borroneo admisible, y ya esta derivado en el entregable de iluminacion; de ahi sale el minimo de 2320 lx. Lo util del dato del estudio es detectar pronto una discrepancia grande.
+
+Done when: Anotado el tiempo de exposicion habitual del estudio y comparado contra el techo que impone la tasa de rotacion de referencia
+      priority: medium
+      hours: 2
+      start: 2026-11-08
+      due: 2026-11-14
+      assigned: 1
+      depends-on: Correo a Luis Domingues con los datos que faltan
   deliverable: Documentacion nucleo actualizada #330
     package: Actualizacion de informes #1544
       description: Done when: Camera System Report y Master Work Plan reflejan la decision de sensor, la calibracion nueva, el estado de Model 1, potencia y volumen de datos
