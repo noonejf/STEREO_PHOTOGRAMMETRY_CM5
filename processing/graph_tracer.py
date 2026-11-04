@@ -156,19 +156,25 @@ SMOOTH_RADII = 0.3
 #: stretch twice where the skeleton offers one line to follow.
 WIDE_FACTOR = 1.50
 
-#: Off, and the measurement that closed it is worth keeping. Splitting a
-#: wide stretch into two strands assumes width means doubling, and it
-#: does not: the generator varies the cord's own thickness along its
-#: length, so a thick run and two touching strands look identical in the
-#: distance transform. Counted directly, over the skeleton pixels wider
-#: than 1.5 times nominal, the fraction with two separate parts of the
-#: TRUE centreline nearby is 17 per cent on a tangle and **zero** on a
-#: smooth curve, where 262 pixels read 1.86 times nominal and every one
-#: of them is simply thick cable. Doubling them invented geometry, and
-#: the smooth family, which is what a tensioned tether is, fell from
-#: 100.0 to 94.9. Reviving this needs a signal that separates a fat cord
-#: from two thin ones, which width alone is not.
-DOUBLE_WIDE_EDGES = False
+#: On, and it is the second attempt at the same problem. The first asked
+#: the distance transform alone which stretches are two strands of cord
+#: lying together, and width cannot answer: the cord's own thickness
+#: varies along its length, so on a smooth curve 262 skeleton pixels read
+#: 1.86 times nominal and not one of them had a second strand anywhere
+#: near. Splitting those invented geometry and the smooth family, which
+#: is what a tensioned tether is, fell from 100.0 to 94.9.
+#:
+#: The signal that does answer comes from the walk, not the image. The
+#: search already resolves the crossings and already reports which edges
+#: it needed to traverse **twice**, and it needs an edge twice exactly
+#: when the cord goes up a stretch and back down it. On a smooth curve no
+#: edge repeats, so nothing is a candidate and the family cannot be hurt.
+#: So the trace runs twice: once to find out where the cord doubles back,
+#: then the repeated edges are split into their two strands, and once
+#: more over the graph that now says what the first walk discovered.
+#: Width still decides where the strands lie, which is all it is good
+#: for; what it no longer decides is whether there are two.
+SPLIT_REPEATED_EDGES = True
 
 #: Width the graph is built at. Skeletonising a 1920x1440 mask and walking
 #: its chains costs about four seconds; at 960 it is under one, and the
@@ -199,8 +205,6 @@ class SkeletonGraph:
                                           (self.skel > 0).any() else 3.0, 1.0))
         self._build()
         self.split_loops = self._split_self_loops()
-        self.doubled_edges = (self._duplicate_wide_edges()
-                              if DOUBLE_WIDE_EDGES else 0)
         self.bridges = self._bridge_gaps(max_gap_radii)
 
     # -- construction ----------------------------------------------------
@@ -378,7 +382,7 @@ class SkeletonGraph:
         out[bad] = a[bad]
         return [(int(round(x)), int(round(y))) for x, y in out]
 
-    def _duplicate_wide_edges(self, wide_factor=None, min_px=8):
+    def _duplicate_wide_edges(self, wide_factor=None, min_px=8, only=None):
         """Split a doubled stretch of cable into its two strands.
 
         Thinning gives one line wherever two strands touch, so the graph
@@ -405,8 +409,10 @@ class SkeletonGraph:
         """
         wf = WIDE_FACTOR if wide_factor is None else wide_factor
         nominal = self.nominal_radius()
-        made = 0
+        made = []
         for eid in range(len(self.edges)):
+            if only is not None and eid not in only:
+                continue
             e = self.edges[eid]
             if e.get("absorbed") or e.get("bridge") or len(e["pts"]) < min_px:
                 continue
@@ -426,7 +432,7 @@ class SkeletonGraph:
             self.incident[e["v"]].append(twin)
             self.nodes[e["u"]]["degree"] = len(self.incident[e["u"]])
             self.nodes[e["v"]]["degree"] = len(self.incident[e["v"]])
-            made += 1
+            made.append((eid, twin))
         return made
 
     def _bridge_gaps(self, max_gap_radii):
@@ -865,6 +871,11 @@ def _search(graph, seeds, pairing, target_edges, target_nodes,
     return best, expand
 
 
+def _repeated_edges(walk):
+    """The edges a walk used more than once."""
+    return {eid for eid in set(walk) if walk.count(eid) > 1}
+
+
 def _link_on_mask(mask, a, b, max_px):
     """A short connection from a to b that stays on the cable, or None.
 
@@ -1146,6 +1157,47 @@ def trace(mask, start, end, wire_radius=None, score_fn=None,
     info["expansions"] = expand
     if best is None:
         return None, info
+
+    # Second pass over the stretches the first walk had to repeat. An edge
+    # walked twice is the cord passing twice where the skeleton drew one
+    # line, so it is split into its two strands and the whole decision is
+    # made again on a graph that now has them. Only a walk that still
+    # reaches the far endpoint replaces the first, because the split
+    # changes the degrees at both of its nodes and so re-opens every
+    # pairing there.
+    if SPLIT_REPEATED_EDGES and wide_factor:
+        walk = best[2]
+        repeated = _repeated_edges(walk)
+        pairs = (graph._duplicate_wide_edges(wide_factor, only=repeated)
+                 if repeated else [])
+        info["strands_split"] = len(pairs)
+        if pairs:
+            pairing = pair_branches(graph, score_fn)
+            end_seeds = _seeds(graph, end)
+            target_edges = {e for e, _ in end_seeds}
+            seeds = _seeds(graph, start)
+            best2, ex2 = _search(graph, seeds, pairing, target_edges,
+                                 target_nodes, max_expand, time_budget_s,
+                                 turn_cost, strict_pairing)
+            expand += ex2
+            info["expansions"] = expand
+            # And it must come back with fewer repetitions than it left
+            # with, because removing them is the whole point of splitting.
+            # Without this the worst case is not a near miss but a
+            # runaway: on one knot the first walk was already repeating
+            # eight edges, which means the pairing had failed and the
+            # route was wrong before anything was split. Splitting then
+            # handed the same lost search three more edges to wander
+            # through, it came back repeating thirteen, and the traced
+            # length went from 1.39 to 1.84 times the truth. That single
+            # scene accounted for almost the entire knot family's loss.
+            # A cord really does double back once or twice; a walk that
+            # repeats eight edges is not reading a cord.
+            if (best2 is not None and best2[0] >= best[0]
+                    and len(_repeated_edges(best2[2])) <= len(repeated)):
+                best = best2
+            else:
+                info["strands_split"] = 0
 
     reached, length, used = best
     # the walk left the first edge at whichever of its nodes is not the one

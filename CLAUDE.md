@@ -169,6 +169,48 @@ which fixed hairpins and dropped catenary and smooth from 100.0 to 89.0,
 because maximising distance *walked* rewards a detour the moment a
 repeated edge counts twice.
 
+**Where the cord doubles back, the trace runs twice.** The skeleton of a
+tight hairpin is one line up the middle of the fused blob, so the graph
+says "one branch" about a place the cord passes through twice, and the
+trace goes up the middle instead of round. Width identifies the fused
+stretches and also says where the two strands lie, at plus and minus
+(DT - r) from the shared skeleton, but **width cannot decide whether
+there are two**: the cord's own thickness varies, so on a smooth curve
+262 skeleton pixels read 1.86 times nominal and not one had a second
+strand anywhere near. Splitting on width alone dropped the smooth family
+from 100.0 to 94.9.
+
+The signal that does decide comes from the walk. The search already
+reports which edges it had to traverse **twice**, and it needs an edge
+twice exactly when the cord goes up a stretch and back down it. So
+`trace()` runs the search twice (`SPLIT_REPEATED_EDGES`): the first walk
+says where the cord doubles back, those edges are split into their two
+strands, and the second walk decides again on the graph that now has
+them. On a smooth curve no edge repeats, so nothing is a candidate and
+the simple families cannot be touched, which the measurement confirms to
+the decimal.
+
+Two guards on the replacement, both necessary. It must still reach the
+far endpoint, and it must come back with **no more repeated edges than it
+started with**. Without the second, the failure is not a near miss: on one
+knot the first walk was already repeating eight edges, meaning the pairing
+had failed and the route was wrong before anything was split, and
+splitting handed that lost search more rope. It returned repeating
+thirteen and the traced length went from 1.39 to 1.84 times the truth,
+one scene accounting for almost the whole knot family's loss.
+
+Over the 60 scenes, against the same tracer without the second pass:
+traversal order 85.1 against 83.6, absolute arc-length error 10.9%
+against 11.1%, coverage 97.6 against 97.7, 1.13x the runtime, 12 edges
+split in all. Wins order on 4 scenes and loses on 1, that one being a loop
+whose two legal traversal directions the split reshuffled, which is the
+pre-existing loop-order gap and not new. The clearest win is a tangle that
+went from 36.7 to 99.9 on order, which is the difference between a path
+stage 5 can pair and one it cannot. `tools/check_fused_strands.py` tracks
+the fused stretches walked on both sides, 8.2% to 14.2%; read it knowing
+its denominator is width-based and therefore counts thick single cable
+too.
+
 **That 90.9 was never the ceiling it was quoted as.** It is what the DFS
 reaches when handed perfect endpoints, which is a property of the DFS, not
 of the problem. The graph tracer passes it with the endpoints the shipped
