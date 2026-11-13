@@ -3,14 +3,25 @@
 Configuración de cámaras para Raspberry Pi CM5, fotogrametría estéreo.
 
 Hardware fisicamente disponible hoy: Arducam HQ 477 (IMX477), por eso sigue
-siendo el default. Sensor de vuelo elegido para el futuro: Arducam/RPi 12MP
-IMX708 Standard, foco fijo (SKU B0308), pendiente de compra (ver workplan,
-Fase 4). Los campos por sensor viven en CameraSettings (sensor_type,
-resolución, sensor_mode_bits), asi que cambiar a IMX708 en cuanto llegue es
-cuestion de cambiar esos campos, no de tocar la logica del comando libcamera.
+siendo el default.
+
+El B0308 (IMX708) figuraba aqui como sensor de vuelo elegido. Ya no lo es: no
+se tiene y no esta previsto conseguirlo, asi que nunca se va a poder medir.
+Los dos candidatos que si se pueden probar son la Arducam Hawk-eye (OV64A40,
+64 MP, lente integrada) y el obturador global Sony IMX296 (1.58 MP, montura
+CS, solo util con el teleobjetivo de 16 mm). Ver workplan, deliverable #347, y
+Documentation/interfaz_mecanica_camaras.md.
+
+Los campos por sensor viven en CameraSettings (sensor_type, resolución,
+sensor_mode_bits), asi que cambiar de modulo es cuestion de cambiar esos
+campos, no de tocar la logica del comando libcamera. Dos defaults de aqui son
+del IMX477 y hay que cambiarlos con el sensor: preview_resolution (1920x1440,
+mas grande que TODO el sensor del IMX296, que es 1456x1088) y sensor_mode_bits
+(12, el modo full-res del IMX477).
 """
 
 import os
+import sys
 import json
 from pathlib import Path
 from dataclasses import dataclass
@@ -29,12 +40,11 @@ class CameraSettings:
     preview_resolution: Tuple[int, int] = (1920, 1440)  # Vista previa, mismo aspecto 4:3 que el sensor
     capture_resolution: Tuple[int, int] = (4056, 3040)  # Captura de foto a resolución completa. Requiere --mode explícito, ver get_libcamera_cmd
     # Profundidad de bit del modo de sensor usado en --mode W:H:bits:P.
-    # 12-bit es el modo full-res del IMX477 actual. Si se cambia sensor_type a
-    # IMX708 (SKU B0308, cuando se compre), este valor debe pasar a 10-bit:
-    # documentado como 10-bit en modo full-res segun la documentacion general de
-    # sensor modes de Raspberry Pi Camera Module 3, pero no verificado
-    # localmente todavia, confirmar contra `libcamera-hello --list-cameras` en
-    # cuanto esa cámara física esté disponible.
+    # 12-bit es el modo full-res del IMX477 actual. Cualquier otro modulo pide
+    # revisar este valor: confirmar contra `libcamera-hello --list-cameras` con
+    # la camara conectada, antes de calibrar, porque un --mode que el sensor no
+    # tiene hace que libcamera elija otro y la calibracion queda hecha a una
+    # geometria distinta de la de captura.
     sensor_mode_bits: int = 12
     framerate: int = 15
     exposure_mode: str = "auto"

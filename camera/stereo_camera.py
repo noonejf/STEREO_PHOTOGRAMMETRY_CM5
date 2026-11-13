@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
 Sistema de cámaras estéreo para Raspberry Pi CM5.
-Hardware fisicamente disponible hoy: Arducam HQ 477 (IMX477). Sensor de vuelo
-elegido para el futuro: Arducam/RPi 12MP IMX708 Standard, foco fijo (SKU
-B0308), pendiente de compra (ver workplan, Fase 4). El sensor a verificar se
-lee de camera_config (sensor_type), no esta fijo aqui.
+Hardware fisicamente disponible hoy: Arducam HQ 477 (IMX477). El B0308
+(IMX708) figuraba aqui como sensor de vuelo elegido y ya no lo es: no se tiene
+y no se va a poder probar. Los candidatos que si se pueden montar son la
+Hawk-eye (OV64A40) y el obturador global IMX296 (ver workplan, deliverable
+#347). El sensor a verificar se lee de camera_config (sensor_type), no esta
+fijo aqui.
 """
 
 import os

@@ -594,6 +594,26 @@ sensor_mode_bits   = 12
 framerate          = 15
 ```
 
+### The three sensors the prototype must accept
+
+The IMX477 is what exists; the plate is built so two others drop in. The
+B0308 (IMX708) used to be recorded in `config/camera_config.py` and
+`camera/stereo_camera.py` as the chosen flight sensor and **is not**: it
+cannot be obtained, so it can never be measured.
+
+Measured against the official drawings, the HQ (IMX477) and the Global
+Shutter (IMX296) are the **same mechanical part**: 38x38 board, four ø2.5
+holes on a 30x30 grid, CS mount, optical axis at the centre of that grid.
+Swapping between them needs no adapter. Only the Hawk-eye (OV64A40, 25x24
+with an integrated lens) does. Full spec, and what is still missing from
+Arducam, in `Documentation/interfaz_mecanica_camaras.md`.
+
+The one optical constraint that decides a purchase: the IMX296 is 1456x1088,
+so with the 6 mm lens a 1 mm cord is **0.59 px at 3 m**, under one pixel and
+unsegmentable. With the 16 mm telephoto it is 1.57 px, the same regime as the
+IMX477 at 1.72 px with its 8 mm. The telephoto is not an option, it is the
+only configuration in which the global shutter works at all.
+
 ### Optical discipline
 
 The focus and aperture rings must be **set and locked before calibrating** and
