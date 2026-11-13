@@ -102,6 +102,12 @@ Thumbs.db
 !SIMULATION/Untitled.blend1
 !SIMULATION/Untitled_12MP.blend1
 
+# Las escenas de SIMULATION/escenas/ SI se versionan, aunque sean derivadas.
+# Blender no abre en la PC de escritorio, asi que se generan en el repo y se
+# abren en la laptop: si no estan en git, no hay forma de mirarlas. Se
+# regeneran con --blend-only y pesan 100 KB cada una.
+!SIMULATION/escenas/*.blend
+
 # Borat: the log is local to this machine. The memory under
 # .claude/borat/memory/ is knowledge and should be committed.
 .claude/borat/events.jsonl

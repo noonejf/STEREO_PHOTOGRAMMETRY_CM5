@@ -144,7 +144,8 @@ VARIANTS = {
              "point, so this is the view that measures arc length.",
         cord=(5.0, 2.5, 26.5), lamps=(12, 2.0, 0.5, 25.5),
         view="side", cam_offset=-7.0, focal=8.0, tilt=(40.0, "+x"),
-        wave=S.WAVE),
+        wave=S.WAVE,
+        blend_name="estudio_vista_de_costado"),
     "N": dict(
         note="M with the 2.6 mm the project does not own, which is the only "
              "way to get the whole 24 m of the waved cord into one frame. "
@@ -209,7 +210,8 @@ VARIANTS = {
         cord=(0.0, 2.0, 26.5), lamps=(12, 2.0, 2.0, 26.5),
         view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
         cam_x=0.0, wave=S.WAVE,
-        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s"),
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_12lamparas"),
     "T": dict(
         note="The same at R5's fast case, 10000 lx at 2.76 deg/s. This is "
              "the level the requirement asks for if the session is to "
@@ -245,7 +247,8 @@ VARIANTS = {
         cord=(0.0, 2.0, 26.5), lamps=(12, 2.0, 2.0, 26.5),
         view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
         cam_x=0.0, wave=S.WAVE, env="orbit", stars=True,
-        e_target=S.E_AM0_LX, e_basis="AM0, 1361 W/m2, con estrellas"),
+        e_target=S.E_AM0_LX, e_basis="AM0, 1361 W/m2, con estrellas",
+        blend_name="orbita_sol_AM0_estrellas"),
 }
 
 
@@ -361,8 +364,13 @@ def render(variant, samples, scale, both_cameras, linear=False,
     # question with a confusing answer. Open the .blend and they are twelve
     # rectangles hanging over the cord.
     if blend_only:
-        out = os.path.join(ROOT, "SIMULATION",
-                           f"TV2_variant_{variant}.blend")
+        # El nombre lleva la letra Y lo que es. La letra enlaza con VARIANTS
+        # y con el metadata de los renders; el resto es para quien abre la
+        # carpeta sin haber leido este archivo.
+        etiqueta = v.get("blend_name", v["view"])
+        out = os.path.join(ROOT, "SIMULATION", "escenas",
+                           f"TV2_{variant}_{etiqueta}.blend")
+        os.makedirs(os.path.dirname(out), exist_ok=True)
         bpy.ops.wm.save_as_mainfile(filepath=out)
         print(f"[blend] {variant} -> {out}", flush=True)
         return out
