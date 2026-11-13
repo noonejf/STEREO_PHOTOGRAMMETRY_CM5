@@ -124,6 +124,11 @@ class EdgeDetectionTuner(QDialog):
         else:
             self.original_img = None
 
+        # Estiramiento de brillo previo a la segmentacion. 1.0 es la imagen
+        # tal cual. Ver _apply_gamma para por que existe.
+        self._gamma = 1.0
+        self._work_img = None
+
         # Configuración por defecto (Top-Hat optimizado)
         self.default_config = {
             'method': 'Top-Hat',
@@ -190,6 +195,25 @@ class EdgeDetectionTuner(QDialog):
         btn_load = QPushButton("Load Image")
         btn_load.clicked.connect(self.load_image)
         layout.addWidget(btn_load)
+
+        # Estiramiento de brillo previo. Va arriba del todo porque se aplica
+        # ANTES que cualquier metodo de deteccion: lo que los umbrales de
+        # abajo ven es la imagen ya estirada.
+        gamma_group = QGroupBox("Brillo previo a la deteccion")
+        gamma_layout = QGridLayout()
+        gamma_layout.addWidget(QLabel("Gamma:"), 0, 0)
+        self.gamma_slider = QSlider(Qt.Horizontal)
+        self.gamma_slider.setRange(30, 100)
+        self.gamma_slider.setValue(100)
+        self.gamma_slider.valueChanged.connect(self._on_gamma_changed)
+        gamma_layout.addWidget(self.gamma_slider, 0, 1)
+        self.gamma_label = QLabel("1.00")
+        gamma_layout.addWidget(self.gamma_label, 0, 2)
+        gamma_layout.addWidget(
+            QLabel("1.00 = imagen tal cual.  0.42 para renders oscuros."),
+            1, 0, 1, 3)
+        gamma_group.setLayout(gamma_layout)
+        layout.addWidget(gamma_group)
 
         # Selector de método
         method_group = QGroupBox("Detection Method")
@@ -589,25 +613,102 @@ class EdgeDetectionTuner(QDialog):
             self._prepare_preview()
             self.refresh_mask()
 
+    def _apply_gamma(self, img):
+        """Estira el brillo antes de segmentar: salida = (entrada/255)**g * 255.
+
+        Existe por los renders del cuarto oscuro. Sobre un fondo negro el
+        cordon sale perfectamente registrado y aun asi oscuro: medido sobre
+        ``stereo_sim_studioS``, el cable da 23 niveles sobre 255 a 8-11 m y
+        84 a 14-17 m, con el fondo en 0. Eso es contraste de sobra para el
+        sensor y poco para un umbral afinado contra fotos reales, donde el
+        mismo cable llega a 150. Con g = 0.42 esos 23 pasan a 89 y los 84 a
+        159, sin tocar el fondo, que sigue en 0 porque 0**g es 0.
+
+        Dos cosas que conviene tener claras antes de usarlo:
+
+        * **No crea informacion.** Es una curva monotona: reordena niveles,
+          no inventa cable donde no lo habia. Lo que gana es separar el
+          cordon del suelo de cuantizacion en la parte baja del rango.
+        * **No sirve para medir.** Cualquier medida fotometrica, el rizado de
+          la fila de lamparas o el brillo del cordon contra la distancia, se
+          hace sobre el render lineal con ``--linear``, nunca sobre esto ni
+          sobre el JPEG.
+
+        Por defecto esta en 1.0, o sea apagado, porque las capturas reales de
+        ``data/captures`` ya vienen con el rango usado y estirarlas sube el
+        ruido de fondo junto con el cable.
+
+        Medido sobre ese render con el Top-Hat guardado, comparando la
+        mascara contra el centro verdadero del cable que el generador conoce,
+        19 674 muestras en cuadro:
+
+            gamma   mascara    cable cubierto   mascara sobre el cable
+            1.00     57 803 px      67.4%              33.4%
+            0.60     74 908 px      96.0%              41.3%
+            0.42     79 662 px     100.0%              41.5%
+            0.30    206 512 px     100.0%              16.3%
+
+        O sea: con la imagen tal cual el umbral pierde un tercio del cable, y
+        con 0.42 lo coge entero. **Por debajo hay un acantilado**: 0.30 mete
+        2.6 veces mas pixeles, no gana nada de cobertura y la precision se
+        desploma a un tercio, porque el estiramiento acaba levantando el
+        suelo de ruido hasta el umbral. 0.42 no es un numero bonito, es el
+        ultimo valor antes de eso.
+        """
+        if img is None or abs(self._gamma - 1.0) < 1e-6:
+            return img
+        lut = np.clip(((np.arange(256) / 255.0) ** self._gamma) * 255.0,
+                      0, 255).astype(np.uint8)
+        return cv2.LUT(img, lut)
+
+    def _on_gamma_changed(self, value):
+        self._gamma = value / 100.0
+        self.gamma_label.setText(f"{self._gamma:.2f}")
+        # No pasa por _schedule_update a proposito: esto no es un parametro
+        # del metodo clasico, asi que no debe sacar del modo IA. Cambia la
+        # imagen, de modo que la mascara hay que recalcularla con el modo que
+        # este activo.
+        self._prepare_preview()
+        self.refresh_mask()
+        self.display_results(self.mask_result)
+
     def _prepare_preview(self):
         """Generar imagen reducida para procesamiento rápido en tiempo real"""
         if self.original_img is None:
+            self._work_img = None
             self._preview_img = None
             self._preview_scale = 1.0
             return
 
-        h, w = self.original_img.shape[:2]
+        # Todo lo que segmenta y todo lo que se muestra sale de _work_img, no
+        # de original_img: si el operador estira el brillo tiene que ver
+        # exactamente la imagen sobre la que se calcula la mascara.
+        # original_img se conserva intacta para cualquier medida.
+        self._work_img = self._apply_gamma(self.original_img)
+
+        h, w = self._work_img.shape[:2]
         max_dim = 1280
 
         if max(h, w) > max_dim:
             scale = max_dim / max(h, w)
             new_w = int(w * scale)
             new_h = int(h * scale)
-            self._preview_img = cv2.resize(self.original_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            self._preview_img = cv2.resize(self._work_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
             self._preview_scale = scale
         else:
-            self._preview_img = self.original_img
+            self._preview_img = self._work_img
             self._preview_scale = 1.0
+
+        # Aviso, no automatismo: una imagen asi de oscura no se segmenta bien
+        # con umbrales afinados contra fotos reales, y el operador tiene que
+        # saber que el mando existe.
+        if abs(self._gamma - 1.0) < 1e-6:
+            gris = (cv2.cvtColor(self._work_img, cv2.COLOR_BGR2GRAY)
+                    if len(self._work_img.shape) == 3 else self._work_img)
+            if float(np.percentile(gris, 99)) < 25:
+                print("ATENCION: la imagen es muy oscura (percentil 99 = "
+                      f"{float(np.percentile(gris, 99)):.0f} de 255). "
+                      "Si la mascara sale pobre, baja Gamma a 0.42.")
 
     def _schedule_update(self):
         """Debounce: espera 200ms tras el último cambio antes de recalcular"""
@@ -625,7 +726,8 @@ class EdgeDetectionTuner(QDialog):
         descarta la mascara IA, que es exactamente el bug que esto corrige.
         """
         if self._ai_mode:
-            mask = self._infer_ai_mask(self.original_img)
+            mask = self._infer_ai_mask(
+                self._work_img if self._work_img is not None else self.original_img)
             if mask is not None:
                 self.mask_result = mask
                 return
@@ -681,7 +783,9 @@ class EdgeDetectionTuner(QDialog):
         if self.original_img is None:
             return
 
-        img = self._preview_img if self._preview_img is not None else self.original_img
+        img = self._preview_img if self._preview_img is not None else self._work_img
+        if img is None:
+            img = self.original_img
 
         # Convertir a escala de grises
         if len(img.shape) == 3:
@@ -924,7 +1028,9 @@ class EdgeDetectionTuner(QDialog):
 
     def display_results(self, edges):
         """Mostrar resultados usando imagen de preview para mayor velocidad"""
-        disp_img = self._preview_img if self._preview_img is not None else self.original_img
+        disp_img = self._preview_img if self._preview_img is not None else self._work_img
+        if disp_img is None:
+            disp_img = self.original_img
 
         # Mostrar imagen original (preview), escalada manteniendo la
         # relacion de aspecto para no deformarla (el label ya no usa

@@ -282,7 +282,8 @@ def required_candela(lamp_ys, lamp_x, lamp_z, points,
     return e_target / worst
 
 
-def render(variant, samples, scale, both_cameras, linear=False):
+def render(variant, samples, scale, both_cameras, linear=False,
+           blend_only=False):
     """``linear`` writes OpenEXR with the view transform off.
 
     AgX is a tone map, so a JPEG pixel is not proportional to the light that
@@ -352,6 +353,19 @@ def render(variant, samples, scale, both_cameras, linear=False):
     else:
         scene.render.image_settings.file_format = "JPEG"
         scene.render.image_settings.quality = 95
+
+    # ``--blend-only`` builds the variant and saves it instead of rendering
+    # it, which is the only way to actually LOOK at the scene: the lamps are
+    # ``visible_camera = False``, so they light the cord and never appear in
+    # the frame, and asking why they cannot be seen in a render is a fair
+    # question with a confusing answer. Open the .blend and they are twelve
+    # rectangles hanging over the cord.
+    if blend_only:
+        out = os.path.join(ROOT, "SIMULATION",
+                           f"TV2_variant_{variant}.blend")
+        bpy.ops.wm.save_as_mainfile(filepath=out)
+        print(f"[blend] {variant} -> {out}", flush=True)
+        return out
 
     stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     out_dir = os.path.join(ROOT, "data", "captures",
@@ -430,10 +444,13 @@ def main():
     ap.add_argument("--scale", type=int, default=100)
     ap.add_argument("--both", action="store_true")
     ap.add_argument("--linear", action="store_true")
+    ap.add_argument("--blend-only", action="store_true",
+                    help="guarda la escena en vez de renderizarla")
     args = ap.parse_args(argv)
 
     for v in args.variant.split(","):
-        render(v.strip(), args.samples, args.scale, args.both, args.linear)
+        render(v.strip(), args.samples, args.scale, args.both, args.linear,
+               args.blend_only)
 
 
 main()
