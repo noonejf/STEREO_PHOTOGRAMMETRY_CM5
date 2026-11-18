@@ -633,6 +633,13 @@ class ResultsVisualizationWidget(QWidget):
                 end   = wm.get('end_3d_m',   [0, 0, 0])
                 t += "--- WIRE METRICS ---\n"
                 t += f"3D length:      {wm.get('total_length_m',0)*100:.1f} cm\n"
+                # El criterio A3.4 pide la fraccion retenida JUNTO al
+                # largo: los filtros de compute_wire_metrics descartan
+                # puntos en silencio, y si se filtro un tramo del medio
+                # el largo sale corto sin que nada lo avise.
+                ret = wm.get("retained_fraction", 1.0)
+                aviso = "  <-- revisar" if ret < 0.90 else ""
+                t += f"  samples kept: {ret*100:.1f}%{aviso}\n"
                 t += f"Straightness:   {wm.get('straightness',0):.3f}\n"
                 t += f"Depth range:    {wm.get('min_depth_m',0)*100:.1f} – {wm.get('max_depth_m',0)*100:.1f} cm\n"
                 t += f"Mean depth:     {wm.get('mean_depth_m',0)*100:.1f} cm\n"

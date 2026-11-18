@@ -33,6 +33,8 @@ class WireMetrics:
     end_3d: np.ndarray
     min_depth_m: float = 0.0
     max_depth_m: float = 0.0
+    retained_fraction: float = 1.0   # muestras que sobrevivieron a los filtros
+    total_length_raw_m: float = 0.0  # el arco SIN suavizar, para comparar
 
     def summary(self) -> Dict[str, Any]:
         kappa = self.curvature_profile
@@ -50,7 +52,59 @@ class WireMetrics:
             'start_3d_m':          self.start_3d.tolist(),
             'end_3d_m':            self.end_3d.tolist(),
             'num_points':          len(self.points_3d),
+            # A3.4 del capitulo de criterios pide reportar esto JUNTO al
+            # largo: los filtros descartan puntos en silencio y sin esta
+            # fraccion el largo no se puede interpretar.
+            'retained_fraction':   round(self.retained_fraction, 4),
+            'total_length_raw_m':  round(self.total_length_raw_m, 4),
         }
+
+
+def _smooth_depth(pts: np.ndarray) -> np.ndarray:
+    """Devuelve la nube con la profundidad suavizada, para medir el arco.
+
+    El largo de arco NO se puede sacar sumando los segmentos de la nube
+    cruda. El ruido de profundidad por punto es mas grande que el paso entre
+    puntos, asi que cada tramito acaba midiendo su propio ruido en vez del
+    cable y la suma crece sin limite. Medido sobre un par renderizado de
+    costado, 506 puntos sobre 9.4 m separados 18 mm, con 34 mm rms de ruido
+    en Z: el arco crudo da 23.307 m contra 9.466 m verdaderos, **+146 por
+    ciento**. Suavizando Z antes de integrar da 9.492 m, +0.27 por ciento.
+
+    No es un defecto del render, le pasa a cualquier nube triangulada, y la
+    misma guarda ya existia veinte lineas mas abajo para la curvatura.
+
+    Se suaviza **solo Z**, y X e Y se recalculan a partir de ella. Esa es la
+    estructura del error: la posicion en la imagen viene de un path sub-pixel
+    y es precisa, mientras que Z sale de la disparidad y es la ruidosa. Como
+    X = (x_l - cx) * Z / f, el ruido de Z entra tambien en X e Y, asi que
+    suavizar Z sola y arrastrarla deja los tres ejes coherentes.
+    """
+    n = len(pts)
+    if n < 7:
+        return pts
+    # Ventana impar, aprox el 12% del path, acotada para que siga siendo un
+    # suavizado local y no un ajuste global que se coma la forma del cable.
+    win = int(np.clip((n // 8) | 1, 7, 101))
+    if win >= n:
+        win = (n - 1) | 1
+    try:
+        from scipy.signal import savgol_filter
+        z = savgol_filter(pts[:, 2], win, 2, mode="interp")
+    except Exception:
+        # Sin scipy, media movil: peor, pero infinitamente mejor que crudo.
+        k = np.ones(win) / win
+        z = np.convolve(pts[:, 2], k, mode="same")
+        z[:win] = pts[:win, 2].mean()
+        z[-win:] = pts[-win:, 2].mean()
+    z = np.clip(z, 1e-6, None)
+    # X e Y son proporcionales a Z, asi que se reescalan con ella.
+    ratio = z / np.clip(pts[:, 2], 1e-6, None)
+    out = pts.copy()
+    out[:, 0] *= ratio
+    out[:, 1] *= ratio
+    out[:, 2] = z
+    return out
 
 
 def compute_wire_metrics(
@@ -104,12 +158,24 @@ def compute_wire_metrics(
 
     pts = np.array(points_3d)  # N×3
 
+    # Cuantas muestras sobrevivieron a los dos filtros de arriba. Va al
+    # summary porque el largo sin esto no se puede interpretar: si se filtro
+    # un tramo del medio, el total sale corto y nada lo avisa.
+    n_in = max(len(matches), 1)
+    retained = float(len(pts)) / float(n_in)
+
     # --- Longitud del arco 3D ---
-    seg_lengths  = np.linalg.norm(np.diff(pts, axis=0), axis=1)
+    # Sobre la profundidad suavizada, no sobre la cruda. Ver _smooth_depth.
+    pts_smooth   = _smooth_depth(pts)
+    seg_lengths  = np.linalg.norm(np.diff(pts_smooth, axis=0), axis=1)
     total_length = float(np.sum(seg_lengths))
+    total_length_raw = float(np.sum(np.linalg.norm(np.diff(pts, axis=0), axis=1)))
 
     # --- Índice de rectitud ---
-    chord       = float(np.linalg.norm(pts[-1] - pts[0]))
+    # Con el mismo arco que se reporta, o el indice no significa nada: con el
+    # arco crudo inflado, la rectitud de un cable tenso salia hundida y el
+    # criterio A3.6, que pide 0.97, era inalcanzable por construccion.
+    chord       = float(np.linalg.norm(pts_smooth[-1] - pts_smooth[0]))
     straightness = float(np.clip(chord / total_length, 0.0, 1.0)) if total_length > 0 else 1.0
 
     # --- Perfil de profundidad ---
@@ -131,6 +197,8 @@ def compute_wire_metrics(
     return WireMetrics(
         points_3d          = pts,
         total_length_m     = total_length,
+        total_length_raw_m = total_length_raw,
+        retained_fraction  = retained,
         straightness       = straightness,
         depth_profile      = depth_profile,
         diameter_profile_m = diameter_profile_m,
