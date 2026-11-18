@@ -249,6 +249,65 @@ VARIANTS = {
         cam_x=0.0, wave=S.WAVE, env="orbit", stars=True,
         e_target=S.E_AM0_LX, e_basis="AM0, 1361 W/m2, con estrellas",
         blend_name="orbita_sol_AM0_estrellas"),
+    "X": dict(
+        note="S with the lamps visible to the camera, which is what the real "
+             "session will actually photograph. Nine of the twelve fall "
+             "inside the field of view: the vertical half-field of the 8 mm "
+             "is 16.4 degrees and anything past 6.8 m from the camera is "
+             "inside it. Hiding them was requirement R7, lamp out of frame, "
+             "but with the row directly over the cord this geometry does not "
+             "satisfy R7 at all, so the render was concealing something the "
+             "session will have. Rendered to find out how much it matters.",
+        cord=(0.0, 2.0, 26.5), lamps=(12, 2.0, 2.0, 26.5),
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_lamparas_visibles"),
+
+    # --- Los cuatro casos que faltaban de CASOS_COMPARACION.md -------------
+    # Se nombran por el numero de caso y no por letra: las letras A a X son
+    # el registro de como se llego hasta aqui, y estos cuatro existen para
+    # una matriz concreta.
+    "C5": dict(
+        note="Caso 5: la orbita vista de costado. Par del caso 4, que es la "
+             "misma vista en el estudio. De costado el cable no se comprime "
+             "contra el punto de fuga, asi que es la vista con la que el "
+             "largo de arco significa algo.",
+        cord=(5.0, 2.0, 26.5), lamps=(12, 2.0, 2.0, 26.5),
+        view="side", cam_offset=-7.0, focal=8.0, tilt=(40.0, "+x"),
+        wave=S.WAVE, env="orbit",
+        e_target=S.E_AM0_LX, e_basis="AM0, 1361 W/m2",
+        blend_name="orbita_vista_de_costado"),
+    "C6": dict(
+        note="Caso 6: el cable TENSO en el estudio. Es el unico caso en el "
+             "que el criterio A3.6 se puede evaluar: la rectitud es la "
+             "cuerda entre extremos dividida por el arco, asi que sobre un "
+             "cable ondulado a proposito devuelve un numero bajo que no "
+             "significa nada.",
+        cord=(0.0, 2.0, 26.5), lamps=(12, 2.0, 2.0, 26.5),
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=None,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_cable_tenso"),
+    "C7": dict(
+        note="Caso 7: el mismo cable tenso en orbita. Par del caso 6.",
+        cord=(0.0, 2.0, 26.5), lamps=(12, 2.0, 2.0, 26.5),
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=None, env="orbit",
+        e_target=S.E_AM0_LX, e_basis="AM0, 1361 W/m2",
+        blend_name="orbita_cable_tenso"),
+    "C8": dict(
+        note="Caso 8: la onda al doble, 1.65 m de excursion sobre 24.5 m, "
+             "que es el 6.7 por ciento del largo y 18.3 grados de pendiente "
+             "maxima contra los 9.4 del caso base. Existe para estresar al "
+             "trazador y para ver cuanto crece el tramo que queda paralelo "
+             "a las epipolares, que es donde la profundidad no se puede "
+             "determinar.",
+        cord=(0.0, 2.0, 26.5), lamps=(12, 2.0, 2.0, 26.5),
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=dict(x=(0.0, 0.70), z=(-1.10, 0.60, 0.40)),
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_onda_fuerte"),
 }
 
 
@@ -337,7 +396,8 @@ def render(variant, samples, scale, both_cameras, linear=False,
                           stars=v.get("stars", False))
     else:
         S.build_lamp_row(cord_x, lamp_z, ly0, ly1, n_lamps, cd,
-                         tilt_deg=tilt_deg, tilt_dir=tilt_dir, over=lamp_h)
+                         tilt_deg=tilt_deg, tilt_dir=tilt_dir, over=lamp_h,
+                         visible_to_camera=v.get("lamps_visible", False))
     mid = (y0 + y1) / 2.0
     # The cameras are not always centred on the cord: anchoring the cord to
     # the side of the rig is the whole point of variant I.
@@ -412,7 +472,8 @@ def render(variant, samples, scale, both_cameras, linear=False,
                       watts_each=round(S.candela_to_watts(cd), 1),
                       kw_electrical_total=round(
                           math.pi * cd / 90.0 * n_lamps / 1000.0, 2),
-                      colour_k=5600.0, visible_to_camera=False),
+                      colour_k=5600.0,
+                      visible_to_camera=v.get("lamps_visible", False)),
         "optics": dict(focal_mm=v["focal"], baseline_mm=S.OPTICS["baseline_mm"],
                        hfov_deg=round(S.hfov_deg(v["focal"]), 2)),
         "illuminance_target_lx": round(e_target, 1),
