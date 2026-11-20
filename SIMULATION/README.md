@@ -62,6 +62,50 @@ que es un mapeo de tonos, así que el nivel del píxel no es proporcional a la
 luz que llegó. Medir el rizado de la fila sobre el JPEG dio 73 % donde la luz
 tiene 17 %.
 
+## El barrido de roll, y lo que no mide
+
+```bash
+blender --background --python SIMULATION/render_studio_iterations.py --         --variant X --rolls 0,22.5,45,67.5,90,112.5,135,157.5,180,202.5,225,247.5,270,292.5,315,337.5         --samples 24 --both
+python tools/collect_roll_sweep.py
+```
+
+`roll_deg` rueda **solo el par de camaras** sobre el eje del cable: el cable y la
+fila de lamparas se quedan exactamente donde estan. Entre el cuadro de 0 grados y
+el de 112.5 los metadatos solo difieren en la posicion de las camaras, 7 cm a lo
+sumo sobre una base de 100 mm.
+
+**Por eso el roll no puede cambiar el brillo del cable, y medido no lo cambia:**
+40.4 a 44.3 niveles sobre el fondo, tramo de 5 a 24 m, en 14 de los 16 angulos.
+La base estereo rueda con las camaras, asi que el derecho de la imagen sigue
+siendo el derecho de la imagen y la disparidad sigue siendo horizontal a
+cualquier angulo. Lo que gira es el mundo respecto al cuadro: la fila sale por
+arriba a 0 grados, por la izquierda a 90, por abajo a 180.
+
+**Lo unico que el barrido encontro es el solape.** En 2 de 16 angulos la fila se
+proyecta encima del cable, a 112.5 sobre 0.7 m de cuerda y a 135 sobre 1.7 m. Ahi
+el fondo local sube de 0 a 57-76 niveles y el contraste local se desploma, que es
+lo que rompe la segmentacion. Es de encuadre, no de potencia: el riel se puede
+colgar en cualquier azimut comodo siempre que su proyeccion no cruce la cuerda.
+
+**Y rodar no saca las lamparas del cuadro, lo empeora.** El medio campo del lente
+de 8 mm es 16.4 grados en vertical, 21.5 en horizontal y 26.2 en la esquina, asi
+que el cuadro se extiende *mas* en la diagonal. El mejor azimut es el que menos
+campo tiene, el de arriba, donde ya estaba. R7 queda incumplido y justificado.
+
+### Dos trampas al medir esto, las dos pisadas
+
+La primera lectura de esos mismos cuadros dio una curva de 52 a 87 niveles, 68 %
+de variacion, y era falsa dos veces.
+
+- **Los dos primeros metros de cuerda mandan sobre el promedio.** Nacen en el
+  plano del lente y ocupan cientos de pixeles, con flujo 1400 contra los 60 del
+  tramo lejano. Cualquier media sobre el cable entero mide ese arranque.
+- **El pico de pixel no mide luz** en un cable sub-pixel. Rodar el cuadro cambia
+  el angulo con que la linea cruza la reja de pixeles, y el filtro de
+  reconstruccion de Cycles reparte el flujo entre mas vecinos o menos. La
+  fotometria sale de integrar el flujo en un corte perpendicular, y mejor del
+  EXR lineal con `--linear`.
+
 ## Las dos cosas que más confunden
 
 **1. Subir la potencia no cambia el render.** El objetivo de iluminancia

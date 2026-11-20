@@ -485,7 +485,7 @@ def build_lamp_row(x, z, y0, y1, count, candela, size=1.0, spread_deg=180.0,
 
 
 def build_stereo_pair(focal_mm, baseline_mm, z, mode, cord_x, cord_y_mid,
-                      cam_offset):
+                      cam_offset, roll_deg=0.0):
     """Two cameras. ``mode`` is "axis" (down the cord) or "side" (across it).
 
     **The baseline must not run parallel to the cord**, and which direction
@@ -506,6 +506,20 @@ def build_stereo_pair(focal_mm, baseline_mm, z, mode, cord_x, cord_y_mid,
     disparity is vertical. Measured on the 2.6 mm render at 12 m, it is
     13.88 px against the 13.98 the geometry predicts, scattering 0.057 px
     over the whole 29 m of cord.
+
+    ``roll_deg`` rolls the whole rig about the cord's own axis, in axis mode.
+    It exists to move the light without moving the light: the cord and the
+    lamp row stay exactly where they are, and rolling the pair around them is
+    the same thing as orbiting the row around the cord. What the cameras then
+    see is the lamps arriving from another angle and a different part of the
+    cylinder's circumference turned towards them.
+
+    **It does not touch the stereo maths.** Both cameras roll together and
+    rigidly, so the baseline stays along the image's own x axis and the
+    disparity stays horizontal *in the image*; what rotates is the world with
+    respect to the frame. The offset and the orientation are built from one
+    shared unit vector below precisely so they cannot drift apart: the
+    baseline is the image's right, by construction, at any roll.
     """
     half = (baseline_mm / 1000.0) / 2.0
     cams = []
@@ -519,9 +533,15 @@ def build_stereo_pair(focal_mm, baseline_mm, z, mode, cord_x, cord_y_mid,
         data.clip_end = 300.0
         obj = bpy.data.objects.new(name, data)
         if mode == "axis":
-            # cord along Y, baseline along X: perpendicular, as it should be
-            obj.location = (cord_x + s * half, cam_offset, z)
-            obj.rotation_euler = Euler((math.radians(90.0), 0.0, 0.0), "XYZ")
+            # cord along Y, baseline along X: perpendicular, as it should be.
+            # Con roll, la base sigue siendo el derecho de la imagen: se
+            # construyen de un mismo vector para que no puedan separarse.
+            roll = math.radians(roll_deg)
+            derecha = (math.cos(roll), 0.0, -math.sin(roll))
+            obj.location = (cord_x + s * half * derecha[0],
+                            cam_offset,
+                            z + s * half * derecha[2])
+            obj.rotation_euler = Euler((math.radians(90.0), roll, 0.0), "XYZ")
         else:
             # cord along Y, so the baseline goes along Z, not along Y
             obj.location = (cam_offset, cord_y_mid, z + s * half)

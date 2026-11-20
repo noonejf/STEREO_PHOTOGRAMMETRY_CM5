@@ -308,6 +308,52 @@ VARIANTS = {
         cam_x=0.0, wave=dict(x=(0.0, 0.70), z=(-1.10, 0.60, 0.40)),
         e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
         blend_name="estudio_onda_fuerte"),
+
+    # --- Barrido de roll: la luz orbitando alrededor del cable -------------
+    # R0 es la variante X, que ya esta renderizada con las lamparas visibles
+    # y roll cero.
+    "R22": dict(
+        note="El rig rodado 22.5 grados alrededor del eje del cable. Ni el "
+             "cable ni las lamparas se mueven: rodar el par alrededor de "
+             "ellos es lo mismo que orbitar la fila alrededor del cable, y "
+             "es mas barato que mover doce lamparas. Lo que cambia es de "
+             "donde parece llegar la luz y que parte de la circunferencia "
+             "del cilindro queda vuelta hacia las camaras. Las lamparas van "
+             "visibles para que el giro se vea; ya esta medido que estando "
+             "en cuadro no cambian la mascara.",
+        cord=(0.0, 2.0, 26.5), lamps=(12, 2.0, 2.0, 26.5),
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, roll_deg=22.5, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_roll_22"),
+    "R45": dict(
+        note="El rig rodado 45.0 grados alrededor del eje del cable. Ni el "
+             "cable ni las lamparas se mueven: rodar el par alrededor de "
+             "ellos es lo mismo que orbitar la fila alrededor del cable, y "
+             "es mas barato que mover doce lamparas. Lo que cambia es de "
+             "donde parece llegar la luz y que parte de la circunferencia "
+             "del cilindro queda vuelta hacia las camaras. Las lamparas van "
+             "visibles para que el giro se vea; ya esta medido que estando "
+             "en cuadro no cambian la mascara.",
+        cord=(0.0, 2.0, 26.5), lamps=(12, 2.0, 2.0, 26.5),
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, roll_deg=45.0, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_roll_45"),
+    "R90": dict(
+        note="El rig rodado 90.0 grados alrededor del eje del cable. Ni el "
+             "cable ni las lamparas se mueven: rodar el par alrededor de "
+             "ellos es lo mismo que orbitar la fila alrededor del cable, y "
+             "es mas barato que mover doce lamparas. Lo que cambia es de "
+             "donde parece llegar la luz y que parte de la circunferencia "
+             "del cilindro queda vuelta hacia las camaras. Las lamparas van "
+             "visibles para que el giro se vea; ya esta medido que estando "
+             "en cuadro no cambian la mascara.",
+        cord=(0.0, 2.0, 26.5), lamps=(12, 2.0, 2.0, 26.5),
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, roll_deg=90.0, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_roll_90"),
 }
 
 
@@ -345,7 +391,7 @@ def required_candela(lamp_ys, lamp_x, lamp_z, points,
 
 
 def render(variant, samples, scale, both_cameras, linear=False,
-           blend_only=False):
+           blend_only=False, roll_override=None):
     """``linear`` writes OpenEXR with the view transform off.
 
     AgX is a tone map, so a JPEG pixel is not proportional to the light that
@@ -356,6 +402,13 @@ def render(variant, samples, scale, both_cameras, linear=False,
     path, not from the picture.
     """
     v = VARIANTS[variant]
+    # ``--rolls`` barre el mismo caso a varios angulos sin tener que escribir
+    # una entrada de VARIANTS por angulo. El angulo entra en el nombre de la
+    # carpeta para que el barrido se ordene solo al listarlo.
+    etiqueta_var = variant
+    if roll_override is not None:
+        v = dict(v, roll_deg=roll_override)
+        etiqueta_var = f"{variant}_roll{roll_override:05.1f}"
     cord_x, y0, y1 = v["cord"]
     n_lamps, lamp_h, ly0, ly1 = v["lamps"]
     cord_z = S.TETHER["z_m"]
@@ -404,7 +457,7 @@ def render(variant, samples, scale, both_cameras, linear=False,
     S.build_stereo_pair(v["focal"], S.OPTICS["baseline_mm"],
                         cord_z + v.get("cam_dz", 0.0),
                         v["view"], v.get("cam_x", cord_x), mid,
-                        v["cam_offset"])
+                        v["cam_offset"], roll_deg=v.get("roll_deg", 0.0))
 
     exposure = S.exposure_for(e_target)
     scene = S.configure_render(samples, exposure, scale)
@@ -437,7 +490,7 @@ def render(variant, samples, scale, both_cameras, linear=False,
 
     stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     out_dir = os.path.join(ROOT, "data", "captures",
-                           f"stereo_sim_studio{variant}_{stamp}")
+                           f"stereo_sim_studio{etiqueta_var}_{stamp}")
     os.makedirs(out_dir, exist_ok=True)
 
     meta = {
@@ -479,6 +532,7 @@ def render(variant, samples, scale, both_cameras, linear=False,
         "illuminance_target_lx": round(e_target, 1),
         "illuminance_target_basis": v.get("e_basis", "default"),
         "view": v["view"],
+        "roll_deg": v.get("roll_deg", 0.0),
         "samples": samples,
         "resolution_percentage": scale,
         "view_transform": "Standard" if linear else "AgX",
@@ -515,11 +569,20 @@ def main():
     ap.add_argument("--linear", action="store_true")
     ap.add_argument("--blend-only", action="store_true",
                     help="guarda la escena en vez de renderizarla")
+    ap.add_argument("--rolls", default="",
+                    help="lista de angulos de roll, en grados, separados por "
+                         "comas: renderiza la variante una vez por angulo")
     args = ap.parse_args(argv)
 
+    rolls = [float(r) for r in args.rolls.split(",") if r.strip()]
     for v in args.variant.split(","):
-        render(v.strip(), args.samples, args.scale, args.both, args.linear,
-               args.blend_only)
+        if rolls:
+            for r in rolls:
+                render(v.strip(), args.samples, args.scale, args.both,
+                       args.linear, args.blend_only, roll_override=r)
+        else:
+            render(v.strip(), args.samples, args.scale, args.both,
+                   args.linear, args.blend_only)
 
 
 main()
