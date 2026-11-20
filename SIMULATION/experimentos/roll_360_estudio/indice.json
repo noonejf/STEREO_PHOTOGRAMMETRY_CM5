@@ -1,0 +1,469 @@
+{
+  "gamma_realzado": 0.42,
+  "angulos": [
+    {
+      "roll_deg": 0.0,
+      "origen": "stereo_sim_studioX_roll000.0_20261120_110132",
+      "lados": {
+        "left": {
+          "crudo": "roll_000.0_left.jpg",
+          "realzado": "realzado/roll_000.0_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_000.0_right.jpg",
+          "realzado": "realzado/roll_000.0_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 67.7,
+        "maximo": 167,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    },
+    {
+      "roll_deg": 22.5,
+      "origen": "stereo_sim_studioX_roll022.5_20261120_110634",
+      "lados": {
+        "left": {
+          "crudo": "roll_022.5_left.jpg",
+          "realzado": "realzado/roll_022.5_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_022.5_right.jpg",
+          "realzado": "realzado/roll_022.5_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 69.1,
+        "maximo": 172,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    },
+    {
+      "roll_deg": 45.0,
+      "origen": "stereo_sim_studioX_roll045.0_20261120_111145",
+      "lados": {
+        "left": {
+          "crudo": "roll_045.0_left.jpg",
+          "realzado": "realzado/roll_045.0_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_045.0_right.jpg",
+          "realzado": "realzado/roll_045.0_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 70.4,
+        "maximo": 178,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    },
+    {
+      "roll_deg": 67.5,
+      "origen": "stereo_sim_studioX_roll067.5_20261120_111659",
+      "lados": {
+        "left": {
+          "crudo": "roll_067.5_left.jpg",
+          "realzado": "realzado/roll_067.5_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_067.5_right.jpg",
+          "realzado": "realzado/roll_067.5_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 72.5,
+        "maximo": 182,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    },
+    {
+      "roll_deg": 90.0,
+      "origen": "stereo_sim_studioX_roll090.0_20261120_112222",
+      "lados": {
+        "left": {
+          "crudo": "roll_090.0_left.jpg",
+          "realzado": "realzado/roll_090.0_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_090.0_right.jpg",
+          "realzado": "realzado/roll_090.0_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 71.3,
+        "maximo": 180,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    },
+    {
+      "roll_deg": 112.5,
+      "origen": "stereo_sim_studioX_roll112.5_20261120_112725",
+      "lados": {
+        "left": {
+          "crudo": "roll_112.5_left.jpg",
+          "realzado": "realzado/roll_112.5_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_112.5_right.jpg",
+          "realzado": "realzado/roll_112.5_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 87.5,
+        "maximo": 182,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    },
+    {
+      "roll_deg": 135.0,
+      "origen": "stereo_sim_studioX_roll135.0_20261120_113229",
+      "lados": {
+        "left": {
+          "crudo": "roll_135.0_left.jpg",
+          "realzado": "realzado/roll_135.0_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_135.0_right.jpg",
+          "realzado": "realzado/roll_135.0_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 63.8,
+        "maximo": 176,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    },
+    {
+      "roll_deg": 157.5,
+      "origen": "stereo_sim_studioX_roll157.5_20261120_113732",
+      "lados": {
+        "left": {
+          "crudo": "roll_157.5_left.jpg",
+          "realzado": "realzado/roll_157.5_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_157.5_right.jpg",
+          "realzado": "realzado/roll_157.5_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 62.5,
+        "maximo": 169,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    },
+    {
+      "roll_deg": 180.0,
+      "origen": "stereo_sim_studioX_roll180.0_20261120_114233",
+      "lados": {
+        "left": {
+          "crudo": "roll_180.0_left.jpg",
+          "realzado": "realzado/roll_180.0_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_180.0_right.jpg",
+          "realzado": "realzado/roll_180.0_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 56.5,
+        "maximo": 153,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    },
+    {
+      "roll_deg": 202.5,
+      "origen": "stereo_sim_studioX_roll202.5_20261120_114731",
+      "lados": {
+        "left": {
+          "crudo": "roll_202.5_left.jpg",
+          "realzado": "realzado/roll_202.5_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_202.5_right.jpg",
+          "realzado": "realzado/roll_202.5_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 53.8,
+        "maximo": 125,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    },
+    {
+      "roll_deg": 225.0,
+      "origen": "stereo_sim_studioX_roll225.0_20261120_115235",
+      "lados": {
+        "left": {
+          "crudo": "roll_225.0_left.jpg",
+          "realzado": "realzado/roll_225.0_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_225.0_right.jpg",
+          "realzado": "realzado/roll_225.0_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 52.0,
+        "maximo": 121,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    },
+    {
+      "roll_deg": 247.5,
+      "origen": "stereo_sim_studioX_roll247.5_20261120_115744",
+      "lados": {
+        "left": {
+          "crudo": "roll_247.5_left.jpg",
+          "realzado": "realzado/roll_247.5_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_247.5_right.jpg",
+          "realzado": "realzado/roll_247.5_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 53.5,
+        "maximo": 113,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    },
+    {
+      "roll_deg": 270.0,
+      "origen": "stereo_sim_studioX_roll270.0_20261120_120250",
+      "lados": {
+        "left": {
+          "crudo": "roll_270.0_left.jpg",
+          "realzado": "realzado/roll_270.0_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_270.0_right.jpg",
+          "realzado": "realzado/roll_270.0_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 54.7,
+        "maximo": 104,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    },
+    {
+      "roll_deg": 292.5,
+      "origen": "stereo_sim_studioX_roll292.5_20261120_120750",
+      "lados": {
+        "left": {
+          "crudo": "roll_292.5_left.jpg",
+          "realzado": "realzado/roll_292.5_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_292.5_right.jpg",
+          "realzado": "realzado/roll_292.5_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 55.5,
+        "maximo": 111,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    },
+    {
+      "roll_deg": 315.0,
+      "origen": "stereo_sim_studioX_roll315.0_20261120_121252",
+      "lados": {
+        "left": {
+          "crudo": "roll_315.0_left.jpg",
+          "realzado": "realzado/roll_315.0_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_315.0_right.jpg",
+          "realzado": "realzado/roll_315.0_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 58.9,
+        "maximo": 113,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    },
+    {
+      "roll_deg": 337.5,
+      "origen": "stereo_sim_studioX_roll337.5_20261120_121755",
+      "lados": {
+        "left": {
+          "crudo": "roll_337.5_left.jpg",
+          "realzado": "realzado/roll_337.5_left.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        },
+        "right": {
+          "crudo": "roll_337.5_right.jpg",
+          "realzado": "realzado/roll_337.5_right.jpg",
+          "resolucion": [
+            4056,
+            3040
+          ]
+        }
+      },
+      "cordon": {
+        "medio": 65.7,
+        "maximo": 147,
+        "muestras": 984
+      },
+      "lamparas_visibles": true,
+      "iluminancia_lx": 3600.0
+    }
+  ]
+}

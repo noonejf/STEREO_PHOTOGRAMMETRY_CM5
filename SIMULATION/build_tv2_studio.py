@@ -78,6 +78,39 @@ SENSOR = dict(name="IMX477", width_px=4056, height_px=3040,
 
 OPTICS = dict(focal_mm=8.0, f_number=1.6, baseline_mm=100.0)
 
+#: Los tres sensores que la placa tiene que aceptar, con el que esta montado
+#: primero. El IMX296 esta aqui porque es **global shutter**, asi que no tiene
+#: el corrimiento de filas que obliga al limite de rotacion, y porque mide
+#: 1456 x 1088: la pregunta que decide si sirve no es el ruido sino si el
+#: cable llega a ocupar un pixel. Con el 6 mm un cordon de 1 mm da 0.59 px a
+#: 3 m, bajo un pixel y por tanto insegmentable; con el 16 mm da 1.57 px, el
+#: mismo regimen que el IMX477 con su 8 mm, que da 1.72. Por eso el
+#: telefoto no es una opcion del IMX296, es la unica configuracion en la que
+#: funciona, y por eso las dos se renderizan.
+SENSORS = {
+    "IMX477": dict(name="IMX477", width_px=4056, height_px=3040,
+                   pixel_um=1.55, width_mm=6.287, height_mm=4.712,
+                   shutter="rolling", mpx=12.3),
+    "IMX296": dict(name="IMX296", width_px=1456, height_px=1088,
+                   pixel_um=3.45, width_mm=5.023, height_mm=3.754,
+                   shutter="global", mpx=1.6),
+}
+
+
+def use_sensor(name):
+    """Cambia el sensor activo. Afecta al cuadro y al ancho de sensor.
+
+    ``SENSOR`` se lee en el momento de la llamada en ``build_stereo_pair`` y
+    en ``configure_render``, asi que rebindear el global basta. Lo que **no**
+    bastaba era dejarlo como valor por defecto de un argumento: Python evalua
+    esos defaults al importar el modulo, de modo que ``hfov_deg`` seguia
+    contestando con el ancho del IMX477 por mucho que se cambiara el sensor.
+    Por eso abajo toma ``None`` y lo resuelve dentro.
+    """
+    global SENSOR
+    SENSOR = dict(SENSORS[name])
+    return SENSOR
+
 #: Luminous efficacy of radiation, from the project's own AM0 pair
 #: (132800 lx against 1361 W/m2). It is what converts a Blender area light's
 #: radiometric watts into the photometric units a lamp datasheet uses.
@@ -153,7 +186,9 @@ def projected_width_px(focal_mm, distance_m, diameter_mm=1.0, pixel_um=1.55):
     return (focal_mm / (pixel_um * 1e-3)) * (diameter_mm / 1000.0) / distance_m
 
 
-def hfov_deg(focal_mm, sensor_w_mm=SENSOR["width_mm"]):
+def hfov_deg(focal_mm, sensor_w_mm=None):
+    if sensor_w_mm is None:
+        sensor_w_mm = SENSOR["width_mm"]
     return 2.0 * math.degrees(math.atan(sensor_w_mm / 2.0 / focal_mm))
 
 
@@ -300,7 +335,8 @@ def _build_world(stars=False):
 
 
 def build_sun(tilt_deg=40.0, tilt_dir="-y", irradiance=1361.0,
-              temperature=5772.0, angular_diameter_deg=0.526, stars=False):
+              temperature=5772.0, angular_diameter_deg=0.526, stars=False,
+              orbit_deg=0.0):
     """The orbital case: one Sun, and a world that emits nothing.
 
     Every default here is a number from the illumination deliverable rather
@@ -329,6 +365,18 @@ def build_sun(tilt_deg=40.0, tilt_dir="-y", irradiance=1361.0,
     same direction. That leaves the lighting model as the only difference
     between them: parallel and unattenuated here, divergent and falling off
     as 1/r2 there.
+
+    ``orbit_deg`` gira el haz **alrededor del eje del cable**, que es el eje
+    Y, dejando quietos el cable y las camaras. Es el experimento que el roll
+    hacia al reves: alli rodaban las camaras porque mover doce lamparas es
+    caro, y aqui mover el sol no cuesta nada, asi que se mueve la luz y el
+    instrumento se queda como va a estar montado.
+
+    En ``-y``, el angulo se arma como ``Ry(-orbit) . Rx(-tilt)``, lo que deja
+    el haz viajando en ``(cos t sin o, -sin t, -cos t cos o)``. A 0 grados el
+    sol viene de arriba, a 90 del lado ``-x``, a 180 de abajo, que es la misma
+    convencion con la que la fila de lamparas parecia girar en el barrido de
+    roll. Con ``orbit_deg=0`` el valor es exactamente el de antes.
     """
     _build_world(stars=stars)
 
@@ -343,6 +391,9 @@ def build_sun(tilt_deg=40.0, tilt_dir="-y", irradiance=1361.0,
         rot = (0.0, t, 0.0)
     else:
         raise ValueError(f"tilt_dir {tilt_dir!r}")
+
+    # La orbita es un giro extra sobre Y, que es el eje del cable.
+    rot = (rot[0], rot[1] - math.radians(orbit_deg), rot[2])
 
     data = bpy.data.lights.new("Sun", type="SUN")
     data.energy = irradiance

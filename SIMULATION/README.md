@@ -66,7 +66,7 @@ tiene 17 %.
 
 ```bash
 blender --background --python SIMULATION/render_studio_iterations.py --         --variant X --rolls 0,22.5,45,67.5,90,112.5,135,157.5,180,202.5,225,247.5,270,292.5,315,337.5         --samples 24 --both
-python tools/collect_roll_sweep.py
+python tools/collect_sweep.py --variant X --tag roll
 ```
 
 `roll_deg` rueda **solo el par de camaras** sobre el eje del cable: el cable y la

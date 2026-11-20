@@ -354,6 +354,67 @@ VARIANTS = {
         cam_x=0.0, wave=S.WAVE, roll_deg=90.0, lamps_visible=True,
         e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
         blend_name="estudio_roll_90"),
+
+    # --- El sol orbitando el cable, sin cuarto ----------------------------
+    # Lo que pidio la reunion del 20 de noviembre de 2026: en vez de rodar el
+    # instrumento, dejarlo quieto y **mover la luz**, con el objeto Sun de
+    # Blender y sin cuarto, haciendo llegar al cable los mismos lumenes que
+    # la fila de doce lamparas.
+    #
+    # El sol no tiene posicion, solo direccion, asi que su irradiancia no cae
+    # con la distancia: puesta en 3600 / LER = 36.9 W/m2, el cable recibe
+    # 3600 lx **en toda su longitud**, no solo en el punto peor. Esa es la
+    # diferencia que importa contra el estudio, donde la fila da 3600 en el
+    # peor punto y mas en el resto.
+    #
+    # Y la escala de la irradiancia no decide la imagen: la exposicion se
+    # calcula del mismo objetivo, asi que renderizar a 36.9 W/m2 o a los 1361
+    # de AM0 da el **mismo pixel**, ya medido en cuatro variantes de 3.15 kW
+    # a 180 kW. Se deja en el objetivo del estudio porque la comparacion es
+    # el punto, y el metadata anota las dos cifras.
+    "SOL": dict(
+        note="El sol orbitando el cable, sin cuarto, IMX477 con el 8 mm. El "
+             "cable y el par estereo se quedan quietos y lo que gira es el "
+             "haz, alrededor del eje del propio cable. Haz perpendicular al "
+             "eje, que es como mas ilumina, y los mismos 3600 lx que pide R5 "
+             "en el cable, salvo que aqui los recibe entero y no solo en el "
+             "punto peor.",
+        cord=(0.0, 2.0, 26.5), lamps=(12, 2.0, 2.0, 26.5),
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(0.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, env="orbit", stars=True,
+        sun_from_target=True, sun_orbit_deg=0.0,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="sol_orbitando_imx477_8mm"),
+
+    # El mismo experimento con el global shutter. Dos lentes, y no por
+    # curiosidad: con el 6 mm un cordon de 1 mm da 0.59 px a 3 m y no hay
+    # nada que segmentar, asi que el 16 mm no es una alternativa, es la unica
+    # configuracion en la que el IMX296 sirve. Las dos se renderizan para que
+    # eso se vea en vez de citarse.
+    "SOL296": dict(
+        note="El sol orbitando, IMX296 global shutter de 1.6 MP con el "
+             "telefoto de 16 mm. Es la configuracion en la que el sensor "
+             "sirve: 1.57 px de cordon a 3 m, el mismo regimen que el "
+             "IMX477 con su 8 mm, que da 1.72. El medio campo baja a 8.9 "
+             "grados en horizontal, asi que el encuadre es la pregunta "
+             "nueva, no el ruido.",
+        cord=(0.0, 2.0, 26.5), lamps=(12, 2.0, 2.0, 26.5),
+        view="axis", cam_offset=2.0, focal=16.0, tilt=(0.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, env="orbit", stars=True,
+        sensor="IMX296", sun_from_target=True, sun_orbit_deg=0.0,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="sol_orbitando_imx296_16mm"),
+    "SOL296W": dict(
+        note="El mismo IMX296 con el 6 mm, que es el lente con el que se "
+             "cotiza por defecto. Existe para mostrar por que no: 0.59 px "
+             "de cordon a 3 m, bajo un pixel. Unos pocos angulos, no el "
+             "barrido entero.",
+        cord=(0.0, 2.0, 26.5), lamps=(12, 2.0, 2.0, 26.5),
+        view="axis", cam_offset=2.0, focal=6.0, tilt=(0.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, env="orbit", stars=True,
+        sensor="IMX296", sun_from_target=True, sun_orbit_deg=0.0,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="sol_orbitando_imx296_6mm"),
 }
 
 
@@ -391,7 +452,7 @@ def required_candela(lamp_ys, lamp_x, lamp_z, points,
 
 
 def render(variant, samples, scale, both_cameras, linear=False,
-           blend_only=False, roll_override=None):
+           blend_only=False, roll_override=None, sun_override=None):
     """``linear`` writes OpenEXR with the view transform off.
 
     AgX is a tone map, so a JPEG pixel is not proportional to the light that
@@ -409,6 +470,14 @@ def render(variant, samples, scale, both_cameras, linear=False,
     if roll_override is not None:
         v = dict(v, roll_deg=roll_override)
         etiqueta_var = f"{variant}_roll{roll_override:05.1f}"
+    # ``--sun-orbit`` es el mismo barrido por el otro lado: el instrumento se
+    # queda quieto y lo que gira es el haz.
+    if sun_override is not None:
+        v = dict(v, sun_orbit_deg=sun_override)
+        etiqueta_var = f"{variant}_sun{sun_override:05.1f}"
+    # El sensor se elige ANTES de construir las camaras y de configurar el
+    # render, porque los dos leen ``S.SENSOR``.
+    sensor = S.use_sensor(v.get("sensor", "IMX477"))
     cord_x, y0, y1 = v["cord"]
     n_lamps, lamp_h, ly0, ly1 = v["lamps"]
     cord_z = S.TETHER["z_m"]
@@ -444,9 +513,15 @@ def render(variant, samples, scale, both_cameras, linear=False,
         S.build_room(S.ROOM["depth_m"], S.ROOM["width_m"], S.ROOM["height_m"])
     S.build_tether(cord_x, cord_z, y0, y1, S.TETHER["diameter_mm"],
                    x_far=far_x, z_far=far_z, wave=wave)
+    sun_orbit = v.get("sun_orbit_deg", 0.0)
+    # Un Sun no tiene posicion, solo direccion, asi que su irradiancia no cae
+    # con la distancia y basta dividir el objetivo por la LER para que el
+    # cable reciba esos lux en toda su longitud.
+    sun_irr = (e_target / S.LER) if v.get("sun_from_target") else 1361.0
     if orbit:
         sun = S.build_sun(tilt_deg=tilt_deg, tilt_dir=tilt_dir,
-                          stars=v.get("stars", False))
+                          stars=v.get("stars", False),
+                          irradiance=sun_irr, orbit_deg=sun_orbit)
     else:
         S.build_lamp_row(cord_x, lamp_z, ly0, ly1, n_lamps, cd,
                          tilt_deg=tilt_deg, tilt_dir=tilt_dir, over=lamp_h,
@@ -512,9 +587,14 @@ def render(variant, samples, scale, both_cameras, linear=False,
                          max(abs(p[0] - cord_x) for p in points),
                          max(abs(p[2] - cord_z) for p in points)), 4)),
         "environment": "orbit" if orbit else "studio",
-        "sun": (dict(irradiance_w_m2=1361.0, temperature_k=5772.0,
+        "sun": (dict(irradiance_w_m2=round(sun_irr, 4),
+                     irradiance_am0_w_m2=1361.0,
+                     illuminance_at_cord_lx=round(sun_irr * S.LER, 1),
+                     from_target=bool(v.get("sun_from_target")),
+                     temperature_k=5772.0,
                      angular_diameter_deg=0.526, tilt_deg=tilt_deg,
-                     tilt_dir=tilt_dir, parallel=True, falloff=False,
+                     tilt_dir=tilt_dir, orbit_deg=sun_orbit,
+                     parallel=True, falloff=False,
                      starfield=v.get("stars", False))
                 if orbit else None),
         "lamps": None if orbit else dict(count=n_lamps, height_over_cord_m=lamp_h, z_m=lamp_z,
@@ -528,11 +608,21 @@ def render(variant, samples, scale, both_cameras, linear=False,
                       colour_k=5600.0,
                       visible_to_camera=v.get("lamps_visible", False)),
         "optics": dict(focal_mm=v["focal"], baseline_mm=S.OPTICS["baseline_mm"],
-                       hfov_deg=round(S.hfov_deg(v["focal"]), 2)),
+                       hfov_deg=round(S.hfov_deg(v["focal"]), 2),
+                       vfov_deg=round(S.hfov_deg(
+                           v["focal"], sensor["height_mm"]), 2),
+                       cord_px_at_3m=round(S.projected_width_px(
+                           v["focal"], 3.0, S.TETHER["diameter_mm"],
+                           sensor["pixel_um"]), 2)),
+        "sensor": dict(name=sensor["name"], shutter=sensor["shutter"],
+                       width_px=sensor["width_px"],
+                       height_px=sensor["height_px"],
+                       pixel_um=sensor["pixel_um"], mpx=sensor["mpx"]),
         "illuminance_target_lx": round(e_target, 1),
         "illuminance_target_basis": v.get("e_basis", "default"),
         "view": v["view"],
         "roll_deg": v.get("roll_deg", 0.0),
+        "sun_orbit_deg": sun_orbit if orbit else None,
         "samples": samples,
         "resolution_percentage": scale,
         "view_transform": "Standard" if linear else "AgX",
@@ -572,14 +662,22 @@ def main():
     ap.add_argument("--rolls", default="",
                     help="lista de angulos de roll, en grados, separados por "
                          "comas: renderiza la variante una vez por angulo")
+    ap.add_argument("--sun-orbit", dest="sun_orbit", default="",
+                    help="lista de angulos de orbita del sol, en grados: el "
+                         "instrumento se queda quieto y gira el haz")
     args = ap.parse_args(argv)
 
     rolls = [float(r) for r in args.rolls.split(",") if r.strip()]
+    soles = [float(r) for r in args.sun_orbit.split(",") if r.strip()]
     for v in args.variant.split(","):
         if rolls:
             for r in rolls:
                 render(v.strip(), args.samples, args.scale, args.both,
                        args.linear, args.blend_only, roll_override=r)
+        elif soles:
+            for sdeg in soles:
+                render(v.strip(), args.samples, args.scale, args.both,
+                       args.linear, args.blend_only, sun_override=sdeg)
         else:
             render(v.strip(), args.samples, args.scale, args.both,
                    args.linear, args.blend_only)
