@@ -102,6 +102,21 @@ adelante. Esa es ahora una condición del montaje, no una mejora opcional.
   diafragma, no se baja la luminaria, para no entrar en el régimen donde el
   parpadeo importa.
 
+## Lo que Jose ya respondio, 24 de noviembre
+
+- **Fecha: viernes 11 de diciembre.** El jueves 10 no es posible, Jose y
+  Neils solo tienen libre el viernes. Pedido a Luis en
+  `correo_luis_cierre_viernes11.md`.
+- **Largo del estudio: de 26 a 30 m**, a confirmar con Luis.
+- **El piso es de madera**, asi que la tela negra pasa de recomendable a
+  obligatoria. Hay que confirmar si la tela la pone el estudio.
+- **Parrilla: no se sabe** si se puede colgar desde arriba o si hay que
+  montar en tripodes. Es la pregunta 1 del correo y condiciona el montaje
+  entero, porque la fila va a 6 m.
+- **Energia: se asume que un estudio de television la tiene.** Se pregunta
+  igual, porque son 8 kW continuos y conviene saber si van en un circuito o
+  en varios.
+
 ## Lo que hay que preguntarle a Luis
 
 1. **¿Tienen el STORM 1200x Reflector Kit** (los de 15 y 30 grados)? Los
