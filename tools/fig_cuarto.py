@@ -2,6 +2,7 @@
 """Las figuras del cuarto TV2 con las cinco luminarias reales.
 
     python tools/fig_cuarto.py
+    python tools/fig_cuarto.py --idioma en      # las del entregable
 
 Tres paneles, cada uno contestando una pregunta de la sesion del viernes 11.
 
@@ -38,6 +39,7 @@ sys.path.insert(0, os.path.join(ROOT, "SIMULATION"))
 
 import cv2  # noqa: E402
 import calculadora_luz as CL  # noqa: E402
+import idioma as I  # noqa: E402
 import build_tv2_studio as S  # noqa: E402
 from medir_barrido import medir  # noqa: E402
 from medir_cuarto import ultima  # noqa: E402
@@ -46,20 +48,11 @@ SPEC5 = "storm1200x:45:4,ls1200d_pro:45:1"
 SPEC6 = "storm1200x:45:4,ls1200d_pro:45:2"
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--dest", default=os.path.join(
-        "SIMULATION", "experimentos", "estudio_luminarias_reales"))
-    args = ap.parse_args()
-    dest = os.path.join(ROOT, args.dest)
-    os.makedirs(dest, exist_ok=True)
-
-    fig = plt.figure(figsize=(12.6, 9.2))
-    gs = fig.add_gridspec(2, 2, height_ratios=(1.15, 1.0), hspace=0.62,
-                          wspace=0.26)
-
-    # ------------------------------------------- arriba: lux sobre el cable
-    ax = fig.add_subplot(gs[0, :])
+def panel_lux(ax, nota_y=-0.33):
+    """Los lux a lo largo del cable. Va en la figura de tres paneles y, a
+    solas, en la figura del informe: dentro del compuesto el texto sale a
+    menos de cuatro puntos cuando LaTeX lo encoge al ancho de la caja, que
+    es ilegible, y una figura no se arregla con una nota al pie."""
     casos = (
         (SPEC5, 6.0, 1.5, 2.0, 20.0, 0.0, "5 luminarias a 6.0 m, haz vertical",
          "#1f6fb4", 2.4, "-"),
@@ -77,7 +70,8 @@ def main():
         ys = [a for a, _, _ in datos]
         es = [max(b, 1.0) for _, b, _ in datos]
         ax.plot(ys, es, ls, lw=lw, color=color,
-                label=f"{etq}   |   peor punto {min(es):,.0f} lx")
+                label=I.t("{etq}   |   peor punto {v} lx").format(
+                    etq=I.t(etq), v=f"{min(es):,.0f}"))
         peores.append(min(es))
         if inc == 0.0 and hl == 6.0 and spec == SPEC5:
             for _m, _r, ya, _yl in puestas:
@@ -87,27 +81,45 @@ def main():
             color="0.2", ha="right")
     ax.axhline(S.E_IMX477_FLOOR_LX, color="0.45", ls=":", lw=1.3)
     ax.text(21.6, S.E_IMX477_FLOOR_LX * 0.62,
-            "piso propio del IMX477: 2320 lx", fontsize=8.2, color="0.45",
-            ha="right")
+            I.t("piso propio del IMX477: 2320 lx"), fontsize=8.2,
+            color="0.45", ha="right")
     ax.set_yscale("log")
     ax.set_ylim(1.0, 2.2e5)
     ax.set_xlim(1.5, 22.5)
-    ax.set_xlabel("posicion a lo largo del cable "
-                  "(m desde la pared de las camaras)")
-    ax.set_ylabel("iluminancia en el cable,\ncara a la luz (lx)")
-    ax.set_title("Lo que decide la fila no es la potencia, es si las huellas "
-                 "de los conos se tocan", fontsize=11)
+    ax.set_xlabel(I.t("posicion a lo largo del cable "
+                      "(m desde la pared de las camaras)"))
+    ax.set_ylabel(I.t("iluminancia en el cable,\ncara a la luz (lx)"))
+    ax.set_title(I.t("Lo que decide la fila no es la potencia, es si las "
+                     "huellas de los conos se tocan"), fontsize=11)
     ax.grid(alpha=0.2, which="major")
     ax.legend(fontsize=8.0, loc="lower center", ncol=2, framealpha=0.95,
               borderpad=0.5)
-    ax.text(0.0, -0.33,
-            "Los triangulos son las cinco luminarias de la fila "
-            "recomendada. Modelo de fuente puntual con perfil cos^n, sin "
-            "rebotes de pared ni perdidas por suciedad:\nel render de "
-            "Cycles entrega un 30 % mas, medido recuperando los lux del "
-            "piso de molton. La cuarta curva no es una propuesta, es el "
-            "control que muestra el hueco.",
+    ax.text(0.0, nota_y,
+            I.t("Los triangulos son las cinco luminarias de la fila "
+                "recomendada. Modelo de fuente puntual con perfil cos^n, "
+                "sin rebotes de pared ni perdidas por suciedad:\nel render "
+                "de Cycles entrega un 30 % mas, medido recuperando los lux "
+                "del piso de molton. La cuarta curva no es una propuesta, "
+                "es el control que muestra el hueco."),
             transform=ax.transAxes, fontsize=7.4, color="0.4", va="top")
+
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--dest", default=os.path.join(
+        "SIMULATION", "experimentos", "estudio_luminarias_reales"))
+    ap.add_argument("--idioma", default="es", choices=("es", "en"))
+    args = ap.parse_args()
+    I.usar(args.idioma)
+    dest = os.path.join(ROOT, args.dest)
+    os.makedirs(dest, exist_ok=True)
+
+    fig = plt.figure(figsize=(12.6, 9.2))
+    gs = fig.add_gridspec(2, 2, height_ratios=(1.15, 1.0), hspace=0.62,
+                          wspace=0.26)
+
+    panel_lux(fig.add_subplot(gs[0, :]))
 
     # --------------------------------- abajo izquierda: a donde apuntarlas
     ax = fig.add_subplot(gs[1, 0])
@@ -124,7 +136,7 @@ def main():
         incs = np.array(incs)[o]
         cons = np.array(cons)[o]
         ax.plot(incs, cons, "-o", color="#1f6fb4", lw=2.2, ms=6,
-                label="barrido de inclinacion")
+                label=I.t("barrido de inclinacion"))
         for x, y in zip(incs, cons):
             ax.annotate(f"{y:.0f}", (x, y), textcoords="offset points",
                         xytext=(7, 7), ha="left", fontsize=8, color="#1f6fb4")
@@ -138,25 +150,27 @@ def main():
         if r is None:
             continue
         ax.plot([x], [r["contraste"]], mk, color="#c0392b", ms=8,
-                label="test de tres vias, cable corrido" if primero else None)
+                label=I.t("test de tres vias, cable corrido")
+                if primero else None)
         primero = False
-    ax.set_xlabel("inclinacion del haz (grados desde la vertical)")
-    ax.set_ylabel("contraste del cordon (niveles)")
-    ax.set_title("Inclinar cuesta contraste, y no es poco", fontsize=10.5)
+    ax.set_xlabel(I.t("inclinacion del haz (grados desde la vertical)"))
+    ax.set_ylabel(I.t("contraste del cordon (niveles)"))
+    ax.set_title(I.t("Inclinar cuesta contraste, y no es poco"),
+                 fontsize=10.5)
     ax.set_xlim(-6, 70)
     ax.grid(alpha=0.22)
     ax.legend(fontsize=7.6, loc="lower left")
-    ax.text(0.98, 0.88,
-            "De un cilindro visto casi de punta la camara ve\n"
-            "el limbo, cuyas normales apuntan en x y en z.\n"
-            "El haz vertical ilumina justamente una de ellas.",
+    ax.text(0.985, 0.995,
+            I.t("De un cilindro visto casi de punta la camara ve\n"
+                "el limbo, cuyas normales apuntan en x y en z.\n"
+                "El haz vertical ilumina justamente una de ellas."),
             transform=ax.transAxes, ha="right", va="top", fontsize=7.4,
             color="0.35")
 
     # ------------------------------------------- abajo derecha: la tela
     ax = fig.add_subplot(gs[1, 1])
-    pares = (("TV2", "molton negro\nsobre la madera", "#2b2b30"),
-             ("TV2MADERA", "madera desnuda", "#b5833f"))
+    pares = (("TV2", I.t("molton negro\nsobre la madera"), "#2b2b30"),
+             ("TV2MADERA", I.t("madera desnuda"), "#b5833f"))
     x = np.arange(len(pares))
     fondos, encendido, etqs2, cols2 = [], [], [], []
     for v, etq, col in pares:
@@ -173,9 +187,9 @@ def main():
     if fondos:
         x = np.arange(len(fondos))
         ax.bar(x - 0.19, fondos, width=0.36, color=cols2,
-               label="fondo medio del cuadro (niveles)")
+               label=I.t("fondo medio del cuadro (niveles)"))
         ax.bar(x + 0.19, encendido, width=0.36, color=cols2, alpha=0.45,
-               hatch="//", label="cuadro sobre 10 niveles (%)")
+               hatch="//", label=I.t("cuadro sobre 10 niveles (%)"))
         for i, (a, b) in enumerate(zip(fondos, encendido)):
             ax.text(i - 0.19, a + 1.2, f"{a:.1f}", ha="center", fontsize=8.6)
             ax.text(i + 0.19, b + 1.2, f"{b:.1f}%", ha="center", fontsize=8.6)
@@ -183,21 +197,21 @@ def main():
         ax.set_xticklabels(etqs2, fontsize=8.4)
         ax.set_ylim(0, max(max(fondos), max(encendido)) * 1.3)
     ax.legend(fontsize=7.6, loc="upper center")
-    ax.set_title("La tela no es una mejora, es una condicion del montaje",
-                 fontsize=10.5)
+    ax.set_title(I.t("La tela no es una mejora, es una condicion del "
+                     "montaje"), fontsize=10.5)
     ax.text(0.5, -0.26,
-            "Albedos ASUMIDOS, 0.04 el molton y 0.30 la madera barnizada: "
-            "hay que medirlos con el fotometro el dia de la sesion. Y la "
-            "madera barnizada no es lambertiana: manda un reflejo \n"
-            "especular que este modelo no reproduce, asi que 0.30 difuso "
-            "es la version optimista del problema.",
+            I.t("Albedos ASUMIDOS, 0.04 el molton y 0.30 la madera "
+                "barnizada: hay que medirlos con el fotometro el dia de la "
+                "sesion. Y la madera barnizada no es lambertiana: manda un "
+                "reflejo \nespecular que este modelo no reproduce, asi que "
+                "0.30 difuso es la version optimista del problema."),
             transform=ax.transAxes, ha="center", va="top", fontsize=7.4,
             color="0.4")
     ax.grid(alpha=0.2, axis="y")
 
     pares = []
-    for v, etq in (("TV2COSTADO0", "vertical"),
-                   ("TV2COSTADO", "inclinado 40 grados")):
+    for v, etq in (("TV2COSTADO0", I.t("vertical")),
+                   ("TV2COSTADO", I.t("inclinado 40 grados"))):
         d = ultima(v)
         if d is None:
             continue
@@ -205,21 +219,33 @@ def main():
         img = cv2.imread(os.path.join(d, "left.jpg"), cv2.IMREAD_GRAYSCALE)
         if r is None or img is None:
             continue
-        pares.append(f"{etq}, cordon {r['contraste_todo']:.1f} y fondo medio "
-                     f"{img.mean():.1f} con {(img > 10).mean() * 100:.0f} % "
-                     f"del cuadro encendido")
+        pares.append(I.t("{etq}, cordon {c} y fondo medio {f} con {p} % "
+                         "del cuadro encendido").format(
+                             etq=etq, c=f"{r['contraste_todo']:.1f}",
+                             f=f"{img.mean():.1f}",
+                             p=f"{(img > 10).mean() * 100:.0f}"))
     if pares:
         fig.text(0.5, 0.005,
-                 "En la vista de COSTADO el cordon empata y lo que cambia "
-                 "es el fondo: " + "; ".join(pares) +
-                 ". El haz vertical gana en las dos vistas.",
+                 I.t("En la vista de COSTADO el cordon empata y lo que "
+                     "cambia es el fondo: {pares}. El haz vertical gana en "
+                     "las dos vistas.").format(pares="; ".join(pares)),
                  ha="center", fontsize=8.0, color="#1f6fb4")
-    fig.suptitle("El TV2 con las luminarias que el estudio tiene: "
-                 "4 STORM 1200x y 1 LS 1200d Pro", fontsize=13)
-    p = os.path.join(dest, "fig_cuarto_luminarias.png")
+    fig.suptitle(I.t("El TV2 con las luminarias que el estudio tiene: "
+                     "4 STORM 1200x y 1 LS 1200d Pro"), fontsize=13)
+    # la misma curva, sola y en un lienzo mas chico: es la que entra al
+    # informe, donde \textwidth son 15 cm
+    f2, a2 = plt.subplots(figsize=(8.4, 4.6))
+    panel_lux(a2, nota_y=-0.17)
+    p2 = os.path.join(dest, f"fig_cuarto_lux{I.sufijo()}.png")
+    f2.savefig(p2, dpi=170, bbox_inches="tight")
+    plt.close(f2)
+    print(p2)
+
+    p = os.path.join(dest, f"fig_cuarto_luminarias{I.sufijo()}.png")
     fig.savefig(p, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(p)
+    I.avisar()
 
 
 if __name__ == "__main__":

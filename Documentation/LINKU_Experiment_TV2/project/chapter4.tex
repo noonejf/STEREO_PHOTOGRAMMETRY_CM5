@@ -26,6 +26,14 @@ temperatures along a row, and placing a fixture at one end shining along the
 tether, which combines grazing incidence with inverse-square falloff along
 its length.
 
+The prohibition on mixing fixture types is about the direction and the colour
+of the light, not about the badge on the housing. The arrangement recommended
+in Section \ref{sec:sim-montage} mixes four STORM 1200x with one LS 1200d
+Pro, which is admissible because all five carry the same reflector, point the
+same way and are set to the same colour temperature; what differs is only
+on-axis intensity, and that shows up as one dimmer stretch rather than as a
+second shadow.
+
 \subsection*{L2. Daylight colour. \textnormal{Decision}}
 
 Every space vision laboratory in the reviewed set that declares a colour
@@ -84,6 +92,21 @@ camera this project uses \cite{pauly2022spacelab}. A fixture inside the frame
 produces flare; Stanford report exactly that when the camera points near their
 sun lamp. IEC 60904-9 separately warns that wall reflections invalidate a
 measured uniformity classification \cite{iec60904_9_2020}.
+
+\subsection*{L8. Beam vertical, each fixture above the stretch it lights.
+\textnormal{Decision, from the simulation}}
+
+Measured, not assumed, and it reverses what the project had been doing.
+Tilting the beam costs between 7 and 42\% of the cord contrast depending on
+the angle, and it buys no light: the worst point on the tether is 4419~lx
+with a vertical beam and 4597~lx tilted 40\textdegree, so the contrast lost
+is light placed on a face the camera cannot see rather than light that failed
+to arrive. The reason is that the primary view looks \emph{along} the tether
+and therefore sees the limb of the cylinder, whose normals point along $x$
+and $z$, and a vertical beam lights one of them. Tilting also drags each
+fixture 3.78~m upstream of the stretch it lights, which is what puts one of
+them inside the field of view and breaks L7. The full measurement is in
+Section \ref{sec:sim-beam}.
 
 \section{The penumbra test}
 \label{sec:penumbra}

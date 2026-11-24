@@ -177,6 +177,21 @@ conclusion de aqui depende de cual se elija.
 | 3 | Medir el albedo del molton y el de la madera, que aqui estan asumidos |
 | 4 | Preguntar a Luis por el kit de reflectores de 15 y 30 grados de las STORM |
 
+## Donde esta esto en el entregable
+
+Todo lo de aqui esta escrito en ingles en el **capitulo 5 del informe de la
+sesion**, `Documentation/LINKU_Experiment_TV2/project/chapter5.tex`, con las
+tablas y las figuras. El parametro **L8** del capitulo 4, el haz vertical,
+salio de aqui, y es el unico de ese capitulo que contradice lo que el
+proyecto venia haciendo.
+
+**Las figuras del entregable son las `_en`.** Los scripts de figuras sacan
+las dos versiones, `python tools/fig_cuarto.py` y la misma con
+`--idioma en`; el texto vive una sola vez, en espanol, en `tools/idioma.py`,
+que avisa de lo que se pidio traducir y no estaba.
+`python tools/fig_al_informe.py` las copia a `Images/` con el nombre que usa
+el LaTeX.
+
 ## Como reproducir
 
 ```bash
@@ -213,6 +228,9 @@ blender --background --python SIMULATION/render_escenario.py -- \
 | | |
 |---|---|
 | `fig_cuarto_luminarias.png` | los lux sobre el cable, la inclinacion y la tela |
+| `fig_cuarto_lux.png` | solo el panel de los lux, que es el que entra al informe: dentro del compuesto el texto sale a menos de cuatro puntos cuando LaTeX lo encoge a 15 cm |
+| `fig_renders_cuarto.png` | lo que ve la camara en seis variantes |
+| `fig_renders_haz.png` | el test de tres vias, visto |
 | `medidas_familia.csv` | la tabla de arriba, con la captura de cada fila |
 | `medidas_inclinacion.csv` | el barrido de 0 a 60 grados |
 | `medidas_lux_piso.csv` | los 72 puntos de piso, medidos contra el modelo |

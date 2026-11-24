@@ -1,126 +1,237 @@
-\chapter{What gets recorded}
-\label{chap:record}
+\chapter{The orbital illumination the session stands in for}
+\label{chap:sun}
 
-The session produces two things: image files, which the software names and
-stores by itself, and written observations, which nothing records unless a
-person writes them down. This chapter specifies the second, because it is the
-part that has previously gone missing.
+The studio arrangement of Chapter \ref{chap:simulation} is a stand-in. What
+it stands in for is a tether in orbit lit by the Sun, and the session is only
+worth running if the condition it reproduces is one the flight case actually
+presents. In the studio the light hangs wherever it is hung. In orbit it
+does not: the Sun arrives from where it arrives, and the geometry is given,
+not chosen.
 
-\section{The record sheet}
+This chapter bounds that. It is the second half of the same simulation
+campaign, run on 24 November 2026, and it answers a question asked in review
+on 21 November: the project had swept the Sun around \emph{one} circle, and a
+circle is not a sphere.
 
-Every field is filled during the session, not reconstructed afterwards. A
-field that could not be measured is marked \emph{not measured} with the
-reason, which is criterion A4.1. An empty cell is indistinguishable from a
-forgotten one.
+\textbf{Status.} Simulated, like Chapter \ref{chap:simulation}. A Blender Sun
+object, no room, the IMX477 with the 8~mm, a wavy 24.5~m cord, 24 samples at
+full sensor resolution. The tether and the stereo pair do not move; what
+turns is the beam. \textbf{82 directions}: 16 azimuths by 5 inclinations,
+plus the two poles.
 
-\begin{longtable}{@{}p{0.52\textwidth} p{0.13\textwidth} p{0.27\textwidth}@{}}
-\caption[Session record sheet]{The session record sheet. Transcribed into the
-results chapter after the session.}
-\label{tab:record} \\
+\section{The convention, which has to be stated before any number}
+
+The beam travels along $(\cos t \sin o,\ -\sin t,\ -\cos t \cos o)$, with $o$
+the azimuth and $t$ the inclination. At $o = 0$ and $t = 0$ the Sun comes
+from directly above, perpendicular to the tether. At $o = 90$\textdegree\ it
+comes from the $-x$ side; at $o = 180$\textdegree, from below. The
+inclination tips the beam \textbf{along the tether itself}: positive, the Sun
+is on the side of the far end and the beam travels towards the cameras;
+negative, the Sun is behind the cameras.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.86\textwidth]{Images/sun_sphere_scene.jpg}
+\caption[The sphere of sun directions]{The 82 directions drawn on the scene
+they were rendered in. The tether runs along the axis of the sphere, the
+cameras at the near end. Each marker is one rendered direction.}
+\label{fig:sun-scene}
+\end{figure}
+
+\textbf{The inclination-zero row is the ring already published}, not
+re-rendered: same variant, same settings. Reusing it has one advantage over
+repeating it, which is that the zero row of the sphere agrees with the
+previously published table \emph{exactly} rather than merely closely.
+
+\section{The azimuth decides how much tether is seen; the inclination
+         decides only how brightly}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{Images/sun_sphere_map.png}
+\caption[Contrast and blind tether over the sphere]{The two quantities over
+the azimuth by inclination grid. The lower map, the fraction of tether the
+mask cannot segment, comes out in \textbf{vertical stripes}: each column is
+nearly constant from top to bottom, which is the statement that the
+inclination does not change how much tether is visible. The upper map adds a
+horizontal gradient, because the inclination does change how brightly it is
+lit. The poles are left off both maps because at $\pm 89$\textdegree\ the
+azimuth means nothing, and drawing a single point as if it were a row would
+claim that only one azimuth was tried at that inclination.}
+\label{fig:sun-map}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{Images/sun_sphere_profiles.png}
+\caption[The same result read along the azimuth]{The same measurement read
+the other way: one curve per inclination. The five contrast curves are the
+same shape displaced vertically, and the five blind-tether curves fall on top
+of one another. The inclination-zero curve is drawn heavier because it is the
+sweep that was already measured and published.}
+\label{fig:sun-profiles}
+\end{figure}
+
+\FloatBarrier
+
+\begin{table}[htbp]
+\centering
+\caption[Averages over the inclination]{Averaging over the azimuth, one row
+per inclination. ``Whole tether visible'' counts directions at which no part
+of the tether falls below the segmentation threshold.}
+\label{tab:sun-inc}
+\begin{tabularx}{\textwidth}{@{}X r r r@{}}
 \toprule
-\textbf{Datum} & \textbf{Unit} & \textbf{Value} \\
+\textbf{Inclination} & \textbf{Mean contrast} & \textbf{Blind tether} &
+\textbf{Whole tether visible} \\
+ & (levels) & (\%) & \\
 \midrule
-\endfirsthead
-\toprule
-\textbf{Datum} & \textbf{Unit} & \textbf{Value} \\
-\midrule
-\endhead
-\multicolumn{3}{@{}l}{\textit{Venue and date}} \\
-Room, date, start and end time & & \\
-People present and their roles & & \\
-\addlinespace
-\multicolumn{3}{@{}l}{\textit{Fixture}} \\
-Make, model, modifier, count & text & \\
-Ballast or driver, and the mode selected & text & \\
-Dimming method and PWM frequency, if LED & text, Hz & \\
-Warm-up time allowed before measuring & min & \\
-Distance and angle of the fixture to the structure and to the cameras & m, \textdegree & \\
-\addlinespace
-\multicolumn{3}{@{}l}{\textit{Photometry}} \\
-Illuminance at the tether position & lx & \\
-Uniformity grid: minimum and maximum, and the grid spacing used & lx, m & \\
-Measured colour temperature & K & \\
-Measured CRI, and TLCI if available & & \\
-Penumbra width at 1~m & mm & \\
-Stability over the session: minimum and maximum & lx & \\
-Stray-light check result & pass/fail & \\
-Flicker test result, per camera & pass/fail & \\
-\addlinespace
-\multicolumn{3}{@{}l}{\textit{Geometry of the scene}} \\
-Tether physical length, tape measured & m & \\
-Tether diameter, measured & mm & \\
-Tether material and surface finish & text & \\
-Attachment points on the structure, described or sketched & & \\
-Tether approach angle relative to the camera baseline & \textdegree & \\
-Distance from the camera baseline to the nearest and farthest tether point & m & \\
-Working volume of the structure: width, height, depth & m & \\
-\addlinespace
-\multicolumn{3}{@{}l}{\textit{Optics and cameras}} \\
-Focus distance set, and how it was judged & m, text & \\
-Aperture set & f/ & \\
-Both rings locked and marked, before the session & yes/no & \\
-Both marks unmoved, after the session & yes/no & \\
-Per camera: exposure, gain, white balance & ms, dB & \\
-Capture resolution and sensor mode used & px & \\
-\addlinespace
-\multicolumn{3}{@{}l}{\textit{Calibration}} \\
-Session directory name & text & \\
-Accepted views per tilt bin & count $\times$ 4 & \\
-Relative standard deviation of $f_x$, $f_y$ & \% & \\
-Principal point offset from centre & px, \% & \\
-Reported reprojection RMS, for the record only & px & \\
-Session reported complete by the tool & yes/no & \\
-\addlinespace
-\multicolumn{3}{@{}l}{\textit{Captures}} \\
-Capture sets obtained, against Table \ref{tab:capture-plan} & S1--S8 & \\
-Total stereo pairs & count & \\
-Inter-camera delay: median and worst & ms & \\
-Anything that went wrong, in prose & & \\
+$-89$\textdegree, Sun behind the cameras & 26.0 & 11.7 & 0 of 1 \\
+$-60$\textdegree & 39.6 & 21.3 & 2 of 16 \\
+$-30$\textdegree & 49.9 & 18.5 & 3 of 16 \\
+\textbf{0\textdegree} & \textbf{51.7} & \textbf{18.3} & 3 of 16 \\
+$+30$\textdegree & 45.4 & 19.6 & 3 of 16 \\
+$+60$\textdegree & 29.1 & 25.4 & 1 of 16 \\
+$+89$\textdegree, Sun at the far end & 0.6 & 82.1 & 0 of 1 \\
 \bottomrule
-\end{longtable}
+\end{tabularx}
+\end{table}
 
-\section{Why the scene geometry fields are there}
+\begin{table}[htbp]
+\centering
+\caption[Averages over the azimuth]{Averaging over the inclination, one row
+per azimuth. The two azimuths that keep the whole tether visible are in bold;
+note that they are not the two of highest mean contrast. Azimuth 0 counts out
+of seven rather than five because the two poles were rendered at that
+azimuth, and they drag its mean down.}
+\label{tab:sun-az}
+\small
+\begin{tabular}{@{}r r r c@{\hskip 1.0cm} r r r c@{}}
+\toprule
+\textbf{Az.} & \textbf{Contr.} & \textbf{Blind} & \textbf{Whole} &
+\textbf{Az.} & \textbf{Contr.} & \textbf{Blind} & \textbf{Whole} \\
+(\textdegree) & (levels) & (\%) & & (\textdegree) & (levels) & (\%) & \\
+\midrule
+0.0 & 36.1 & 16.4 & 3 of 7 & 180.0 & 39.6 & 38.4 & 0 of 5 \\
+\textbf{22.5} & 51.7 & \textbf{0.0} & \textbf{5 of 5} & 202.5 & 35.6 & 28.5 & 0 of 5 \\
+\textbf{45.0} & 56.1 & \textbf{0.6} & \textbf{4 of 5} & 225.0 & 31.9 & 22.5 & 0 of 5 \\
+67.5 & \textbf{58.2} & 3.7 & 0 of 5 & 247.5 & 29.2 & 16.4 & 0 of 5 \\
+90.0 & 57.2 & 11.8 & 0 of 5 & 270.0 & 28.2 & 20.2 & 0 of 5 \\
+112.5 & 54.8 & 19.4 & 0 of 5 & 292.5 & 31.1 & 25.9 & 0 of 5 \\
+135.0 & 50.9 & 27.9 & 0 of 5 & 315.0 & 35.1 & \textbf{42.1} & 0 of 5 \\
+157.5 & 45.5 & 35.2 & 0 of 5 & 337.5 & 40.3 & 33.1 & 0 of 5 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-The block headed \emph{Geometry of the scene} is not documentation for its
-own sake. The Blender validation deliverable selected a real stereo pair as
-its reference and then found it could not reproduce the scene, because the
-tether's approach angle, distance and attachment points had never been
-written down \cite{linku_blender_validation}. Those four fields exist so that
-this session's captures do not become unusable for the same reason.
+\FloatBarrier
 
-The photometry block serves the same deliverable from the other side: its
-laboratory-condition light is currently a placeholder, and these measurements
-are what replaces it.
+Twelve of the 82 directions keep the whole tether visible, 15\% of them, and
+all twelve sit at azimuth 22.5 or 45\textdegree\ with any inclination between
+$-60$ and $+60$\textdegree.
 
-\section{Files, naming and metadata}
+\textbf{That the contrast maximum and the visibility maximum do not coincide
+is not a contradiction.} At azimuth 67.5\textdegree\ the tether is brighter
+on average, 58.2 levels, but its far end has already begun to fade: 3.7\% of
+it is blind against 0.0\% at 22.5\textdegree. For a measurement of arc
+length, losing no stretch matters more than shining.
 
-The application writes each stereo pair to its own timestamped directory
-under \texttt{data/\allowbreak captures/}, with per-pair metadata including the capture
-resolution, the baseline and the inter-camera delay. That naming is
-automatic and should not be changed by hand. What has to be added is the
-mapping from directory to capture set.
+\textbf{What this says about the sweep that preceded it.} The ring already
+answered the question that matters. The sphere does not contradict it, it
+confirms it, and the confirmation is now measured rather than assumed. That
+is the whole value of the exercise, and it is worth recording that the
+reviewer who asked for it was right to ask.
 
-\begin{itemize}
-    \item Keep a plain text file in the session folder mapping each capture
-    directory to its set S1 to S8 and to a one-line description of what was
-    being done at the time. Written during the session, not after.
+\section{The two poles are not symmetric, and that is the useful result}
 
-    \item Commit the calibration session directory and every capture
-    directory, with their metadata, which is criterion A4.5. The repository
-    already versions \texttt{data/\allowbreak captures/} and
-    \texttt{data/\allowbreak calibration/}, so this is the default behaviour rather than
-    an exception, but it has to actually be done.
+At $\pm 89$\textdegree\ the beam runs nearly parallel to the tether and the
+azimuth stops meaning anything. The two directions are physically opposite
+and they give opposite results.
 
-    \item Photograph the physical setup: the fixture position, the structure
-    with the tether strung, the camera support in place, and the ring marks.
-    These go in \texttt{Images/} of this deliverable.
-\end{itemize}
+\begin{table}[htbp]
+\centering
+\caption[The two poles]{The two directions in which the Sun runs along the
+tether.}
+\label{tab:sun-poles}
+\begin{tabularx}{\textwidth}{@{}l X r r@{}}
+\toprule
+\textbf{Pole} & \textbf{Where the Sun is} & \textbf{Contrast} &
+\textbf{Blind} \\
+ & & (levels) & (\%) \\
+\midrule
+$-89$\textdegree & Behind the cameras, beam travelling away & \textbf{26.0} &
+  11.7 \\
+$+89$\textdegree & At the far end, beam travelling towards the camera &
+  \textbf{0.6} & \textbf{82.1} \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
-\section{What is deliberately not recorded}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{Images/sun_pole_renders.png}
+\caption[The two poles, as rendered]{The two poles with the perpendicular
+case between them, all three at azimuth 0 and all three enhanced identically.
+The right-hand frame is the one that matters operationally: what survives of
+the tether is the near metre or two, and the rest of its length, which is
+most of it, is gone.}
+\label{fig:sun-poles}
+\end{figure}
 
-The angular velocity of the hand motion. There is no instrumentation for it,
-and writing down an estimate would create a number that later analysis would
-be tempted to treat as a measurement. Section \ref{sec:why-by-hand} gives the
-reasoning. The rolling-shutter deliverable is where that quantity gets
-measured, with a stage that either commands or encodes the rate
-\cite{linku_rollingshutter}.
+With the Sun behind the cameras the tether is still measurable: 26 levels of
+contrast and only 12\% blind, worse than the best case but usable. With the
+Sun at the far end, into the camera, \textbf{82\% of the tether is lost} and
+what remains carries half a level.
+
+\textbf{This is the case that has to be recognised in flight, because it is
+not chosen.} If the orbital geometry puts the Sun behind the tether as seen
+from the cameras, the measurement is not poor, it is impossible, and knowing
+that in advance is worth more than attempting it. A detector for the
+condition is cheap: at $+89$\textdegree\ the usable arc collapses, so the
+fraction of the traced path that carries any contrast at all is itself the
+alarm.
+
+\section{How to read these numbers}
+
+\textbf{Contrast} is in 8-bit levels above the local background, averaged
+from 5~m onward and not from the start of the tether. The cord begins at the
+plane of the lens and its first two metres carry 1400 levels against 60 at
+20~m, so including them would make the average a measure of distance rather
+than of light.
+
+\textbf{Blind tether} is the fraction of the \emph{whole} tether below 5
+levels, which is where the mask has nothing left to segment. That one is
+counted from the start, because the question it answers is what fraction of
+the tether cannot be segmented, and the near stretch is part of the tether.
+
+Both definitions and the threshold live in one place,
+\texttt{tools/medir\_barrido.py}, and the sphere imports that function rather
+than copying it. The same function produced the studio figures of Chapter
+\ref{chap:simulation}, so the two chapters are on one scale.
+
+\section{What is left open}
+
+\begin{table}[htbp]
+\centering
+\caption[Open items from the sphere]{What the sphere does not yet answer.}
+\label{tab:sun-open}
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{\#} & \textbf{Item} \\
+\midrule
+1 & The same sphere with the IMX296 and its 6~mm. On the ring it gave half
+    the contrast, 24.3 against 50.0, and ten points more blind tether \\
+2 & Render the $-89$\textdegree\ pole at several azimuths, to confirm that
+    the azimuth really does not matter there instead of assuming it from one
+    render \\
+3 & Put the edge directions through the full pipeline and not only through
+    the measurement: contrast is not the same thing as a segmentable mask \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+An interactive viewer of all 82 directions, with the render behind each
+marker, is published alongside this document; the measurements and the
+figures are reproduced by the commands listed in the
+\texttt{RESULTADOS.md} of the experiment folder, \texttt{sol\_esfera} under
+\texttt{SIMULATION/experimentos/}.

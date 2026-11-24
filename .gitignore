@@ -140,3 +140,13 @@ data/results/tracer_oracle.json
 # si esta versionado, y se rehacen con tools/armar_esfera_web.py en un
 # minuto. Son 6 MB de copias realzadas que ademas no sirven para medir.
 SIMULATION/experimentos/sol_esfera/web/
+
+# Las figuras en ingles son una copia derivada: misma figura, el texto pasado
+# por tools/idioma.py. Lo que se versiona es la fuente en espanol, que esta al
+# lado, y la copia que usa el entregable, que vive en su propia carpeta
+# Images/. Se rehacen con: python tools/fig_cuarto.py --idioma en, lo mismo
+# para fig_esfera y fig_renders, y python tools/fig_al_informe.py
+SIMULATION/experimentos/**/*_en.png
+
+# bibtex deja su log al lado del PDF
+Documentation/**/pdf/*.blg

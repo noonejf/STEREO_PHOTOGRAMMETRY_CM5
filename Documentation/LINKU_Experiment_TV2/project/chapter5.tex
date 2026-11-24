@@ -1,190 +1,514 @@
-\chapter{Session procedure}
-\label{chap:procedure}
+\chapter{The session simulated before it is run}
+\label{chap:simulation}
 
-\section{Why the order matters}
+Until 23 November 2026 this document specified the illumination as a set of
+properties a fixture had to have, because the fixtures were unknown. On that
+date the studio answered the inventory question: TV2 holds \textbf{four
+Aputure STORM 1200x and two Aputure LS 1200d Pro}, and nothing else of that
+class. Every simulation the project had run until then lit the tether with
+twelve $1 \times 1$~m soft panels, which was an assumption of ours and not a
+description of the room.
 
-The sequence below is not a checklist that can be reordered for convenience.
-The geometric settings are fixed before the photometric ones for a specific
-reason: \textbf{moving a fixture to correct uniformity changes the
-illuminance, while dimming it does not change the uniformity}. Settle
-position and aim first, then level. Doing it the other way round means
-measuring the light twice.
+The room was therefore rebuilt in Blender with the fixtures that exist, and
+the whole family of arrangements was rendered on 24 November 2026. This
+chapter records what came out. It is written here, before the procedure, for
+one reason: three of its results change an instruction in Chapter
+\ref{chap:procedure}, and one of them reverses an instruction the project had
+been following.
 
-The same logic places calibration after the optics are locked and before any
-experimental capture, and places the stray-light check before everything,
-because a room that is not actually dark invalidates every photometric number
-measured in it.
+\textbf{Status of everything in this chapter.} It is \emph{simulated}, not
+measured in the room. Cycles renders at 24 samples and full sensor
+resolution, $4056 \times 3040$, with the photometry traced from the
+manufacturer's candela figures. The session's own photometer readings
+supersede every number here, and Section \ref{sec:sim-open} lists what has to
+be measured before any of it is trusted. What the simulation is good for is
+the opposite of a measurement: it is the only way to compare arrangements
+that will never both be built.
 
-\begin{figure}[htbp]
-\centering
-\begin{tikzpicture}[
-  node distance = 6mm and 10mm,
-  box/.style  = {draw, rounded corners=2pt, align=center, inner sep=4pt,
-                 font=\small, minimum height=8mm, text width=30mm},
-  gate/.style = {draw, align=center, inner sep=4pt, font=\small\itshape,
-                 minimum height=8mm, text width=30mm},
-  ar/.style   = {-{Stealth[length=2mm]}}
-]
-\node[box] (s1) {1. Darken \\ and check};
-\node[box, below=of s1] (s2) {2. Warm up};
-\node[box, below=of s2] (s3) {3. Place and aim \\ (geometry)};
-\node[gate, below=of s3] (s4) {4. Uniformity \\ grid};
-\node[box, below=of s4] (s5) {5. Level and \\ record lux};
-\node[box, right=22mm of s1] (s6) {6. Set and lock \\ the optics};
-\node[box, below=of s6] (s7) {7. Flicker test};
-\node[box, below=of s7] (s8) {8. Calibrate on \\ the support};
-\node[box, below=of s8] (s9) {9. Run the \\ experiment};
-\node[box, below=of s9] (s10) {10. Check marks, \\ complete record};
-
-\draw[ar] (s1) -- (s2);
-\draw[ar] (s2) -- (s3);
-\draw[ar] (s3) -- (s4);
-\draw[ar] (s4) -- (s5);
-\draw[ar] (s5.east) -- ++(6mm,0) |- (s6.west);
-\draw[ar] (s6) -- (s7);
-\draw[ar] (s7) -- (s8);
-\draw[ar] (s8) -- (s9);
-\draw[ar] (s9) -- (s10);
-
-\draw[ar] (s4.west) -- ++(-8mm,0) |- node[pos=0.25, left, font=\scriptsize,
-          align=right] {fails \\ A2.4} (s3.west);
-\end{tikzpicture}
-\caption[Session procedure]{The session procedure. The only loop is the
-uniformity check returning to fixture placement, because correcting
-uniformity means moving a fixture, which changes the illuminance and
-invalidates any level already measured.}
-\label{fig:procedure}
-\end{figure}
-
-\section{The ten steps}
-
-\begin{enumerate}
-    \item \textbf{Darken the room.} Close, cover, and rig the black
-    background. Verify with a frame from each camera at the longest exposure
-    that will be used, with the fixture off. Nothing recognisable may appear.
-    Anything visible is stray light and must be eliminated before continuing.
-    This is criterion A2.1.
-
-    \item \textbf{Warm up the fixture} for the manufacturer's stated time
-    before measuring anything. For HMI this is several minutes. If a
-    spectroradiometer is used, EBU recommends at least 30 minutes for the
-    instrument itself \cite{ebu_tech3355}.
-
-    \item \textbf{Place and aim.} Position the fixture at the greatest throw
-    the room allows and set its aim. Run the penumbra test of Section
-    \ref{sec:penumbra} and record the width. This is criterion A2.3.
-
-    \item \textbf{Map the uniformity.} Take a lux grid across width, height
-    and depth of the working volume. If criterion A2.4 fails, move the
-    fixture and return to step 3. Do not attempt to fix uniformity by
-    dimming.
-
-    \item \textbf{Record the level.} Illuminance at the tether position,
-    against criterion A2.5. Also record the grid minimum and maximum from
-    step 4 and the measured colour temperature.
-
-    \item \textbf{Set and lock the optics.} Aperture wide open, focus set by
-    eye on the live full-resolution image with the tether in place, then both
-    rings tightened and marked. Photograph the marks.
-
-    \item \textbf{Flicker test.} White card, shortest exposure in use, one
-    frame from each camera. Look for banding. This is criterion A2.7. If it
-    fails, the fixture or its ballast mode has to change, and steps 3 to 5
-    are repeated for the replacement.
-
-    \item \textbf{Calibrate} on the integrated support, in place, following
-    Section \ref{sec:calib-run}.
-
-    \item \textbf{Run the experiment} following Section \ref{sec:capture-plan},
-    touching nothing on the optics.
-
-    \item \textbf{Close out.} Check the ring marks against the photographs
-    from step 6 and record whether they moved. Complete every field of the
-    record sheet. Copy the captures off the device.
-\end{enumerate}
-
-\section{Running the calibration}
-\label{sec:calib-run}
-
-The application's guided flow does the bookkeeping. The operator's job is
-physical.
-
-The tool asks for one pose at a time and draws its outline in both camera
-previews. A frame is captured only when it is sharp over the board region,
-momentarily still, visible to \emph{both} cameras, and on the pose currently
-being asked for. A rejected frame does not consume a slot, so a request for
-25 views yields 25 that passed every gate.
-
-Three practical points for the operator:
-
-\begin{itemize}
-    \item \textbf{Stand back and hold the board yourself.} The flow is built
-    for a single person holding the board at a distance and matching the
-    drawn outline. The preview is sized so it remains readable from across
-    the room.
-
-    \item \textbf{The strongly tilted poses are the point.} The bins at 30 to
-    45\textdegree{} and 45 to 70\textdegree{} are the ones no archived session
-    ever reached, and they are the ones that make the focal length
-    recoverable. If a pose cannot be physically reached, use \emph{Finish with
-    the views collected}; that is the deliberate way out, and the session
-    reports itself as incomplete rather than pretending otherwise.
-
-    \item \textbf{Watch the uncertainty, not the residual.} The progress
-    indicator is driven by parameter uncertainty from the fit covariance, not
-    by a frame count and not by the reprojection error. A session is finished
-    when the uncertainty stops falling, not when a number of frames has been
-    reached.
-\end{itemize}
-
-At the end, evaluate Table \ref{tab:crit-calib}. If A1 fails, the experiment
-can still be run, but Chapter \ref{chap:analysis} will report lengths in
-pixels and ratios rather than in metres, and criterion A3.5 is void.
-
-\section{The capture plan}
-\label{sec:capture-plan}
-
-Both the tether and the rig are moved by hand. The plan is organised so that
-the simplest configurations are captured first, while everything is known to
-be working, and the hardest last.
+\section{The fixtures the studio has}
 
 \begin{table}[htbp]
 \centering
-\caption[Capture plan]{Capture sequence. Each configuration is captured as
-several stereo pairs, so that a failure in any one pair does not cost the
-configuration. Counts are a minimum.}
-\label{tab:capture-plan}
-\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\caption[Studio fixtures]{The two fixture types held by TV2, from the
+manufacturer's data sheets versioned in \texttt{Sources/luminarias/}
+\cite{aputure_storm1200x_manual, aputure_ls1200d_photometrics}. The intensity
+column is the on-axis figure, obtained as $I = E d^2$ from the published lux
+at distance table and checked against all four distances each sheet gives,
+with spread below 5\%: these fixtures behave as point sources and the inverse
+square law holds. ``In the box'' marks the reflector that ships with the
+fixture; the others are a separate purchase and the studio has not yet been
+asked whether it owns them.}
+\label{tab:fixtures}
+\begin{tabularx}{\textwidth}{@{}l r r r l X@{}}
 \toprule
-\textbf{Set} & \textbf{Configuration} & \textbf{Pairs} \\
+\textbf{Fixture} & \textbf{Units} & \textbf{W} & \textbf{Reflector} &
+\textbf{Intensity} & \textbf{Notes} \\
 \midrule
-S1 & Tether taut and static, whole length in frame in both cameras. The
-     reference set for A3.5 and A3.6 & $\geq 5$ \\
-S2 & Tether with deliberate sag, static & $\geq 3$ \\
-S3 & Tether static, camera rig moved slowly by hand & $\geq 5$ \\
-S4 & Tether static, camera rig moved erratically & $\geq 5$ \\
-S5 & Tether in motion, rig static & $\geq 5$ \\
-S6 & Both in motion, erratic. The nominal case & $\geq 10$ \\
-S7 & Tether arranged with a deliberate self-crossing, static & $\geq 3$ \\
-S8 & One endpoint deliberately out of frame in one camera only &
-     $\geq 3$ \\
+Aputure STORM 1200x & 4 & 1550 & 45\textdegree, in the box & 178\,592~cd &
+  2500 to 10\,000~K, High-Speed mode available \\
+                    &   &      & 30\textdegree, separate   & 372\,538~cd & \\
+                    &   &      & 15\textdegree, separate   & 836\,700~cd & \\
+Aputure LS 1200d Pro & 2 & 1440 & 45\textdegree, in the box & 128\,365~cd &
+  5600~K fixed, flicker free to 2000~frame/s \\
+                     &   &      & 30\textdegree, in the box & 217\,055~cd & \\
+                     &   &      & 15\textdegree, in the box & 724\,045~cd & \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\textbf{S1 is the measurement set.} It is the only one where an external
-reference exists, because the tether is taut and its length has been
-tape-measured. Everything else is an exercise of robustness.
+Two properties of this inventory decide the montage before any render is
+made.
 
-\textbf{S7 exists to characterise the tracker, not to pass.} A self-crossing
-is where the automatic tracker has to choose a branch using a hand-tuned
-scoring formula, and it is the case the project expects to be weakest.
-Capturing it deliberately turns an anticipated weakness into a measurement,
-and the pairs feed the path dataset whether the tracker succeeds or not.
+\textbf{These are projectors, not panels.} A $1 \times 1$~m panel at 2~m above
+the tether bathes its own stretch; a 45\textdegree\ cone at 2~m lights a
+circle 1.66~m across and leaves the rest dark. The consequence is not that
+less light arrives, it is that the row has to be \emph{higher} and the tether
+\emph{lower} so that the cone footprints overlap. That is why the geometry
+below puts the fixtures at 6.0~m and the tether at 1.5~m, and why the floor
+enters the frame, which in turn is why Section \ref{sec:sim-cloth} exists.
 
-\textbf{S8 exists to provoke a silent failure.} The parametric matching
-assumption breaks when the two traced paths do not cover the same physical
-extent, and nothing in the pipeline detects it. Deliberately occluding one
-endpoint in one camera creates that condition on purpose, so that the size
-and the sign of the resulting error can be seen for the first time against
-the tape-measured length from S1.
+\textbf{Mixing the two models along one row is allowed here and nowhere
+else.} Parameter L1 forbids mixing fixture types along a row, and the
+recommended arrangement mixes four STORM with one LS. The prohibition is
+about the \emph{direction and colour} of the light, not about the badge: all
+five carry the same 45\textdegree\ reflector, all five point the same way,
+and the STORM units are set to 5600~K to match the LS, which is fixed there.
+What differs is only on-axis intensity, 178\,592 against 128\,365~cd, and
+that shows up as one dimmer stretch rather than as a second shadow. Where
+that stretch falls is not left to chance: the row is ordered by intensity
+from the outside in, so the weakest unit lands in the middle, where it gets
+the most help from both of its neighbours. With four equal STORM units and
+one LS that puts the LS at $y = 11.0$~m.
+
+\section{The montage that follows}
+\label{sec:sim-montage}
+
+\begin{table}[htbp]
+\centering
+\caption[Recommended arrangement]{The arrangement the simulation
+recommends, which is variant \texttt{TV2RECTO} in
+\texttt{SIMULATION/render\_studio\_iterations.py}. Positions are measured
+from the camera wall, along the tether.}
+\label{tab:montage}
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{Item} & \textbf{Value} \\
+\midrule
+Fixtures & 5 of the 6 available: 4 STORM 1200x and 1 LS 1200d Pro \\
+Reflector & 45\textdegree\ on all five, the one that ships in the box \\
+Colour temperature & 5600~K on all five, the STORM units set to match the LS \\
+Height of the row & 6.0~m above the floor \\
+Positions & $y = 2.0$, 6.5, 11.0, 15.5 and 20.0~m, the LS at 11.0 \\
+Aim & Straight down. Each fixture sits above the stretch it lights \\
+Tether & 18~m span at 1.5~m above the floor, from $y = 2.0$ to $y = 20.0$ \\
+Floor & Black molton over the full lit length, see Section
+         \ref{sec:sim-cloth} \\
+Electrical load & 7.64~kW \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{Images/sim_montage_threequarter.jpg}
+\caption[The recommended arrangement, three-quarter view]{The recommended
+arrangement seen from three quarters. Five 45\textdegree\ cones pointing
+straight down, 4.5~m apart at 6.0~m, over an 18~m tether at 1.5~m on black
+molton. The small cube at the near end is the stereo pair. The cones are drawn
+as geometry, not as light: what they show is the footprint, and the thing to
+read in this view is that neighbouring footprints overlap, which is the whole
+reason for the 6.0~m height.}
+\label{fig:montage-34}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}{\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{Images/sim_montage_elevation.jpg}
+  \caption{Elevation. The 4.5~m spacing against the 4.5~m throw.}
+\end{subfigure}
+\par\bigskip
+\begin{subfigure}{\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{Images/sim_montage_plan.jpg}
+  \caption{Plan. The cameras look along the tether, not across it.}
+\end{subfigure}
+\caption[The recommended arrangement, elevation and plan]{The same
+arrangement in elevation and in plan. Both are rendered from the Blender
+scene the measurements were made in, so the diagram and the numbers cannot
+drift apart.}
+\label{fig:montage-elev}
+\end{figure}
+
+\FloatBarrier
+
+\section{Illuminance along the tether}
+\label{sec:sim-lux}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{Images/sim_lux_profile.png}
+\caption[Illuminance along the tether]{Illuminance along the tether for the
+recommended row and for three alternatives, on a logarithmic axis. The
+triangles mark the five fixtures of the recommended row. The red curve, five
+fixtures at only 0.5~m above the tether, is not a proposal: it is the control
+that shows what happens when the cone footprints do not touch, and it falls
+to 1~lx between fixtures while its peaks run off the top of the plot. The
+two blue curves and the green one differ by less than the thickness of the
+R5 line over most of the span, which is the point: the row is not short of
+power, it is a question of whether the footprints meet.}
+\label{fig:lux-profile}
+\end{figure}
+
+The row of five clears requirement R5 along the whole span. Its worst point
+is 4419~lx against the 3600~lx the illumination deliverable derives
+\cite{linku_darkroom_illumination}, which is 123\% of the requirement, and
+its best point is 9117~lx, so the uniformity ratio is 0.485 worst to best.
+
+That uniformity figure is the one number in this chapter that is worse than
+the twelve-panel arrangement it replaces, and it is the open item of Section
+\ref{sec:sim-open}: a cone has a footprint and a panel does not, so a row of
+projectors buys contrast at the cost of evenness. Whether 0.485 still passes
+criterion A3.1 has not been re-tested on this arrangement.
+
+\begin{table}[htbp]
+\centering
+\caption[Predicted illuminance along the tether]{Predicted illuminance every
+1.5~m along the tether for the arrangement of Table \ref{tab:montage}. This
+table exists to be compared against the photometer on session day, which is
+the measurement that settles it. ``Facing the light'' is the cell pointed at
+the fixtures, which is the orientation to use; ``horizontal'' is the cell
+laid flat, which reads lower and is what a meter put down on the structure
+would give. Point source model with a $\cos^n$ off-axis profile, no wall
+bounce and no losses: Section \ref{sec:sim-photometry} measures the render
+delivering about 30\% more than this, so these are the pessimistic figures.}
+\label{tab:lux-profile}
+\begin{tabular}{@{}r r r@{\hskip 2cm} r r r@{}}
+\toprule
+\textbf{Position} & \textbf{Facing} & \textbf{Horizontal} &
+\textbf{Position} & \textbf{Facing} & \textbf{Horizontal} \\
+(m) & (lx) & (lx) & (m) & (lx) & (lx) \\
+\midrule
+ 2.0 & 9\,033 & 8\,970 & 12.5 & 4\,507 & 4\,176 \\
+ 3.5 & 6\,280 & 5\,790 & 14.0 & 5\,283 & 4\,950 \\
+ 5.0 & 6\,224 & 5\,720 & 15.5 & 7\,346 & 7\,198 \\
+ 6.5 & 9\,080 & 8\,950 & 17.0 & 5\,915 & 5\,490 \\
+ 8.0 & 5\,655 & 5\,261 & 18.5 & 6\,087 & 5\,646 \\
+ 9.5 & 4\,634 & 4\,278 & 20.0 & 9\,033 & 8\,970 \\
+11.0 & 5\,336 & 5\,170 &      &        &        \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\FloatBarrier
+
+\section{The beam points straight down}
+\label{sec:sim-beam}
+
+This is the result that reverses an instruction. Every simulation the project
+had run tilted the beam 40\textdegree, and the argument written into the
+scene builder was that a beam from above lights the \emph{top} face of the
+cylinder while the cameras look at its \emph{side}, so the beam should be
+tilted to put light where the cameras are looking.
+
+That argument holds in the side view and says nothing about the axis view,
+which is the primary one. There the camera looks \emph{along} the tether,
+which stays within three degrees of the optical axis, so of each stretch it
+does not see the side of the cylinder: it sees the \textbf{limb}, whose
+normals point along $x$ and along $z$. A vertical beam lights the $+z$ normal,
+which is on the limb. A tilted beam spends part of its flux on a normal along
+$y$, which is not visible from anywhere.
+
+\begin{table}[htbp]
+\centering
+\caption[Beam tilt against cord contrast]{Cord contrast against beam tilt,
+same scene and same electrical power throughout, measured on the rendered
+frame and not predicted. Contrast is in 8-bit levels above the local
+background, averaged from 5~m onward.}
+\label{tab:tilt}
+\begin{tabular}{@{}r r r@{}}
+\toprule
+\textbf{Beam tilt} & \textbf{Cord contrast} & \textbf{Against vertical} \\
+\midrule
+\textbf{0\textdegree} & \textbf{112.9} & --- \\
+20\textdegree & 104.8 & $-7$\% \\
+30\textdegree & 98.8 & $-13$\% \\
+50\textdegree & 80.9 & $-28$\% \\
+60\textdegree & 65.6 & $-42$\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption[The three-way aiming test]{The three-way test, which separates the
+tilt from its direction. All three have the tether shifted to $y = 5.0$~m so
+that the three fit in the same room: tilting moves each fixture 3.78~m
+upstream of the stretch it lights, and with the beam aimed along $+y$ the
+first fixture would otherwise fall outside the wall. The two contrast columns
+are the two definitions of Section \ref{sec:sim-contrast}; the ordering is
+the same in both, so no conclusion here depends on which is used.}
+\label{tab:threeway}
+\begin{tabularx}{\textwidth}{@{}X r r@{}}
+\toprule
+\textbf{Where the beam points} & \textbf{Dark background} &
+\textbf{Whole tether} \\
+\midrule
+\textbf{Straight down} & \textbf{110.6} & \textbf{90.7} \\
+Tilted 40\textdegree\ towards the cameras & 89.5 & 76.1 \\
+Tilted 40\textdegree\ towards the far end & 86.0 & 72.8 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{Images/sim_beam_renders.png}
+\caption[The three-way aiming test, as rendered]{The three frames the
+three-way test measures. The white dot in the middle frame is a fixture
+inside the field of view, which is the second reason the vertical beam wins
+and is discussed below. The frames are gamma-enhanced so the cord can be seen
+on paper; no measurement comes from the enhanced copies.}
+\label{fig:beam-renders}
+\end{figure}
+
+\textbf{The direction of the tilt barely matters; tilting is what costs.}
+Towards the cameras and away from them differ by 3.5 levels, while either one
+differs from vertical by more than twenty.
+
+\textbf{It is not a shortage of light.} Measured with the point source model,
+tilting 40\textdegree\ does not lower the worst point, it raises it slightly,
+from 4419 to 4597~lx, because an oblique cone stretches its footprint along
+the tether. So the contrast that tilting costs is not light that failed to
+arrive, it is light placed on a face the camera cannot see.
+
+\textbf{It does not lose in the side view either.} There the cord ties, 93.6
+vertical against 94.6 tilted, and what changes is the background: mean 9.8
+levels with 20\% of the frame lit, against 16.5 with 56\%. Tilting the beam
+towards the camera throws light onto the floor and the wall that are in shot.
+
+\textbf{And it keeps the fixture out of frame, which is parameter L7.}
+Counted on the rendered frames, pixels above level 230 number zero with the
+vertical beam, zero with the beam tilted away from the cameras, and
+\textbf{3064 with the beam tilted towards them}, which is one fixture inside
+the field of view. The twelve-panel arrangement puts 157\,838 such pixels in
+the frame, 1.28\% of it, which is a whole panel in shot. L7 was written as a
+rigging instruction; here it turns out to follow from the aiming decision.
+
+\textbf{What this saves on the day.} With a vertical beam each fixture hangs
+directly above the stretch it lights, instead of 3.78~m upstream of it. It is
+easier to rig, easier to check with a plumb line, and easier to explain to
+the studio technician.
+
+\section{The floor covering stops being a recommendation}
+\label{sec:sim-cloth}
+
+\begin{table}[htbp]
+\centering
+\caption[Floor covering]{Black molton against bare wood, same arrangement and
+same power. The albedos are \textbf{assumed}, not measured, and measuring
+them is the first item of Section \ref{sec:sim-open}.}
+\label{tab:floor}
+\begin{tabularx}{\textwidth}{@{}X r r r@{}}
+\toprule
+\textbf{Floor} & \textbf{Mean background} & \textbf{Frame above 10} &
+\textbf{Cord contrast} \\
+ & (levels) & (\%) & (levels) \\
+\midrule
+Black molton, albedo 0.04 & 17.5 & 35.8 & 91.1 \\
+Bare wood, albedo 0.30 & 50.2 & 36.8 & 101.7 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The mean background triples. The cord contrast \emph{rises} with the bare
+floor, because a pale floor bounces light back onto the cord, and that is not
+an argument for the wood: what the mask has to solve is not the local
+contrast of the cord but how much bright background has to be discarded
+before reaching it. A 50-level floor filling the lower third of a
+$4056 \times 3040$ frame is the dominant feature of the image, and the
+segmenter was neither trained nor tuned for that.
+
+Two cautions on these two rows. The albedos are assumed, 0.04 and 0.30. And
+varnished wood is not Lambertian: it sends a specular reflection towards the
+camera that this model does not reproduce, so 0.30 diffuse is the optimistic
+version of the problem.
+
+\section{What the cameras see}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{Images/sim_room_renders.png}
+\caption[The simulated arrangements as the left camera sees them]{The six
+arrangements as the left camera records them, same scale and same enhancement
+in all six. Top left is the recommended one. The white dot in the two tilted
+frames and the white trapezoid in the twelve-panel frame are fixtures inside
+the field of view. The bottom right frame is the side view, where the tether
+crosses the frame instead of running away from it. All six are gamma-enhanced
+so the cord survives being printed: the cord carries a few tens of levels
+over a background near zero, which is ample for the sensor and invisible on
+paper. No number in this chapter comes from the enhanced copies.}
+\label{fig:room-renders}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\caption[The simulated family]{Every arrangement rendered on 24 November
+2026, in the axis view unless stated. ``Dark background'' and ``whole
+tether'' are the two contrast definitions of Section
+\ref{sec:sim-contrast}. The predicted worst point is the point source model,
+not the render.}
+\label{tab:family}
+\begin{tabularx}{\textwidth}{@{}X r r r r r@{}}
+\toprule
+\textbf{Arrangement} & \textbf{Units} & \textbf{kW} &
+\textbf{Whole tether} & \textbf{Dark bg.} & \textbf{Worst point} \\
+ & & & (levels) & (levels) & (lx) \\
+\midrule
+\textbf{Vertical beam, molton} & 5 & 7.64 & \textbf{92.4} & \textbf{112.9} &
+  4419 \\
+Same, tilted 40\textdegree & 5 & 7.64 & 77.3 & 91.1 & 4597 \\
+Same, bare wood floor & 5 & 7.64 & 76.0 & 101.7 & 4597 \\
+Six fixtures, 20~m tether & 6 & 9.08 & 77.9 & 90.3 & 5139 \\
+Twelve $1 \times 1$~m panels & 12 & 9.62 & 59.5 & 68.2 & --- \\
+Taut tether, no wave & 5 & 7.64 & 76.8 & 76.8 & 4964 \\
+Side view, tilted 40\textdegree & 5 & 7.64 & 94.6 & --- & --- \\
+Side view, vertical & 5 & 7.64 & 93.6 & 93.6 & --- \\
+IMX296 with the 6~mm & 5 & 7.64 & 38.4 & 44.4 & 4597 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\FloatBarrier
+
+Three readings of that table are worth stating.
+
+\textbf{The five real fixtures beat the twelve assumed panels}, 112.9 against
+68.2, with two kilowatts less. This is not five projectors out-lighting
+twelve panels: it is that a projector concentrates its flux into a cone while
+a panel spreads it over a hemisphere, and in the arithmetic of the row that
+outweighs the unit count. What the twelve panels buy is uniformity, and
+uniformity is not what limits the measurement here.
+
+\textbf{The IMX296 with its 6~mm loses by half}, 44.4 against 91.1 in the
+same room. This agrees with the orbital sweep of Chapter \ref{chap:sun},
+where it gave 24.3 against 50.0 averaged over sixteen azimuths. The cause is
+not noise: the cord subtends 0.58~px at 3~m against 1.72~px for the IMX477
+with its 8~mm, which is the optical constraint already recorded for that
+sensor.
+
+\textbf{The taut tether scores lower than the wavy one}, 76.8 against 77.3,
+and the two contrast definitions coincide for it. A straight cord lies in one
+plane and receives the same grazing illumination along its whole length,
+while the wave carries parts of the cord into the bright centre of a
+footprint. This matters for the session only as a warning not to read the
+tether's contrast as a property of the lighting alone.
+
+\section{The photometric chain closes}
+\label{sec:sim-photometry}
+
+Every number above rests on a chain that runs from the manufacturer's candela
+figure, through watts in Blender, to a pixel level. The chain was checked at
+both ends, because a silent factor anywhere in it would invalidate the whole
+chapter.
+
+\textbf{The candela to watt conversion of a spot, measured and not assumed.}
+A Blender spot has intensity $P/(4\pi)$~W/sr whether or not it has a cone:
+narrowing the cone masks the beam, it does not concentrate it. A white
+Lambertian plane at 5~m under a spot of $4\pi$~W returned 0.012715 against
+the 0.012732 that the isotropic reading predicts, a ratio of 0.9986, and a
+point light of the same power gave an identical pixel. The factor between the
+plausible conventions is 4, so getting it wrong would have rendered
+everything here four times too dark.
+
+\textbf{The lux, recovered from the floor.} The molton is a Lambertian plane
+of known albedo, so a linear OpenEXR render can be inverted with
+$E = \pi L / \rho$ and converted from radiometric to photometric with a
+luminous efficacy of 97.58~lm/W. Over twenty-four floor points between 7.1
+and 20.4~m:
+
+\begin{table}[htbp]
+\centering
+\caption[Render against model]{Illuminance recovered from the rendered floor,
+divided by what the point source model predicts at the same point.}
+\label{tab:photometry}
+\begin{tabularx}{\textwidth}{@{}X r l@{}}
+\toprule
+\textbf{Arrangement} & \textbf{Median ratio} & \textbf{Range} \\
+\midrule
+Beam tilted 40\textdegree & 1.32 & 0.79 to 1.49 \\
+Beam vertical & 1.27 & 0.85 to 1.66 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The render delivers about 30\% more than the model. That is the direction and
+the order of magnitude the model itself predicts, since it ignores wall
+bounce and truncates the tail of the beam where the data sheet has one. The
+spread reflects the other known difference: the model extends the beam with a
+raised cosine, $n = 8.70$ for a 45\textdegree\ beam, while the scene uses a
+cone of 75\textdegree\ field angle with a blend of 0.8. The two agree at the
+half-peak point by construction and not in the tail, and the tail is exactly
+what fills the gaps between fixtures.
+
+\textbf{So Table \ref{tab:lux-profile} is the pessimistic bound}, which is
+the useful direction for a figure that a criterion is checked against.
+
+\section{Two definitions of contrast, and why there are two}
+\label{sec:sim-contrast}
+
+The contrast measurement used throughout this project discards samples whose
+local background exceeds 20 levels, because in the orbital case and in the
+studio with the tether at 5~m the only thing that can sit behind the cord and
+be bright is a fixture in shot.
+
+\textbf{With the tether at 1.5~m that threshold no longer means that.} The
+floor enters the frame at 5.1~m, so behind the cord there is lit molton,
+which passes 20 levels on its own. In the recommended arrangement the filter
+discards 22\% of the tether and raises the contrast from 77.3 to 91.1; in the
+side view it discards 100\% and returns no value at all.
+
+Both are therefore reported. \textbf{Whole tether} is what the mask actually
+has to solve. \textbf{Dark background} is what compares with everything
+measured before the tether came down to 1.5~m. The ordering of the
+arrangements is the same under both, so no conclusion in this chapter depends
+on the choice.
+
+\section{What this does not settle}
+\label{sec:sim-open}
+
+\begin{table}[htbp]
+\centering
+\caption[Open items from the simulation]{What has to be measured or decided
+before the simulated figures are trusted.}
+\label{tab:sim-open}
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{\#} & \textbf{Item} \\
+\midrule
+1 & Measure the albedo of the molton and of the bare floor. Both are assumed
+    here, 0.04 and 0.30, and both feed every background figure \\
+2 & Photometer readings every 2 to 3~m along the tether, cell facing the
+    fixtures, against Table \ref{tab:lux-profile} \\
+3 & Re-run the A3 criteria dry run on this arrangement. Uniformity with cones
+    is 0.485, much worse than with panels, and whether A3.1 survives it has
+    not been tested \\
+4 & Ask the studio whether it holds the 15\textdegree\ and 30\textdegree\
+    reflector kits for the STORM units, which are a separate purchase and
+    would change the whole arrangement \\
+5 & Confirm the flicker behaviour of both models on site, criterion A2.7. The
+    data sheets claim flicker-free operation; the sheet is not the
+    measurement \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{How to reproduce the whole chapter.} The scenes, the renders, the
+measurements and the figures come from one command each, listed in the
+\texttt{RESULTADOS.md} of the experiment folder,
+\texttt{estudio\_luminarias\_reales} under
+\texttt{SIMULATION/experimentos/}.
+The fixture data lives once, in \texttt{tools/calculadora\_luz.py}, and the
+Blender scene imports it from there, so the data sheet, the predicted lux and
+the rendered scene cannot disagree.

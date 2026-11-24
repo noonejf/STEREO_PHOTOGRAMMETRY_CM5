@@ -47,6 +47,11 @@ if HERE not in sys.path:
 
 import build_tv2_studio as S  # noqa: E402
 
+_TOOLS = os.path.join(ROOT, "tools")
+if _TOOLS not in sys.path:
+    sys.path.insert(0, _TOOLS)
+import idioma as I  # noqa: E402
+
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import calculadora_luz as CL  # noqa: E402
 
@@ -680,7 +685,7 @@ def _render(nombre, cam, samples, ancho=1920, alto=1080):
         pass
     os.makedirs(SALIDA, exist_ok=True)
     scene.camera = cam
-    path = os.path.join(SALIDA, f"{nombre}.png")
+    path = os.path.join(SALIDA, f"{nombre}{I.sufijo()}.png")
     scene.render.filepath = path
     print(f"[escenario] {nombre} -> {path}", flush=True)
     bpy.ops.render.render(write_still=True)
@@ -691,8 +696,12 @@ def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     ap = argparse.ArgumentParser()
     ap.add_argument("--samples", type=int, default=96)
+    ap.add_argument("--idioma", default="es", choices=("es", "en"),
+                    help="los rotulos de los diagramas. En ingles el "
+                         "archivo sale con _en pegado al nombre")
     ap.add_argument("--only", default="")
     args = ap.parse_args(argv)
+    I.usar(args.idioma)
     pedidas = {s.strip() for s in args.only.split(",") if s.strip()}
 
     def quiere(n):
@@ -755,20 +764,19 @@ def main():
             hechos.append(_render("tv2_tres_cuartos", cam, args.samples))
         if quiere("tv2_elevacion"):
             for txt, loc, tam in (
-                    ("5 luminarias reales a 6.0 m: 4 STORM 1200x + 1 LS 1200d Pro",
-                     (2.0, 2.2, 6.55), 0.62),
-                    ("haz vertical: medido, inclinarlo cuesta hasta el 42 % "
-                     "del contraste del cordon", (2.0, 2.2, 5.95), 0.52),
+                    ("5 luminarias reales a 6.0 m: 4 STORM 1200x + 1 LS "
+                     "1200d Pro", (2.0, 1.4, 6.6), 0.66),
+                    ("haz vertical, medido", (2.0, 1.4, 5.95), 0.58),
                     ("cono de 45 grados: tiro 4.50 m, huella 3.73 m",
-                     (2.0, 6.2, 4.35), 0.55),
+                     (2.0, 6.2, 4.35), 0.6),
                     ("cable 1 mm (dibujado x150), 18 m, a 1.5 m del piso",
-                     (2.0, 4.0, 2.25), 0.62),
-                    ("par estereo, base 100 mm", (2.0, -1.2, 1.15), 0.55),
+                     (2.0, 4.0, 2.25), 0.66),
+                    ("par estereo, base 100 mm", (2.0, -1.6, 1.15), 0.58),
                     ("molton negro sobre el piso de madera",
-                     (2.0, 3.0, 0.22), 0.55),
+                     (2.0, 3.0, 0.22), 0.58),
                     ("techo del estudio a 10 m, no dibujado",
-                     (2.0, 13.0, 9.3), 0.55)):
-                _texto(txt, loc, E_ELEV, tam, tinta)
+                     (2.0, 12.4, 9.3), 0.58)):
+                _texto(I.t(txt), loc, E_ELEV, tam, tinta)
             cam = camara_vista("TV2Elevacion", (14.0, 10.5, 4.2),
                                orto=26.0, euler=E_ELEV)
             hechos.append(_render("tv2_elevacion", cam, args.samples))
@@ -777,12 +785,12 @@ def main():
                 bpy.data.objects.remove(o, do_unlink=True)
         if quiere("tv2_planta"):
             for txt, loc, tam in (
-                    ("18 m de cable", (-4.2, 7.0, 0.06), 0.72),
-                    ("5 luminarias, una cada 4.5 m", (1.6, 5.0, 0.06), 0.62),
-                    ("par estereo", (-2.0, 0.6, 0.06), 0.62),
-                    ("molton negro, 20 x 3 m", (3.4, 14.0, 0.06), 0.62),
-                    ("15 m de ancho", (5.8, 19.0, 0.06), 0.62)):
-                _texto(txt, loc, E_PLAN, tam, tinta)
+                    ("18 m de cable", (-4.2, 7.0, 0.06), 0.76),
+                    ("5 luminarias, una cada 4.5 m", (1.6, 5.0, 0.06), 0.66),
+                    ("par estereo", (-2.0, 0.6, 0.06), 0.66),
+                    ("molton negro, 20 x 3 m", (3.4, 14.0, 0.06), 0.66),
+                    ("15 m de ancho", (5.8, 19.0, 0.06), 0.66)):
+                _texto(I.t(txt), loc, E_PLAN, tam, tinta)
             cam = camara_vista("TV2Planta", (0.0, 10.5, 9.7), orto=26.0,
                                euler=E_PLAN)
             hechos.append(_render("tv2_planta", cam, args.samples))

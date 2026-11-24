@@ -660,6 +660,13 @@ APSCO and is not edited.** The one worked on is the near-identical
 registers the acceptance criteria **in advance**; they are not to be
 re-derived at analysis time, and amending them means a dated revision of that
 chapter. Its results chapter is deliberately empty until the session is run.
+Chapters 5 and 6 are the pre-session **simulation**, the studio rebuilt with
+the fixtures it actually holds and the 82 sun directions it stands in for;
+both say at the head that the session's own measurements supersede them.
+Their figures come from `SIMULATION/experimentos/`, in the `_en` version that
+`tools/fig_al_informe.py` copies into `Images/`: the figure scripts write
+Spanish and `tools/idioma.py` translates, because the deliverable is in
+English and the repo is not.
 
 Two markdown documents sit beside the LaTeX ones:
 

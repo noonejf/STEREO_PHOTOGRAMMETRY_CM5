@@ -145,6 +145,16 @@ explicitamente los nombres con `_inc`.
 | 2 | Renderizar el polo -89 con varios azimutes, para confirmar que ahi el azimut de verdad no importa en vez de suponerlo de un solo render |
 | 3 | Pasar las direcciones del borde por la pipeline completa, no solo por el medidor: contraste no es lo mismo que mascara segmentable |
 
+## Donde esta esto en el entregable
+
+En ingles, con las tablas y las figuras, es el **capitulo 6 del informe de la
+sesion**, `Documentation/LINKU_Experiment_TV2/project/chapter6.tex`. Va
+despues del capitulo del cuarto porque el cuarto es el sustituto y esto es lo
+sustituido: acota la condicion que la sesion reproduce.
+
+Las figuras del entregable son las `_en`, que saca `tools/fig_esfera.py
+--idioma en` y copia `tools/fig_al_informe.py`.
+
 ## Como reproducir
 
 ```bash
@@ -175,5 +185,6 @@ python tools/armar_visor.py --dest <carpeta>
 | `medidas.csv` | las 82 direcciones, con la captura de cada una |
 | `fig_esfera_mapa.png` | contraste y cable ciego sobre la rejilla |
 | `fig_esfera_perfiles.png` | una curva por inclinacion |
+| `fig_renders_polos.png` | los dos polos y el caso perpendicular, vistos |
 | `web/` | miniaturas realzadas e `indice.json` para el visor. **No versionado**: se rehace con `tools/armar_esfera_web.py` |
 | `../escenario/orbita_esfera.png` | la esfera dibujada en la escena, con el sol como esfera |
