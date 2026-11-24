@@ -135,3 +135,8 @@ Thumbs.db
 data/models/mask_model_r*.pkl
 data/models/*.ckpt
 data/results/tracer_oracle.json
+
+# Las miniaturas del visor de la esfera: derivadas de data/captures, que
+# si esta versionado, y se rehacen con tools/armar_esfera_web.py en un
+# minuto. Son 6 MB de copias realzadas que ademas no sirven para medir.
+SIMULATION/experimentos/sol_esfera/web/
