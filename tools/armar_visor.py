@@ -259,8 +259,9 @@ def main():
             rango=dict(contraste=[min(cs), max(cs)], ciego=[0.0, max(zs)]),
             meta=(f"{len(ind['direcciones'])} direcciones renderizadas, "
                   f"{len(ind['azimutes'])} azimutes por "
-                  f"{len(ind['inclinaciones'])} inclinaciones mas los dos "
-                  f"polos. Contraste promediado desde 5 m; cable ciego es la "
+                  f"{len(ind['inclinaciones'])} inclinaciones, de las 82 que "
+                  f"tiene la rejilla completa. "
+                  f"Contraste promediado desde 5 m; cable ciego es la "
                   f"fraccion del cable entero bajo {UMBRAL_CIEGO:.0f} niveles "
                   f"sobre el fondo local, que es donde la mascara ya no tiene "
                   f"nada que segmentar."))

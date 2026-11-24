@@ -517,8 +517,15 @@
     }
     leyenda();
     arrastre();
-    elegir(D.esfera.inicial !== undefined
-      ? D.esfera.direcciones[D.esfera.inicial] : D.esfera.direcciones[0]);
+    // La esfera puede estar a medio renderizar, y entonces no hay nada que
+    // elegir. La pagina tiene que seguir siendo legible en ese estado en
+    // vez de romperse al cargar.
+    if (!D.esfera.direcciones.length) {
+      document.getElementById("d-titulo").textContent = "Todavia sin renders";
+      document.getElementById("d-img").remove();
+      return;
+    }
+    elegir(D.esfera.direcciones[D.esfera.inicial || 0]);
   }
 
   // ------------------------------------------------------------------ carga

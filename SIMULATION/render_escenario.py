@@ -435,7 +435,7 @@ def escena_estudio():
 
 def escena_estudio_real(spec="storm1200x:45:4,ls1200d_pro:45:1",
                         cord_z=1.5, lamp_z=6.0, y0=2.0, y1=20.0,
-                        tilt_deg=40.0, molton=True):
+                        tilt_deg=0.0, molton=True):
     """El TV2 como se va a montar el viernes 11, con las luminarias que hay.
 
     Sustituye a ``escena_estudio``, que dibuja los doce paneles de 1 x 1 m
@@ -451,8 +451,14 @@ def escena_estudio_real(spec="storm1200x:45:4,ls1200d_pro:45:1",
       mide tiene 1 mm, asi que cualquier fondo claro lo tapa, y al bajar el
       cable el piso entra en cuadro a 5.1 m en vez de a 17. El rectangulo
       oscuro del dibujo es la tela, 20 x 3 m.
-    * **las luminarias no estan sobre el punto que iluminan.** Van 3.78 m rio
-      arriba, porque inclinar es apuntar.
+    * **el haz va vertical**, y eso esta medido, no supuesto. Inclinarlo 40
+      grados cuesta el 20 % del contraste del cordon en la vista que mira a
+      lo largo del cable, porque de un cilindro visto casi de punta la camara
+      ve el limbo y un haz inclinado reparte su luz hacia una cara que no
+      esta ahi. Con el haz vertical cada luminaria va justo encima del tramo
+      que ilumina; con ``tilt_deg`` distinto de cero se corre
+      ``over * tan(tilt)`` rio arriba, 3.78 m a 40 grados, que es lo que
+      dibujaba la primera version de esta escena.
     """
     S._clear()
     ambiente()
@@ -751,16 +757,17 @@ def main():
             for txt, loc, tam in (
                     ("5 luminarias reales a 6.0 m: 4 STORM 1200x + 1 LS 1200d Pro",
                      (2.0, 2.2, 6.55), 0.62),
-                    ("cada una va 3.78 m rio arriba del punto que ilumina, "
-                     "porque inclinar es apuntar", (2.0, 2.2, 5.95), 0.52),
-                    ("cono de 45 grados, tiro de 5.87 m por el eje",
-                     (2.0, 12.6, 4.15), 0.55),
+                    ("haz vertical: medido, inclinarlo cuesta hasta el 42 % "
+                     "del contraste del cordon", (2.0, 2.2, 5.95), 0.52),
+                    ("cono de 45 grados: tiro 4.50 m, huella 3.73 m",
+                     (2.0, 6.2, 4.35), 0.55),
                     ("cable 1 mm (dibujado x150), 18 m, a 1.5 m del piso",
                      (2.0, 4.0, 2.25), 0.62),
                     ("par estereo, base 100 mm", (2.0, -1.2, 1.15), 0.55),
-                    ("molton negro sobre piso de madera",
-                     (2.0, 13.0, 0.35), 0.55),
-                    ("techo a 10 m", (2.0, 17.0, 9.3), 0.55)):
+                    ("molton negro sobre el piso de madera",
+                     (2.0, 3.0, 0.22), 0.55),
+                    ("techo del estudio a 10 m, no dibujado",
+                     (2.0, 13.0, 9.3), 0.55)):
                 _texto(txt, loc, E_ELEV, tam, tinta)
             cam = camara_vista("TV2Elevacion", (14.0, 10.5, 4.2),
                                orto=26.0, euler=E_ELEV)
