@@ -158,3 +158,40 @@ de arriba.
 - **El sol se movio en un plano perpendicular al cable.** Queda sin barrer el
   angulo entre el haz y el eje del cable, que es el otro grado de libertad y
   probablemente el que mas pesa sobre el contraste absoluto.
+
+---
+
+# Apendice: bajar el cable a 1.5 m
+
+Preguntado el 24 de noviembre de 2026, porque 5 m de altura obliga a andamio
+y 1.5 m se monta a mano. Medido con las variantes `BAJO` y `BAJOALTO`.
+
+| caso | potencia | contraste 5 a 24 m | fondo medio | cuadro encendido | cable ciego |
+|------|---------:|-------------------:|------------:|-----------------:|------------:|
+| cable 5.0 m, fila 7.0 m (hoy) | 4.88 kW | 42.6 | 0.60 | 5.1 % | 1.7 % |
+| **cable 1.5 m, fila 3.5 m** | **4.88 kW** | **41.7** | **2.91** | **32.8 %** | 1.2 % |
+| cable 1.5 m, fila 7.0 m | 19.40 kW | 53.8 | 7.11 | 44.4 % | 0.0 % |
+
+**Se puede, y no hay que recalibrar nada, si la fila baja con el cable.** Lo
+que fija la intensidad es la distancia lampara-cable, que no cambia: los
+mismos 11 661 cd y los mismos 4.88 kW. El cable se ve igual, 41.7 contra 42.6,
+y pierde algo menos de tramo.
+
+**Lo que se paga es el fondo negro.** El piso entra en cuadro a
+`altura / tan(16.4 grados)`, o sea a 17.0 m con el cable a 5 m y a **5.1 m**
+con el cable a 1.5. De los 24.5 m de cuerda pasan de tener piso detras 9.5 m a
+21.4 m, y la fraccion del cuadro por encima de 10 niveles pasa de 5.1 % a
+32.8 %.
+
+**Y eso es con el piso simulado, albedo 0.02.** Es negro mate de estudio. Un
+piso real claro o con brillo multiplica ese fondo y ahi si se rompe la
+mascara. **La condicion para bajar el cable es molton negro en el piso** desde
+los 5 m en adelante.
+
+**Dejar la fila arriba no es opcion.** Con la parrilla fija a 7 m y el cable a
+1.5 la potencia pasa a 19.40 kW, y ademas la inclinacion de 40 grados corre
+cada lampara `over * tan(40) = 4.61 m` rio arriba: con la fila completa la
+ultima caia en y = 31.1 m con la pared en 30, y el render fallo. Esa variante
+usa la fila hasta 25 m y no hasta 26.5 por eso. Lo canto la comprobacion de
+`build_lamp_row` en vez de devolver un cuadro oscuro sin explicacion, que es
+para lo que esa comprobacion existe.

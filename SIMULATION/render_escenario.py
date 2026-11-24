@@ -156,8 +156,19 @@ def camaras_proxy(z, baseline_mm, cam_y, mat):
     return cuerpos
 
 
-def lamparas_proxy(x, z, y0, y1, count, mat):
-    """Los doce rectangulos de 1 x 1 m, como paneles que se ven."""
+def lamparas_proxy(x, z, y0, y1, count, mat, tilt_deg=40.0, over=2.0):
+    """Los doce rectangulos de 1 x 1 m, como paneles que se ven.
+
+    **Inclinados, como en el experimento.** La primera version los dibujaba
+    planos y eso contradecia el render sin que nada lo avisara: en
+    ``build_lamp_row`` el haz se inclina ``tilt_deg`` hacia la camara, lo que
+    gira cada panel ``-tilt`` sobre X y ademas lo corre ``over * tan(tilt)``
+    rio arriba, 1.68 m a 40 grados sobre una fila 2 m encima del cable. Esas
+    dos cosas se repiten aqui con la misma formula para que el diagrama no
+    pueda volver a separarse de la escena.
+    """
+    t = math.radians(tilt_deg)
+    corrimiento = over * math.tan(t)
     ys = [y0] if count == 1 else \
         [y0 + (y1 - y0) * i / (count - 1) for i in range(count)]
     paneles = []
@@ -166,8 +177,9 @@ def lamparas_proxy(x, z, y0, y1, count, mat):
         obj = bpy.context.active_object
         obj.name = f"Lampara_{i:02d}"
         obj.scale = (1.0, 1.0, 0.08)
-        obj.location = (x, y, z)
         bpy.ops.object.transform_apply(scale=True)
+        obj.location = (x, y + corrimiento, z)
+        obj.rotation_euler = Euler((-t, 0.0, 0.0), "XYZ")
         paneles.append(_pintar(obj, mat))
     return paneles, ys
 

@@ -419,6 +419,33 @@ VARIANTS = {
         sensor="IMX296", sun_from_target=True, sun_orbit_deg=0.0,
         e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
         blend_name="sol_orbitando_imx296_6mm"),
+
+    # --- Bajar el cable, que es lo que se puede montar sin andamio --------
+    "BAJO": dict(
+        note="El cable a 1.5 m en vez de 5, con la fila bajando con el a "
+             "3.5 m. Misma distancia lampara-cable, asi que la misma "
+             "potencia. Lo que cambia es que el piso entra en cuadro mucho "
+             "antes y deja de haber fondo negro.",
+        cord=(0.0, 2.0, 26.5), lamps=(12, 2.0, 2.0, 26.5),
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, lamps_visible=True, cord_z=1.5,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_cable_a_1m5"),
+    "BAJOALTO": dict(
+        note="El cable a 1.5 m con la fila donde ya esta colgada, a 7 m. "
+             "Es el caso de un estudio con parrilla fija. La distancia "
+             "lampara-cable pasa de 2 a 5.5 m, asi que la potencia sube con "
+             "el cuadrado. **La fila termina en 25 m y no en 26.5**: con la "
+             "parrilla a 5.5 m sobre el cable, la inclinacion de 40 grados "
+             "corre cada lampara 4.61 m rio arriba, y con la fila entera la "
+             "ultima caia en y = 31.1 con la pared en 30. Lo canto la "
+             "comprobacion de build_lamp_row en vez de salir un render "
+             "oscuro sin explicacion.",
+        cord=(0.0, 2.0, 26.5), lamps=(12, 5.5, 2.0, 25.0),
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, lamps_visible=True, cord_z=1.5,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_cable_bajo_parrilla_alta"),
 }
 
 
@@ -484,7 +511,11 @@ def render(variant, samples, scale, both_cameras, linear=False,
     sensor = S.use_sensor(v.get("sensor", "IMX477"))
     cord_x, y0, y1 = v["cord"]
     n_lamps, lamp_h, ly0, ly1 = v["lamps"]
-    cord_z = S.TETHER["z_m"]
+    # Una variante puede bajar el cable. No cambia la potencia si la
+    # fila baja con el, porque ``required_candela`` resuelve sobre la
+    # distancia lampara-cable y esa no cambia; si cambia es que la fila
+    # se quedo arriba.
+    cord_z = v.get("cord_z", S.TETHER["z_m"])
     lamp_z = cord_z + lamp_h
 
     lamp_ys = [ly0] if n_lamps == 1 else \
