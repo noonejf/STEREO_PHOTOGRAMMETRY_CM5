@@ -27,8 +27,12 @@ Tres configuraciones, la misma escena y el mismo cable en las tres:
 | variante | sensor | obturador | lente | cordon a 3 m | angulos |
 |----------|--------|-----------|-------|-------------:|--------:|
 | `SOL` | IMX477, 12.3 MP | rodante | 8 mm | 1.72 px | 16 |
-| `SOL296` | IMX296, 1.6 MP | **global** | 16 mm | 1.55 px | 16 |
-| `SOL296W` | IMX296, 1.6 MP | global | 6 mm | **0.58 px** | 4 |
+| `SOL296W` | IMX296, 1.6 MP | **global** | **6 mm** | **0.58 px** | 16 |
+| `SOL296` | IMX296, 1.6 MP | global | 16 mm | 1.55 px | 16 |
+
+`SOL296W` es la configuracion que interesa al proyecto. La del 16 mm se
+midio tambien, y queda como referencia de cuanto se gana con un telefoto que
+no es la opcion elegida.
 
 **Los mismos lumenes que el estudio.** El pedido era que al cable le llegue lo
 mismo que con la fila de doce lamparas. Un Sun no tiene posicion, solo
@@ -86,26 +90,47 @@ invisible, que es el comportamiento de los mejores azimutes del sol. Muchas
 fuentes repartidas a lo largo del cable no tienen un azimut unico, y ahi esta
 la ventaja.
 
-## El segundo resultado: el global shutter sirve, con el telefoto
+## El segundo resultado: el IMX296 con el 6 mm, que es la configuracion pedida
 
-| azimut | IMX477, 8 mm | IMX296, 16 mm | diferencia |
-|-------:|-------------:|--------------:|-----------:|
-| 0.0 | 55.0 | 52.5 | -4.5 % |
-| 45.0 | 67.3 | 62.9 | -6.5 % |
-| 90.0 | 67.8 | 64.1 | -5.5 % |
-| 135.0 | 59.7 | 56.3 | -5.7 % |
-| 180.0 | 46.6 | 44.8 | -3.9 % |
-| 270.0 | 33.8 | 31.9 | -5.6 % |
+La configuracion del global shutter que interesa al proyecto es **el 6 mm**.
+El 16 mm se midio tambien y queda abajo como referencia, pero no es la opcion.
 
-**El IMX296 con el 16 mm reproduce la curva del IMX477 dentro del 6 %**, con
-la misma forma, el mismo maximo a 67.5 grados y el mismo minimo a 270. Con
-una octava parte de los pixeles. Es el resultado que hacia falta para que el
-global shutter sea una opcion real, porque es el sensor que no necesita el
-experimento de obturador rodante.
+| azimut | IMX477 8 mm | IMX296 6 mm | ciego 477 | ciego 296 |
+|-------:|------------:|------------:|----------:|----------:|
+| 0.0 | 55.0 | 22.4 | 0.1 % | **25.7 %** |
+| **22.5** | 62.5 | 27.1 | 0.0 % | **1.0 %** |
+| **45.0** | 67.3 | 31.2 | 0.0 % | **1.6 %** |
+| 67.5 | 69.8 | 34.2 | 1.7 % | 10.4 % |
+| 90.0 | 67.8 | 35.5 | 10.4 % | 18.3 % |
+| 112.5 | 64.7 | 35.0 | 17.2 % | 26.4 % |
+| 135.0 | 59.7 | 33.4 | 25.8 % | 29.0 % |
+| 157.5 | 53.3 | 29.7 | 33.9 % | 36.9 % |
+| 180.0 | 46.6 | 25.1 | 35.8 % | 43.2 % |
+| 202.5 | 42.6 | 19.2 | 26.3 % | 49.4 % |
+| 225.0 | 38.7 | 15.8 | 17.7 % | 32.0 % |
+| 247.5 | 35.7 | 14.2 | 12.9 % | 24.3 % |
+| 270.0 | 33.8 | 14.2 | 17.9 % | 31.1 % |
+| 292.5 | 37.9 | 14.4 | 21.9 % | 43.3 % |
+| 315.0 | 42.5 | 16.9 | 40.1 % | 45.8 % |
+| 337.5 | 49.0 | 20.3 | 31.4 % | 40.2 % |
+| **medias** | **50.0** | **24.3** | **18.3 %** | **28.7 %** |
 
-Con el 6 mm, en cambio, el contraste cae a la mitad (14.2 a 35.5 contra 31.9 a
-64.9) y el cordon mide 0.58 px a 3 m, bajo un pixel. **El telefoto no es una
-alternativa para el IMX296, es la unica configuracion en la que funciona.**
+**El 6 mm cuesta la mitad del contraste y diez puntos de cable ciego.** La
+curva tiene la misma forma, el mismo minimo hacia los 270 grados, y el maximo
+corrido a 90. El cordon mide 0.58 px a 3 m contra los 1.72 del IMX477, que es
+de donde sale la diferencia, y se ve directamente en
+`fig_dos_sensores.jpg`: el mismo campo angular, 360 px en el IMX477 y 121 en
+el IMX296, y el cable pasa de linea fina a mancha de tres pixeles.
+
+**La ventana util se encoge de cuatro azimutes a dos.** Con el IMX477 hay
+cuatro angulos que dejan menos del 2 % del cable invisible (0, 22.5, 45 y
+67.5); con el IMX296 de 6 mm quedan dos, 22.5 y 45. A 0 grados, que con el
+IMX477 es un angulo limpio, el 6 mm ya pierde el 25.7 % del cable.
+
+Referencia medida y descartada, el mismo sensor con el telefoto de 16 mm:
+reproduce la curva del IMX477 dentro del 6 % en los 16 azimutes (52.5 contra
+55.0 a 0 grados, 62.9 contra 67.3 a 45, 31.9 contra 33.8 a 270), con 1.55 px
+de cordon a 3 m. Esta en `medidas_SOL296.csv`.
 
 ## Los archivos
 

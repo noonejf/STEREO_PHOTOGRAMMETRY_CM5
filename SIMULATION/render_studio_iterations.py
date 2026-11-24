@@ -386,11 +386,14 @@ VARIANTS = {
         e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
         blend_name="sol_orbitando_imx477_8mm"),
 
-    # El mismo experimento con el global shutter. Dos lentes, y no por
-    # curiosidad: con el 6 mm un cordon de 1 mm da 0.59 px a 3 m y no hay
-    # nada que segmentar, asi que el 16 mm no es una alternativa, es la unica
-    # configuracion en la que el IMX296 sirve. Las dos se renderizan para que
-    # eso se vea en vez de citarse.
+    # El mismo experimento con el global shutter, en sus dos lentes. **La
+    # configuracion del proyecto es el 6 mm**, SOL296W: el 16 mm se midio
+    # para saber cuanto se deja sobre la mesa y no es la opcion.
+    #
+    # Medido sobre los 16 azimutes, el 6 mm da la mitad del contraste que el
+    # IMX477 (24.3 de media contra 50.0) y deja diez puntos mas de cable
+    # ciego (28.7 % contra 18.3 %), porque el cordon mide 0.58 px a 3 m
+    # contra 1.72. El 16 mm, con 1.55 px, sigue al IMX477 dentro del 6 %.
     "SOL296": dict(
         note="El sol orbitando, IMX296 global shutter de 1.6 MP con el "
              "telefoto de 16 mm. Es la configuracion en la que el sensor "
@@ -405,10 +408,11 @@ VARIANTS = {
         e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
         blend_name="sol_orbitando_imx296_16mm"),
     "SOL296W": dict(
-        note="El mismo IMX296 con el 6 mm, que es el lente con el que se "
-             "cotiza por defecto. Existe para mostrar por que no: 0.59 px "
-             "de cordon a 3 m, bajo un pixel. Unos pocos angulos, no el "
-             "barrido entero.",
+        note="El IMX296 global shutter de 1.6 MP con el 6 mm, que es la "
+             "configuracion elegida para el proyecto. El cordon mide 0.58 px "
+             "a 3 m, bajo un pixel, y eso cuesta: la mitad del contraste del "
+             "IMX477 y diez puntos mas de cable ciego. La ventana de "
+             "azimutes utiles se encoge de cuatro angulos a dos.",
         cord=(0.0, 2.0, 26.5), lamps=(12, 2.0, 2.0, 26.5),
         view="axis", cam_offset=2.0, focal=6.0, tilt=(0.0, "-y"),
         cam_x=0.0, wave=S.WAVE, env="orbit", stars=True,
