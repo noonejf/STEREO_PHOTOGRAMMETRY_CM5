@@ -110,25 +110,27 @@ adelante. Esa es ahora una condición del montaje, no una mejora opcional.
 - **Largo del estudio: de 26 a 30 m**, a confirmar con Luis.
 - **El piso es de madera**, asi que la tela negra pasa de recomendable a
   obligatoria. Hay que confirmar si la tela la pone el estudio.
-- **Parrilla: no se sabe** si se puede colgar desde arriba o si hay que
-  montar en tripodes. Es la pregunta 1 del correo y condiciona el montaje
-  entero, porque la fila va a 6 m.
-- **Energia: se asume que un estudio de television la tiene.** Se pregunta
-  igual, porque son 8 kW continuos y conviene saber si van en un circuito o
-  en varios.
+- **Si hay parrilla.** Las luminarias se cuelgan desde arriba, no hacen
+  falta tripodes. Resuelto, no se pregunta.
+- **La energia alcanza.** El estudio maneja habitualmente mas luces que
+  las cinco nuestras. Resuelto, no se pregunta.
+- **Cinco luces bastan, con el cable a 18 m.** Verificado: 4 STORM mas
+  1 LS a 6.00 m dan 4047 lx en el peor punto, el 112 % del objetivo. El
+  limite de esa configuracion es 19 m de cable (3640 lx, 101 %); a 20 m
+  cae al 91 %, que sigue siendo el 142 % del piso propio del IMX477.
+  Con las seis se llegaria a 22 m.
 
-## Lo que hay que preguntarle a Luis
+## Lo que queda por preguntarle a Luis
+
+Solo dos cosas, las unicas que ni Jose ni el calculo pueden contestar.
 
 1. **¿Tienen el STORM 1200x Reflector Kit** (los de 15 y 30 grados)? Los
-   STORM solo traen el de 45 en la caja. Con los de 30 habría más margen.
-2. **¿Cuánta potencia hay disponible**, y en cuántos circuitos? Son 7.6 a
-   9.1 kW continuos. No es una pregunta menor con seis cabezas de 1.5 kW.
-3. **¿De qué color es el piso y podemos cubrirlo** con molton negro en unos
-   20 x 3 m? Es condición para que la medición funcione.
-4. **¿Cuál es el largo útil real del estudio?** Todo lo simulado asume 30 m.
-5. **¿Hay parrilla, y a qué altura?** Necesitamos colgar a 6 m o montar en
-   trípodes de esa altura.
-6. **¿Jueves 10 o viernes 11?** Hay que elegir uno.
+   STORM solo traen el de 45 en la caja. Con el de 30 habria mas margen.
+2. **¿Podemos cubrir el piso de madera con molton negro**, unos 20 x 3 m, y
+   lo tiene el estudio o lo llevamos nosotros?
+
+Mas el contacto de los dos jefes de practica, y el procedimiento con costos y
+permisos que el mismo ofrecio mandar.
 
 ## Lo que falta hacer de nuestro lado
 
