@@ -515,11 +515,23 @@ def build_lamp_row(x, z, y0, y1, count, candela, size=1.0, spread_deg=180.0,
     stereo matching stage is not built for; the illumination deliverable
     forbids the arrangement outright.
 
-    ``tilt_deg`` leans every beam instead of pointing it straight down, and
-    it is not cosmetic. The cord is a cylinder, so a beam from directly
-    overhead puts the lit band on **top** of it while the cameras look at its
-    side. ``over`` is the lamps' height above the cord, which is what sets
-    how far upstream of it each lamp has to sit for its beam to land on it.
+    ``tilt_deg`` leans every beam instead of pointing it straight down.
+    ``over`` is the lamps' height above the cord, which is what sets how far
+    upstream of it each lamp has to sit for its beam to land on it.
+
+    **The reason given here for tilting was wrong for the main view, and it
+    is now measured.** What this docstring used to say is that the cord is a
+    cylinder, so a beam from directly overhead puts the lit band on top of it
+    while the cameras look at its side. That holds in the SIDE view. In the
+    axis view, which is the one every variant from Q onwards uses, the camera
+    looks along the cord and sees its **limb**, whose normals point in x and
+    z, so a vertical beam lights one of them and a tilted beam spends its
+    light on a face nobody sees. Measured over the five real projectors, cord
+    contrast falls 113, 105, 99, 81, 66 from 0 to 60 degrees of tilt, and the
+    direction of the tilt barely matters: 89.5 towards the cameras against
+    86.0 away. It is not a shortage of light either, since tilting 40 degrees
+    raises the worst point on the cord from 4419 to 4597 lx.
+    ``SIMULATION/experimentos/estudio_luminarias_reales/RESULTADOS.md``.
 
     ``tilt_dir`` is the direction the **beam travels**, and getting it
     backwards is easy: to light the face a camera can see, the lamp has to
