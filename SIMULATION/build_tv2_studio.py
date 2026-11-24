@@ -171,10 +171,47 @@ WAVE = dict(x=(0.0, 0.35), z=(-0.55, 0.30, 0.20))
 
 ROOM_ALBEDO = 0.02
 
+#: El piso del TV2 es de **madera**, confirmado por Jose el 24 de noviembre
+#: de 2026, y eso decide si hace falta tela. Las dos cifras son ASUMIDAS, no
+#: medidas, y son las que hay que reemplazar con un fotometro el dia de la
+#: sesion:
+#:
+#: * madera barnizada de estudio, 0.30. Es el rango habitual de una duela
+#:   clara (0.25 a 0.35) y ademas no es lambertiana: barnizada manda un
+#:   reflejo especular hacia la camara que este modelo no reproduce, asi que
+#:   0.30 difuso es la version **optimista** del problema.
+#: * molton negro, 0.04. La tela se vende precisamente por absorber: el
+#:   molton y el duvetyne de escena se citan entre 0.02 y 0.05.
+#:
+#: Un factor de siete entre las dos es la razon por la que la tela paso de
+#: recomendable a obligatoria cuando el cable bajo a 1.5 m: el piso entra en
+#: cuadro a 5.1 m en vez de a 17.
+FLOOR_ALBEDO_WOOD = 0.30
+FLOOR_ALBEDO_MOLTON = 0.04
+
 
 def candela_to_watts(cd):
     """A Lambertian emitter of on-axis intensity I0 has flux pi*I0."""
     return math.pi * cd / LER
+
+
+def candela_to_watts_spot(cd):
+    """A Blender SPOT of power P has intensity P/(4*pi) W/sr, cone or no cone.
+
+    **Measured, not assumed**, because the factor between the plausible
+    conventions is 4 and it would land on every studio render's brightness. A
+    white Lambertian plane 5 m under a spot of 4*pi W came back at 0.012715
+    against the 0.012732 the isotropic reading predicts, a ratio of 0.9986,
+    and a POINT light of the same power gave the identical pixel. So
+    narrowing the cone does **not** concentrate the beam in Blender: the cone
+    masks, it does not focus, and a real reflector's gain has to be carried
+    in the candela figure the datasheet gives.
+
+    That is the opposite convention to ``candela_to_watts``, which is for an
+    AREA light and divides by pi, not 4*pi. Using the area formula on a spot
+    renders it four times too dark.
+    """
+    return 4.0 * math.pi * cd / LER
 
 
 def exposure_for(illuminance_lx):
@@ -249,7 +286,7 @@ def _matte(name, albedo):
     return mat
 
 
-def build_room(depth, width, height):
+def build_room(depth, width, height, floor_albedo=None):
     """Inward-facing box, origin on the floor at the camera end, X centred.
 
     Unlike the orbital scene the walls **do** occlude here. There the Sun was
@@ -272,6 +309,20 @@ def build_room(depth, width, height):
     bpy.ops.object.mode_set(mode="OBJECT")
 
     room.data.materials.append(_matte("RoomBlack", ROOM_ALBEDO))
+
+    # El piso aparte, porque es el unico plano del cuarto cuyo albedo es una
+    # decision de montaje y no una propiedad del local: madera desnuda o
+    # madera cubierta con molton. Va 2 mm sobre el suelo de la caja para que
+    # gane el z-fight sin que se note a 1.5 m de distancia.
+    if floor_albedo is not None:
+        bpy.ops.mesh.primitive_plane_add(size=1.0)
+        floor = bpy.context.active_object
+        floor.name = "Floor"
+        floor.scale = (width, depth, 1.0)
+        floor.location = (0.0, depth / 2.0, 0.002)
+        bpy.ops.object.transform_apply(scale=True, location=True)
+        floor.data.materials.append(
+            _matte(f"Floor_{floor_albedo:.2f}", floor_albedo))
     return room
 
 
@@ -528,6 +579,100 @@ def build_lamp_row(x, z, y0, y1, count, candela, size=1.0, spread_deg=180.0,
 
         obj = bpy.data.objects.new(data.name, data)
         obj.location = (x + sx, y + sy, z)   # an AREA light emits along -Z
+        obj.rotation_euler = Euler(rot, "XYZ")
+        bpy.context.collection.objects.link(obj)
+        obj.visible_camera = visible_to_camera
+        lamps.append(obj)
+    return lamps
+
+
+def build_projector_row(x, z, y0, y1, unidades, tilt_deg=0.0, tilt_dir="-y",
+                        over=0.0, visible_to_camera=False,
+                        field_ratio=5.0 / 3.0):
+    """A row of real projectors, each a SPOT with its datasheet intensity.
+
+    This replaces ``build_lamp_row`` for the session that is actually going to
+    be shot. The twelve 1 x 1 m rectangles that function builds were our own
+    assumption; what the TV2 studio has, per Luis Dominguez on 23 November
+    2026, is **two Aputure LS 1200d Pro and four STORM 1200x**, which are
+    point projectors with conical reflectors. The difference is not the power,
+    it is the distribution: a 1 x 1 m panel 2 m up bathes its stretch of cord,
+    while a 45 degree cone 2 m up lights a circle 1.66 m across and leaves the
+    rest dark.
+
+    ``unidades`` is a list of ``(candela, beam_deg, label)``, in the order
+    they go along the row, and it comes from ``tools/calculadora_luz.py`` so
+    the rendered row is the row that calculator sized. Never write the
+    candela here: it is a datasheet number and it has one home.
+
+    **The cone is not the datasheet's beam angle.** A fixture's quoted beam
+    angle is the full angle at *half* peak intensity, and a Blender spot with
+    ``spot_size`` set to it would be flat out to 22.5 degrees off axis and
+    then cut to nothing, which is neither the half-peak point nor the real
+    tail. So ``spot_size`` is set to the **field** angle, about 5/3 of the
+    beam angle, which is where a real reflector reaches 10%, and
+    ``spot_blend`` is solved so the half-peak lands exactly on the datasheet's
+    own half angle: ``blend = 2 * (1 - 1 / field_ratio)``, which is 0.8 at the
+    default ratio. Checked against the cosine-power model the calculator
+    uses, ``n = ln(0.5) / ln(cos(beam/2))``, which for 45 degrees is 8.70 and
+    puts 13% at the field angle. The two profiles are not identical and the
+    render is the one that counts; what matters is that neither has a hard
+    edge where the real fixture has a tail, because the gaps between fixtures
+    are exactly where this layout is weakest.
+
+    ``tilt_deg`` and ``over`` work as in ``build_lamp_row``: tilting is
+    **aiming**, so each fixture is shifted ``over * tan(tilt)`` upstream and
+    its axis still lands on the cord. The cost is the throw, which grows from
+    ``over`` to ``over / cos(tilt)``, and ``calculadora_luz.perfil_inclinado``
+    is where that is accounted for.
+    """
+    t = math.radians(tilt_deg)
+    shift = over * math.tan(t)
+    sx = sy = 0.0
+    rot = (0.0, 0.0, 0.0)
+    if tilt_dir == "+y":
+        sy, rot = -shift, (t, 0.0, 0.0)
+    elif tilt_dir == "-y":
+        sy, rot = +shift, (-t, 0.0, 0.0)
+    elif tilt_dir == "+x":
+        sx, rot = -shift, (0.0, -t, 0.0)
+    elif tilt_dir == "-x":
+        sx, rot = +shift, (0.0, t, 0.0)
+
+    hw, depth, height = ROOM["width_m"] / 2.0, ROOM["depth_m"], ROOM["height_m"]
+    if not -hw < x + sx < hw:
+        raise ValueError(f"projector x={x + sx:.2f} outside the room "
+                         f"(walls at +-{hw:.2f})")
+    for probe in (y0 + sy, y1 + sy):
+        if not 0.0 < probe < depth:
+            raise ValueError(f"projector y={probe:.2f} outside the room "
+                             f"(0 to {depth:.2f}). A {tilt_deg:.0f} degree "
+                             f"tilt shifts each one {shift:.2f} m upstream.")
+    if not 0.0 < z < height:
+        raise ValueError(f"projector z={z:.2f} outside the room "
+                         f"(0 to {height:.2f}).")
+
+    n = len(unidades)
+    blend = 2.0 * (1.0 - 1.0 / field_ratio)
+    lamps = []
+    for i, (cd, beam_deg, label) in enumerate(unidades):
+        y = y0 if n == 1 else y0 + (y1 - y0) * i / (n - 1)
+        data = bpy.data.lights.new(f"Proj_{i:02d}_{label}", type="SPOT")
+        data.energy = candela_to_watts_spot(cd)
+        data.spot_size = math.radians(min(179.0, beam_deg * field_ratio))
+        data.spot_blend = blend
+        # A real fixture is a reflector a few centimetres across, not a point,
+        # and the penumbra it casts is what a 1 mm cord sits inside. 0.1 m is
+        # the order of the LS 1200d's Hyper Reflector.
+        data.shadow_soft_size = 0.1
+        data.use_nodes = True
+        nt = data.node_tree
+        bb = nt.nodes.new("ShaderNodeBlackbody")
+        bb.inputs["Temperature"].default_value = 5600.0
+        nt.links.new(bb.outputs["Color"], nt.nodes["Emission"].inputs["Color"])
+
+        obj = bpy.data.objects.new(data.name, data)
+        obj.location = (x + sx, y + sy, z)
         obj.rotation_euler = Euler(rot, "XYZ")
         bpy.context.collection.objects.link(obj)
         obj.visible_camera = visible_to_camera

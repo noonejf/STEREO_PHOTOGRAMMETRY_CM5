@@ -222,6 +222,149 @@ def perfil_mezcla(spec, y0, y1, altura_luces, altura_hilo, cord_y0, cord_y1,
     return out, list(zip(orden, ys))
 
 
+def unidades_de(spec):
+    """Desarma ``modelo:reflector:cuantas`` y las alterna por intensidad.
+
+    Extraido de ``perfil_mezcla`` sin cambiarlo, porque la escena de Blender
+    tiene que montar **la misma fila** que esta calculadora dimensiono, en el
+    mismo orden. Dos implementaciones del reparto serian dos filas distintas
+    con el mismo nombre.
+    """
+    unidades = []
+    for trozo in spec.split(","):
+        modelo, ref, cuantas = trozo.split(":")
+        if modelo not in LUMINARIAS:
+            raise SystemExit(f"modelo desconocido: {modelo}")
+        if ref not in LUMINARIAS[modelo]["lux"]:
+            raise SystemExit(f"reflector {ref} no existe en {modelo}")
+        for _ in range(int(cuantas)):
+            unidades.append((modelo, ref))
+    if not unidades:
+        raise SystemExit("la mezcla esta vacia")
+    unidades.sort(key=lambda u: intensidad_cd(*u)[0], reverse=True)
+    n = len(unidades)
+    orden = [None] * n
+    izq, der = 0, n - 1
+    for k, u in enumerate(unidades):
+        if k % 2 == 0:
+            orden[izq] = u
+            izq += 1
+        else:
+            orden[der] = u
+            der -= 1
+    return orden
+
+
+def perfil_inclinado(spec, altura_luces, altura_hilo, cord_y0, cord_y1,
+                     inclinacion_deg=0.0, pasos=400, onda=False,
+                     luces_y0=None, luces_y1=None):
+    """Lux en el cable con los reflectores **inclinados**, no rectos abajo.
+
+    ``perfil`` y ``perfil_mezcla`` suponen el haz vertical, que es como se
+    dimensiono el plan. La escena del estudio los inclina 40 grados, y no es
+    un detalle: el cable es un cilindro, asi que un haz desde arriba le pone
+    la banda iluminada **encima** mientras las camaras le miran el costado.
+
+    Inclinar no es girar la luminaria en su sitio, es **apuntarla**: cada una
+    se corre ``sobre * tan(t)`` rio arriba para que su eje siga cayendo en el
+    punto del cable que le toca, igual que hace ``build_lamp_row``. El costo
+    es la distancia, que pasa de ``sobre`` a ``sobre / cos(t)``, asi que la
+    iluminancia en el punto apuntado se multiplica por ``cos^2(t)``: a 40
+    grados queda el 59 %.
+
+    Devuelve dos medidas por punto y **no son la misma**:
+
+    * ``e_perp``, iluminancia sobre una superficie que mira a la luminaria.
+      Es lo que lee un luxometro apuntado a la luz, que es como el plan dice
+      medir, y es la que decide cuan brillante queda el costado del cable.
+    * ``e_horiz``, sobre un plano horizontal, que es la que calculan
+      ``perfil`` y ``perfil_mezcla``. Se devuelve para poder comparar contra
+      todo lo ya publicado sin cambiarlo.
+    """
+    orden = unidades_de(spec)
+    n = len(orden)
+    y0 = cord_y0 if luces_y0 is None else luces_y0
+    y1 = cord_y1 if luces_y1 is None else luces_y1
+    apuntadas = [y0] if n == 1 else [y0 + (y1 - y0) * i / (n - 1)
+                                     for i in range(n)]
+    sobre = altura_luces - altura_hilo
+    if sobre <= 0:
+        raise SystemExit("las luminarias tienen que ir por encima del cable")
+
+    t = math.radians(inclinacion_deg)
+    corrimiento = sobre * math.tan(t)
+    # El haz viaja en -y, asi que la luminaria se monta rio arriba del punto
+    # que ilumina. Direccion del haz, unitaria.
+    bz, by = -math.cos(t), -math.sin(t)
+    puestas = [(m, ref, ya, ya + corrimiento)
+               for (m, ref), ya in zip(orden, apuntadas)]
+
+    if onda and ONDA is not None:
+        pts = S.cord_points(0.0, altura_hilo, cord_y0, cord_y1, pasos,
+                            wave=ONDA)
+    else:
+        pts = [(0.0, cord_y0 + (cord_y1 - cord_y0) * i / (pasos - 1),
+                altura_hilo) for i in range(pasos)]
+
+    out = []
+    for xp, yp, zp in pts:
+        perp = horiz = 0.0
+        for modelo, ref, _ya, yl in puestas:
+            I0, _ = intensidad_cd(modelo, ref)
+            nexp = _n_coseno(LUMINARIAS[modelo]["haz"][ref])
+            dy, dz = yp - yl, zp - altura_luces
+            r = math.sqrt(xp * xp + dy * dy + dz * dz)
+            if r <= 0:
+                continue
+            cos_haz = (dy * by + dz * bz) / r      # angulo fuera del eje
+            if cos_haz <= 0:
+                continue
+            inten = I0 * (cos_haz ** nexp)
+            perp += inten / (r * r)
+            cos_vert = -dz / r
+            if cos_vert > 0:
+                horiz += inten * cos_vert / (r * r)
+        out.append((yp, perp, horiz))
+    return out, puestas, corrimiento, sobre / math.cos(t)
+
+
+def informe_inclinado(args):
+    datos, puestas, corrimiento, tiro = perfil_inclinado(
+        args.mezcla or "storm1200x:45:4,ls1200d_pro:45:1",
+        args.altura_luces, args.altura_hilo, args.hilo_y0, args.hilo_y1,
+        args.inclinacion, onda=args.onda,
+        luces_y0=args.luces_y0, luces_y1=args.luces_y1)
+    perp = [p for _, p, _ in datos]
+    horiz = [h for _, _, h in datos]
+    kw = sum(LUMINARIAS[m]["w"] for m, _, _, _ in puestas) / 1000.0
+    print("")
+    print(f"  FILA DE {len(puestas)} A {args.altura_luces:.2f} m, "
+          f"CABLE A {args.altura_hilo:.2f} m, "
+          f"HAZ INCLINADO {args.inclinacion:.0f} GRADOS")
+    print(f"    tiro         {tiro:.2f} m por el eje del haz "
+          f"(contra {args.altura_luces - args.altura_hilo:.2f} m recto abajo)")
+    print(f"    corrimiento  cada luminaria va {corrimiento:.2f} m rio "
+          f"arriba del punto que ilumina")
+    for m, ref, ya, yl in puestas:
+        print(f"    apunta a y={ya:5.1f}  montada en y={yl:5.1f}   "
+              f"{LUMINARIAS[m]['nombre']:24s} reflector {ref:>3}")
+    print("")
+    print(f"    peor punto, cara a la luz   {min(perp):9,.0f} lx   "
+          f"{'CUMPLE' if min(perp) >= args.objetivo else 'NO CUMPLE'} "
+          f"({min(perp)/args.objetivo*100:.0f} % de {args.objetivo:,.0f})")
+    print(f"    mejor punto                 {max(perp):9,.0f} lx")
+    print(f"    uniformidad                 peor/mejor "
+          f"{min(perp)/max(perp):.3f}")
+    print(f"    peor punto, plano horizontal {min(horiz):9,.0f} lx   "
+          f"(la medida de --mezcla)")
+    print(f"    potencia                    {kw:.2f} kW")
+    print("")
+    if args.perfil:
+        for y, p, h in datos[::max(1, len(datos) // 30)]:
+            print(f"      y={y:6.2f} m   {p:9,.0f} lx cara   {h:9,.0f} lx horiz")
+    return min(perp), max(perp), kw
+
+
 def informe_mezcla(args):
     datos, puestas = perfil_mezcla(
         args.mezcla, args.luces_y0, args.luces_y1, args.altura_luces,
@@ -394,6 +537,10 @@ def main():
                     help="imprime el perfil a lo largo del cable")
     ap.add_argument("--buscar-altura", dest="buscar", action="store_true",
                     help="barre la altura de las luces y dice cual sirve")
+    ap.add_argument("--inclinacion", type=float, default=None,
+                    help="grados que se inclina el haz, apuntando al cable. "
+                         "Con esto se usa el modelo inclinado, que es el de "
+                         "la escena de Blender")
     ap.add_argument("--mezcla", default=None,
                     help="fila con modelos distintos: "
                          "modelo:reflector:cuantas, separado por comas. "
@@ -412,7 +559,9 @@ def main():
             f"reflector desconocido. Para {args.fixture}: "
             f"{', '.join(LUMINARIAS[args.fixture]['lux'])}")
 
-    if args.mezcla:
+    if args.inclinacion is not None:
+        informe_inclinado(args)
+    elif args.mezcla:
         informe_mezcla(args)
     elif args.buscar:
         buscar_altura(args)

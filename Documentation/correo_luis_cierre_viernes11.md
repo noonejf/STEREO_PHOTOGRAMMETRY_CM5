@@ -1,17 +1,17 @@
 # Correo a Luis Domínguez: cerrar el viernes 11
 
-**Estado:** borrador para enviar, en respuesta a su correo del lunes 23 de
-noviembre de 2026. Va en el mismo hilo, así que no repite presentaciones.
+**Estado: enviado el 24 de noviembre de 2026**, en respuesta a su correo del
+lunes 23. Fue en el mismo hilo, así que no repite presentaciones.
 
-**Antes de enviarlo, revisar la firma.** El correo anterior del hilo va
-firmado como *Jose Siles, a20213329@pucp.edu.pe*, y una nota de la memoria del
-proyecto dice que esa cuenta no es la de Jose Sifuentes. Aquí se mantuvo la
-del hilo porque es la dirección a la que Luis está respondiendo, pero hay que
-confirmarlo antes de mandar.
+**Lo enviado no es exactamente este borrador.** Se le quitaron dos de las
+cinco preguntas, la de la parrilla y la de la energía, porque Jose ya las
+había contestado: sí hay parrilla y el estudio maneja habitualmente más luces
+que las cinco nuestras. Y la firma va como **Jose Sifuentes**, que es su
+apellido; el *Jose Siles* que tenía este borrador se había copiado del hilo
+anterior y estaba mal.
 
 **Por qué este correo es así:** Luis ya dijo que sí. Lo que falta es cerrar la
-fecha y cinco datos de montaje. Cinco preguntas numeradas, cada una
-contestable en una línea.
+fecha y los datos de montaje, cada uno contestable en una línea.
 
 ---
 
@@ -70,7 +70,7 @@ Muchas gracias de nuevo por el apoyo.
 
 Saludos cordiales,
 
-Jose Siles
+Jose Sifuentes
 Proyecto LINKU, PUCP / APSCO
 
 ---

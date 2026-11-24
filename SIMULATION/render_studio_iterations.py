@@ -30,6 +30,9 @@ sys.path.insert(0, os.path.join(ROOT, "SIMULATION"))
 
 import build_tv2_studio as S  # noqa: E402
 
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+import calculadora_luz as CL  # noqa: E402
+
 
 # Each variant says where the cord goes, where the lamps go and how the
 # cameras look at it. The intensity is never written here: it is solved for
@@ -431,6 +434,189 @@ VARIANTS = {
         cam_x=0.0, wave=S.WAVE, lamps_visible=True, cord_z=1.5,
         e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
         blend_name="estudio_cable_a_1m5"),
+    # --- EL CUARTO CON LAS LUMINARIAS QUE EL ESTUDIO TIENE ----------------
+    # Todo lo de arriba ilumina con doce rectangulos de 1 x 1 m, que era una
+    # suposicion nuestra. El 23 de noviembre de 2026 Luis Dominguez contesto
+    # que el TV2 tiene **dos Aputure LS 1200d Pro y cuatro STORM 1200x**, que
+    # son proyectores puntuales con reflector conico. La diferencia no es la
+    # potencia, es el reparto: un panel de 1 x 1 m a 2 m bana su tramo de
+    # cable, un cono de 45 grados a 2 m ilumina 1.66 m y deja el resto negro.
+    #
+    # ``fixtures`` es la especificacion que lee tools/calculadora_luz.py, y de
+    # ahi salen las candelas, el angulo de haz y el orden a lo largo de la
+    # fila. Aqui no se escribe ninguna candela: son numeros de ficha y tienen
+    # una sola casa.
+    #
+    # La geometria es la que recomienda Documentation/plan_sesion_tv2_luminarias.md:
+    # cable de 18 m a 1.5 m del piso, fila a 6.0 m. El cable baja porque un
+    # cono de 45 grados necesita 4.5 a 6 m de tiro para cubrir su tramo, y con
+    # techo de 10 m eso no deja el cable a 5 m.
+    "TV2": dict(
+        note="El cuarto con las cinco luminarias reales: 4 STORM 1200x y 1 "
+             "LS 1200d Pro, reflector de 45 grados, fila a 6.0 m, cable de "
+             "18 m a 1.5 m del piso y piso cubierto con molton negro. Es la "
+             "configuracion recomendada para la sesion del viernes 11 de "
+             "diciembre. El haz va inclinado 40 grados, que no cuesta luz: "
+             "medido con perfil_inclinado, el peor punto sube de 4419 a "
+             "4597 lx porque el cono oblicuo estira su huella a lo largo "
+             "del cable.",
+        cord=(0.0, 2.0, 20.0), lamps=(5, 4.5, 2.0, 20.0),
+        fixtures="storm1200x:45:4,ls1200d_pro:45:1", floor="molton",
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, cord_z=1.5, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_5_luminarias_reales"),
+    "TV2MADERA": dict(
+        note="TV2 sin la tela: el piso de madera desnuda, albedo 0.30 "
+             "asumido. Es el par que convierte 'hace falta molton negro' de "
+             "afirmacion en medicion. Nada mas cambia.",
+        cord=(0.0, 2.0, 20.0), lamps=(5, 4.5, 2.0, 20.0),
+        fixtures="storm1200x:45:4,ls1200d_pro:45:1", floor="wood",
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, cord_z=1.5, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_5_luminarias_piso_madera"),
+    "TV2SEIS": dict(
+        note="Las seis luminarias que el estudio tiene en total, 4 STORM y "
+             "2 LS, con 20 m de cable. Es el caso si nos prestan la sexta: "
+             "9.08 kW y el peor punto en 4370 lx por el modelo recto.",
+        cord=(0.0, 2.0, 22.0), lamps=(6, 4.25, 2.0, 22.0),
+        fixtures="storm1200x:45:4,ls1200d_pro:45:2", floor="molton",
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, cord_z=1.5, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_6_luminarias_reales"),
+    "TV2RECTO": dict(
+        note="TV2 con los reflectores mirando recto abajo, inclinacion 0. "
+             "Es el modelo con el que se dimensiono el plan, y el par que "
+             "mide que compra la inclinacion: con el haz vertical la banda "
+             "iluminada queda ENCIMA del cilindro y las camaras le miran el "
+             "costado.",
+        cord=(0.0, 2.0, 20.0), lamps=(5, 4.5, 2.0, 20.0),
+        fixtures="storm1200x:45:4,ls1200d_pro:45:1", floor="molton",
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(0.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, cord_z=1.5, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_5_luminarias_haz_vertical"),
+    "TV2PANEL": dict(
+        note="El mismo cable de 18 m a 1.5 m iluminado por los doce paneles "
+             "de 1 x 1 m que suponiamos. No es montable, existe para que la "
+             "comparacion contra TV2 sea de la iluminacion sola: mismo "
+             "cable, misma altura, mismo piso, misma camara.",
+        cord=(0.0, 2.0, 20.0), lamps=(12, 4.5, 2.0, 20.0), floor="molton",
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, cord_z=1.5, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_12_paneles_cable_bajo"),
+    "TV2TENSO": dict(
+        note="TV2 con el cable tenso en vez de ondulado. Es el unico de la "
+             "familia en el que el criterio A3.6, rectitud, significa algo: "
+             "sobre un cable ondulado a proposito la cuerda sobre el arco "
+             "devuelve un numero bajo que no mide el instrumento.",
+        cord=(0.0, 2.0, 20.0), lamps=(5, 4.5, 2.0, 20.0),
+        fixtures="storm1200x:45:4,ls1200d_pro:45:1", floor="molton",
+        view="axis", cam_offset=2.0, focal=8.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=None, cord_z=1.5, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_5_luminarias_cable_tenso"),
+    "TV2COSTADO": dict(
+        note="TV2 visto de costado con el 8 mm, camaras apiladas en "
+             "vertical. Unos 9.5 m de cable en cuadro desde 7 m, pero cada "
+             "metro en su sitio en vez de apilarse contra el punto de fuga: "
+             "es la vista con la que el largo de arco significa algo.",
+        cord=(4.0, 2.0, 20.0), lamps=(5, 4.5, 2.0, 20.0),
+        fixtures="storm1200x:45:4,ls1200d_pro:45:1", floor="molton",
+        view="side", cam_offset=-6.0, focal=8.0, tilt=(40.0, "+x"),
+        wave=S.WAVE, cord_z=1.5, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_5_luminarias_de_costado"),
+    "TV2COSTADO0": dict(
+        note="TV2COSTADO con el haz vertical en vez de inclinado 40 grados. "
+             "Es el par que decide si el argumento de la inclinacion vale "
+             "en la vista de costado: ahi la camara SI le mira el costado "
+             "al cilindro, asi que un haz desde arriba le ilumina una cara "
+             "que la camara no ve. En la vista a lo largo del cable el haz "
+             "vertical gano por 110.6 contra 89.5, y la razon es que de un "
+             "cilindro visto casi de punta la camara ve el limbo, cuyas "
+             "normales apuntan en x y en z: un haz vertical ilumina "
+             "justamente la normal +z, que si esta en el limbo.",
+        cord=(4.0, 2.0, 20.0), lamps=(5, 4.5, 2.0, 20.0),
+        fixtures="storm1200x:45:4,ls1200d_pro:45:1", floor="molton",
+        view="side", cam_offset=-6.0, focal=8.0, tilt=(0.0, "+x"),
+        wave=S.WAVE, cord_z=1.5, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_de_costado_haz_vertical"),
+    "TV2296": dict(
+        note="TV2 con el IMX296 global shutter y su 6 mm, que es la "
+             "configuracion elegida si se cambia de sensor. El cordon mide "
+             "0.58 px a 3 m, bajo un pixel, y en la orbita eso costo la "
+             "mitad del contraste; aqui se mide en el cuarto real.",
+        cord=(0.0, 2.0, 20.0), lamps=(5, 4.5, 2.0, 20.0),
+        fixtures="storm1200x:45:4,ls1200d_pro:45:1", floor="molton",
+        view="axis", cam_offset=2.0, focal=6.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, cord_z=1.5, lamps_visible=True,
+        sensor="IMX296",
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_5_luminarias_imx296_6mm"),
+
+    # --- HACIA DONDE SE APUNTAN LAS CINCO: test de tres vias --------------
+    # Esta familia existe porque la primera medicion del cuarto real
+    # contradijo lo que el proyecto venia diciendo. Con el haz vertical el
+    # cordon dio 112.9 niveles de contraste y con el haz inclinado 40 grados
+    # hacia las camaras, que es lo que usan todas las variantes anteriores,
+    # 91.1. Inclinar costaba un 19 %, no lo compraba.
+    #
+    # La explicacion que estaba escrita, que un haz desde arriba ilumina la
+    # cara de ARRIBA del cilindro mientras las camaras le miran el costado,
+    # es correcta en la vista de costado y no dice nada sobre esta: aqui la
+    # camara mira a lo largo del cable, que queda dentro de 3 grados del eje
+    # optico, asi que lo que ve de cada tramo es el limbo del cilindro y no
+    # su costado.
+    #
+    # Y hay una segunda cosa que ``build_lamp_row`` ya advertia: ``tilt_dir``
+    # es la direccion en la que **viaja** el haz. Con ``-y`` la luz sale de
+    # rio abajo y viaja hacia la camara, asi que la cara iluminada del cable
+    # es la que mira al fondo, la que la camara NO ve. Con ``+y`` es al
+    # contrario. Las tres variantes de abajo son el mismo cuarto, el mismo
+    # cable y las mismas cinco luminarias con la unica diferencia de a donde
+    # apuntan, para que la respuesta salga de una medicion.
+    #
+    # El cable arranca en y = 5.0 y no en 2.0 por una razon geometrica, no
+    # estetica: inclinar corre cada luminaria 3.78 m rio arriba, asi que con
+    # el haz en ``+y`` la primera caeria en y = -1.78, fuera del cuarto. A
+    # 5.0 las tres configuraciones caben dentro de la misma sala y la
+    # comparacion no la decide un recorte.
+    "TV2HAZ0": dict(
+        note="Las cinco luminarias reales con el haz VERTICAL. Patron del "
+             "test de tres vias sobre a donde apuntarlas.",
+        cord=(0.0, 5.0, 23.0), lamps=(5, 4.5, 5.0, 23.0),
+        fixtures="storm1200x:45:4,ls1200d_pro:45:1", floor="molton",
+        view="axis", cam_offset=5.0, focal=8.0, tilt=(0.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, cord_z=1.5, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_haz_vertical"),
+    "TV2HAZCAM": dict(
+        note="El haz inclinado 40 grados viajando HACIA las camaras, que es "
+             "lo que hacen todas las variantes de paneles. La cara "
+             "iluminada del cable es entonces la que mira al fondo.",
+        cord=(0.0, 5.0, 23.0), lamps=(5, 4.5, 5.0, 23.0),
+        fixtures="storm1200x:45:4,ls1200d_pro:45:1", floor="molton",
+        view="axis", cam_offset=5.0, focal=8.0, tilt=(40.0, "-y"),
+        cam_x=0.0, wave=S.WAVE, cord_z=1.5, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_haz_hacia_camaras"),
+    "TV2HAZLEJOS": dict(
+        note="El haz inclinado 40 grados viajando LEJOS de las camaras, o "
+             "sea las luminarias montadas del lado de la camara tirando "
+             "rio abajo. Es la unica de las tres que ilumina la cara del "
+             "cable que la camara ve.",
+        cord=(0.0, 5.0, 23.0), lamps=(5, 4.5, 5.0, 23.0),
+        fixtures="storm1200x:45:4,ls1200d_pro:45:1", floor="molton",
+        view="axis", cam_offset=5.0, focal=8.0, tilt=(40.0, "+y"),
+        cam_x=0.0, wave=S.WAVE, cord_z=1.5, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_haz_lejos_de_camaras"),
+
     "BAJOALTO": dict(
         note="El cable a 1.5 m con la fila donde ya esta colgada, a 7 m. "
              "Es el caso de un estudio con parrilla fija. La distancia "
@@ -482,8 +668,27 @@ def required_candela(lamp_ys, lamp_x, lamp_z, points,
     return e_target / worst
 
 
+def unidades_de_ficha(spec):
+    """La fila de proyectores, leida de tools/calculadora_luz.py.
+
+    Devuelve ``(candela, haz_deg, etiqueta)`` por unidad, en el orden en que
+    van a lo largo de la fila, que es el que esa calculadora decide: las
+    alterna por intensidad para no dejar juntas las dos debiles en un
+    extremo. Importa que el orden venga de alli y no de aqui: la fila
+    renderizada tiene que ser la fila que se dimensiono.
+    """
+    out = []
+    for modelo, ref in CL.unidades_de(spec):
+        cd, _disp = CL.intensidad_cd(modelo, ref)
+        haz = CL.LUMINARIAS[modelo]["haz"][ref]
+        etiqueta = "STORM" if modelo.startswith("storm") else "LS"
+        out.append((cd, haz, f"{etiqueta}{ref}"))
+    return out
+
+
 def render(variant, samples, scale, both_cameras, linear=False,
-           blend_only=False, roll_override=None, sun_override=None):
+           blend_only=False, roll_override=None, sun_override=None,
+           tilt_override=None, sun_tilt_override=None):
     """``linear`` writes OpenEXR with the view transform off.
 
     AgX is a tone map, so a JPEG pixel is not proportional to the light that
@@ -506,6 +711,22 @@ def render(variant, samples, scale, both_cameras, linear=False,
     if sun_override is not None:
         v = dict(v, sun_orbit_deg=sun_override)
         etiqueta_var = f"{variant}_sun{sun_override:05.1f}"
+    # La esfera: el azimut gira el haz alrededor del eje del cable y la
+    # inclinacion lo tumba a lo largo de ese eje, asi que las dos juntas
+    # recorren todas las direcciones desde las que el sol puede llegar. Con
+    # inclinacion positiva el haz viene de delante del cable y con negativa
+    # de detras, asi que el signo entra en el nombre de la carpeta.
+    if sun_tilt_override is not None:
+        t0, dir0 = v.get("tilt", (0.0, "-y"))
+        v = dict(v, tilt=(sun_tilt_override, dir0))
+        etiqueta_var = f"{etiqueta_var}_inc{sun_tilt_override:+06.1f}"
+    # El barrido de inclinacion de las luminarias del estudio es el mismo
+    # gesto por el otro lado: aqui la luz esta colgada y lo que se barre es
+    # a que angulo se la apunta.
+    if tilt_override is not None:
+        t0, dir0 = v.get("tilt", (0.0, "-y"))
+        v = dict(v, tilt=(tilt_override, dir0))
+        etiqueta_var = f"{variant}_tilt{tilt_override:05.1f}"
     # El sensor se elige ANTES de construir las camaras y de configurar el
     # render, porque los dos leen ``S.SENSOR``.
     sensor = S.use_sensor(v.get("sensor", "IMX477"))
@@ -531,10 +752,47 @@ def render(variant, samples, scale, both_cameras, linear=False,
     # la misma: cuanta potencia necesita la fila, y a que exposicion se revela
     # el render. Subir una sin la otra no simula mas luz, satura el cuadro.
     e_target = v.get("e_target", S.E_TARGET_LX)
-    cd = v.get("candela") or required_candela(lamp_ys, cord_x, lamp_z, points,
-                                              e_target)
-
     tilt_deg, tilt_dir = v.get("tilt", (0.0, "+y"))
+
+    # Con luminarias reales la intensidad NO se resuelve: es un numero de
+    # ficha, y el que sobre o falte luz es precisamente el resultado. Las
+    # variantes de paneles siguen resolviendola, que es lo que les permitia
+    # comparar geometrias sin que la comparacion la decidiera una de ellas
+    # tirando mas potencia.
+    spec = v.get("fixtures")
+    unidades = unidades_de_ficha(spec) if spec else None
+    if unidades is not None and len(unidades) != n_lamps:
+        raise ValueError(
+            f"la variante dice {n_lamps} luminarias y la especificacion "
+            f"{spec!r} da {len(unidades)}")
+    cd = None if unidades else (
+        v.get("candela") or required_candela(lamp_ys, cord_x, lamp_z, points,
+                                             e_target))
+
+    # Prediccion del modelo fotometrico, para poder contrastarla contra el
+    # render. Solo vale cuando el haz se inclina a lo largo del cable, que es
+    # la geometria que perfil_inclinado describe; de costado la fila se corre
+    # en x y ese modelo no la representa.
+    prediccion = None
+    if unidades is not None and tilt_dir in ("-y", "+y") and abs(cord_x) < 1e-6:
+        datos, puestas, corrimiento, tiro = CL.perfil_inclinado(
+            spec, lamp_z, cord_z, y0, y1,
+            inclinacion_deg=tilt_deg if tilt_dir == "-y" else -tilt_deg,
+            onda=bool(wave), luces_y0=ly0, luces_y1=ly1)
+        perp = [pp for _, pp, _ in datos]
+        hor = [hh for _, _, hh in datos]
+        prediccion = dict(
+            modelo="calculadora_luz.perfil_inclinado",
+            peor_lx_cara_a_la_luz=round(min(perp), 1),
+            mejor_lx_cara_a_la_luz=round(max(perp), 1),
+            peor_lx_plano_horizontal=round(min(hor), 1),
+            uniformidad_peor_sobre_mejor=round(min(perp) / max(perp), 4),
+            cumple_objetivo=bool(min(perp) >= e_target),
+            tiro_por_el_eje_m=round(tiro, 3),
+            corrimiento_rio_arriba_m=round(corrimiento, 3),
+            puestas=[dict(modelo=m, reflector=r, apunta_a_y_m=round(ya, 2),
+                          montada_en_y_m=round(yl, 2))
+                     for m, r, ya, yl in puestas])
 
     S._clear()
     # "orbit" is the same cord and the same rig with the room and the lamp
@@ -544,8 +802,13 @@ def render(variant, samples, scale, both_cameras, linear=False,
     # and the lens, and then a difference in the result could not be pinned
     # on the light.
     orbit = v.get("env") == "orbit"
+    # El piso es la unica superficie del cuarto cuyo albedo es una decision
+    # de montaje: madera desnuda o madera con molton negro encima.
+    piso = {"molton": S.FLOOR_ALBEDO_MOLTON,
+            "wood": S.FLOOR_ALBEDO_WOOD}.get(v.get("floor"))
     if not orbit:
-        S.build_room(S.ROOM["depth_m"], S.ROOM["width_m"], S.ROOM["height_m"])
+        S.build_room(S.ROOM["depth_m"], S.ROOM["width_m"], S.ROOM["height_m"],
+                     floor_albedo=piso)
     S.build_tether(cord_x, cord_z, y0, y1, S.TETHER["diameter_mm"],
                    x_far=far_x, z_far=far_z, wave=wave)
     sun_orbit = v.get("sun_orbit_deg", 0.0)
@@ -557,6 +820,11 @@ def render(variant, samples, scale, both_cameras, linear=False,
         sun = S.build_sun(tilt_deg=tilt_deg, tilt_dir=tilt_dir,
                           stars=v.get("stars", False),
                           irradiance=sun_irr, orbit_deg=sun_orbit)
+    elif unidades is not None:
+        S.build_projector_row(cord_x, lamp_z, ly0, ly1, unidades,
+                              tilt_deg=tilt_deg, tilt_dir=tilt_dir,
+                              over=lamp_h,
+                              visible_to_camera=v.get("lamps_visible", False))
     else:
         S.build_lamp_row(cord_x, lamp_z, ly0, ly1, n_lamps, cd,
                          tilt_deg=tilt_deg, tilt_dir=tilt_dir, over=lamp_h,
@@ -632,7 +900,12 @@ def render(variant, samples, scale, both_cameras, linear=False,
                      parallel=True, falloff=False,
                      starfield=v.get("stars", False))
                 if orbit else None),
-        "lamps": None if orbit else dict(count=n_lamps, height_over_cord_m=lamp_h, z_m=lamp_z,
+        "floor": (None if orbit else dict(
+            covering=v.get("floor") or "none, the room box's own 0.02",
+            albedo=piso if piso is not None else S.ROOM_ALBEDO,
+            albedo_is="ASSUMED, to be replaced by a photometer reading")),
+        "lamps": None if orbit or unidades is not None else dict(
+                      count=n_lamps, height_over_cord_m=lamp_h, z_m=lamp_z,
                       y0_m=ly0, y1_m=ly1,
                       spacing_m=round((ly1 - ly0) / max(1, n_lamps - 1), 3),
                       candela=round(cd, 1), tilt_deg=tilt_deg,
@@ -640,8 +913,29 @@ def render(variant, samples, scale, both_cameras, linear=False,
                       watts_each=round(S.candela_to_watts(cd), 1),
                       kw_electrical_total=round(
                           math.pi * cd / 90.0 * n_lamps / 1000.0, 2),
-                      colour_k=5600.0,
+                      colour_k=5600.0, kind="1x1 m area panels, assumed",
                       visible_to_camera=v.get("lamps_visible", False)),
+        # La fila real. ``candela`` aqui no se resolvio, se leyo de la ficha
+        # del fabricante, y por eso el campo que importa es la prediccion:
+        # si cumple o no el objetivo es el resultado, no una entrada.
+        "fixtures": (None if unidades is None else dict(
+            kind="real projectors, Aputure, datasheet candela",
+            spec=spec,
+            datasheets=CL.FICHAS,
+            count=len(unidades), height_over_cord_m=lamp_h, z_m=lamp_z,
+            y0_m=ly0, y1_m=ly1,
+            spacing_m=round((ly1 - ly0) / max(1, n_lamps - 1), 3),
+            tilt_deg=tilt_deg, tilt_dir=tilt_dir, colour_k=5600.0,
+            visible_to_camera=v.get("lamps_visible", False),
+            units=[dict(label=lab, candela=round(c, 1), beam_deg=b,
+                        spot_size_deg=round(min(179.0, b * 5.0 / 3.0), 2),
+                        spot_blend=0.8,
+                        watts_radiant=round(S.candela_to_watts_spot(c), 2))
+                   for c, b, lab in unidades],
+            kw_electrical_total=round(sum(
+                CL.LUMINARIAS[m]["w"] for m, _ in CL.unidades_de(spec)
+            ) / 1000.0, 3),
+            predicted=prediccion)),
         "optics": dict(focal_mm=v["focal"], baseline_mm=S.OPTICS["baseline_mm"],
                        hfov_deg=round(S.hfov_deg(v["focal"]), 2),
                        vfov_deg=round(S.hfov_deg(
@@ -700,19 +994,40 @@ def main():
     ap.add_argument("--sun-orbit", dest="sun_orbit", default="",
                     help="lista de angulos de orbita del sol, en grados: el "
                          "instrumento se queda quieto y gira el haz")
+    ap.add_argument("--sun-tilt", dest="sun_tilt", default="",
+                    help="lista de inclinaciones del sol, en grados, con "
+                         "signo. Junto con --sun-orbit barre la ESFERA: el "
+                         "azimut gira el haz alrededor del eje del cable y "
+                         "la inclinacion lo tumba a lo largo de ese eje")
+    ap.add_argument("--tilts", default="",
+                    help="lista de inclinaciones de las LUMINARIAS del "
+                         "estudio, en grados. Es el otro barrido: la luz "
+                         "esta colgada y lo que cambia es a que angulo se "
+                         "la apunta")
     args = ap.parse_args(argv)
 
     rolls = [float(r) for r in args.rolls.split(",") if r.strip()]
     soles = [float(r) for r in args.sun_orbit.split(",") if r.strip()]
+    incls = [float(r) for r in args.sun_tilt.split(",") if r.strip()]
+    tilts = [float(r) for r in args.tilts.split(",") if r.strip()]
     for v in args.variant.split(","):
         if rolls:
             for r in rolls:
                 render(v.strip(), args.samples, args.scale, args.both,
                        args.linear, args.blend_only, roll_override=r)
-        elif soles:
-            for sdeg in soles:
+        elif tilts:
+            for t in tilts:
                 render(v.strip(), args.samples, args.scale, args.both,
-                       args.linear, args.blend_only, sun_override=sdeg)
+                       args.linear, args.blend_only, tilt_override=t)
+        elif soles or incls:
+            # La esfera. El orden del producto es azimut por fuera e
+            # inclinacion por dentro, asi que un barrido interrumpido deja
+            # anillos completos y no un trozo de cada anillo.
+            for sdeg in (soles or [0.0]):
+                for inc in (incls or [None]):
+                    render(v.strip(), args.samples, args.scale, args.both,
+                           args.linear, args.blend_only, sun_override=sdeg,
+                           sun_tilt_override=inc)
         else:
             render(v.strip(), args.samples, args.scale, args.both,
                    args.linear, args.blend_only)

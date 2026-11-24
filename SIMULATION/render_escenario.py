@@ -47,6 +47,9 @@ if HERE not in sys.path:
 
 import build_tv2_studio as S  # noqa: E402
 
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+import calculadora_luz as CL  # noqa: E402
+
 SALIDA = os.path.join(HERE, "experimentos", "escenario")
 
 #: El cable de verdad mide 1 mm. A esta escala no se ve, asi que el diagrama
@@ -60,6 +63,10 @@ COLORES = dict(
     lampara=(1.0, 0.95, 0.80),
     mastil=(0.45, 0.47, 0.50),
     marca=(0.95, 0.80, 0.25),
+    madera=(0.42, 0.30, 0.19),
+    molton=(0.035, 0.035, 0.042),
+    haz=(1.0, 0.86, 0.55),
+    direccion=(0.35, 0.80, 1.0),
 )
 
 
@@ -182,6 +189,122 @@ def lamparas_proxy(x, z, y0, y1, count, mat, tilt_deg=40.0, over=2.0):
         obj.rotation_euler = Euler((-t, 0.0, 0.0), "XYZ")
         paneles.append(_pintar(obj, mat))
     return paneles, ys
+
+
+def _mat_translucido(nombre, rgb, fuerza=1.1, opacidad=0.14):
+    """Emision mezclada con transparente: un volumen de diagrama.
+
+    Los conos de haz tienen que dejar ver el cable que hay dentro, asi que no
+    pueden ser solidos. En Cycles la transparencia de un diagrama se hace con
+    un Mix Shader contra un Transparent BSDF, no con ``blend_method``, que es
+    de EEVEE y aqui no hace nada.
+    """
+    mat = bpy.data.materials.new(nombre)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    for n in list(nt.nodes):
+        if n.type != "OUTPUT_MATERIAL":
+            nt.nodes.remove(n)
+    salida = nt.nodes["Material Output"]
+    emi = nt.nodes.new("ShaderNodeEmission")
+    emi.inputs["Color"].default_value = (*rgb, 1.0)
+    emi.inputs["Strength"].default_value = fuerza
+    tra = nt.nodes.new("ShaderNodeBsdfTransparent")
+    mez = nt.nodes.new("ShaderNodeMixShader")
+    mez.inputs["Fac"].default_value = opacidad
+    nt.links.new(tra.outputs[0], mez.inputs[1])
+    nt.links.new(emi.outputs[0], mez.inputs[2])
+    nt.links.new(mez.outputs[0], salida.inputs["Surface"])
+    return mat
+
+
+def cono_de_haz(nombre, apex, tilt_deg, largo, haz_deg, mat, tilt_dir="-y"):
+    """El cono que una luminaria realmente ilumina, dibujado.
+
+    Es la pieza que hace que el diagrama se explique solo. Doce paneles de
+    1 x 1 m banan el cable entero y no hay nada que mirar; cinco conos de 45
+    grados se tocan apenas, y en el dibujo se ve donde no llegan.
+
+    El cono de Blender nace con el vertice en +Z local, asi que para que el
+    vertice quede en la luminaria y la boca mire por donde viaja el haz, su
+    +Z tiene que apuntar al reves del haz: con el haz en ``(0, -sin t,
+    -cos t)``, eso es una rotacion de ``-t`` sobre X, la misma que lleva el
+    cuerpo de la luminaria. El centro va medio largo por delante del vertice
+    en la direccion del haz.
+    """
+    t = math.radians(tilt_deg)
+    if tilt_dir == "-y":
+        beam = (0.0, -math.sin(t), -math.cos(t))
+        rot = (-t, 0.0, 0.0)
+    elif tilt_dir == "+y":
+        beam = (0.0, math.sin(t), -math.cos(t))
+        rot = (t, 0.0, 0.0)
+    elif tilt_dir == "+x":
+        beam = (math.sin(t), 0.0, -math.cos(t))
+        rot = (0.0, -t, 0.0)
+    else:
+        beam = (-math.sin(t), 0.0, -math.cos(t))
+        rot = (0.0, t, 0.0)
+    radio = largo * math.tan(math.radians(haz_deg / 2.0))
+    bpy.ops.mesh.primitive_cone_add(vertices=48, radius1=radio, radius2=0.0,
+                                    depth=largo)
+    obj = bpy.context.active_object
+    obj.name = nombre
+    obj.location = (apex[0] + beam[0] * largo / 2.0,
+                    apex[1] + beam[1] * largo / 2.0,
+                    apex[2] + beam[2] * largo / 2.0)
+    obj.rotation_euler = Euler(rot, "XYZ")
+    _pintar(obj, mat)
+    # Un cono de diagrama no tiene que hacer sombra ni recibirla: si la hace,
+    # oscurece el piso justo donde se quiere ver que la luz llega.
+    obj.visible_shadow = False
+    return obj
+
+
+def proyectores_proxy(x, z, y0, y1, unidades, mat_cuerpo, mat_cono,
+                      tilt_deg=40.0, over=4.5, tilt_dir="-y"):
+    """Las luminarias REALES del estudio, con su cono y su rotulo.
+
+    ``unidades`` son ``(candela, haz_deg, etiqueta)`` de
+    ``tools/calculadora_luz.py``, en el orden en que esa calculadora las
+    reparte por la fila. El cuerpo es un cilindro corto, que es la forma de
+    un proyector con reflector conico, y no un panel plano: la diferencia
+    entre los doce paneles supuestos y estas cinco es exactamente eso.
+
+    El corrimiento rio arriba repite la formula de ``build_projector_row``,
+    ``over * tan(tilt)``, para que el diagrama no pueda separarse de la
+    escena que se renderiza. A 40 grados con la fila 4.5 m sobre el cable son
+    3.78 m, que es mucho: una luminaria dibujada sobre el punto que ilumina
+    seria una mentira de casi cuatro metros.
+    """
+    t = math.radians(tilt_deg)
+    corrimiento = over * math.tan(t)
+    tiro = over / math.cos(t)
+    n = len(unidades)
+    ys = [y0] if n == 1 else [y0 + (y1 - y0) * i / (n - 1) for i in range(n)]
+    cuerpos = []
+    for i, ((cd, haz, etiqueta), ya) in enumerate(zip(unidades, ys)):
+        if tilt_dir in ("-y", "+y"):
+            loc = (x, ya + (corrimiento if tilt_dir == "-y" else -corrimiento),
+                   z)
+        else:
+            loc = (x + (corrimiento if tilt_dir == "-x" else -corrimiento),
+                   ya, z)
+        bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.26,
+                                            depth=0.62)
+        obj = bpy.context.active_object
+        obj.name = f"Proyector_{i:02d}_{etiqueta}"
+        obj.location = loc
+        obj.rotation_euler = Euler(
+            (-t, 0.0, 0.0) if tilt_dir == "-y" else
+            (t, 0.0, 0.0) if tilt_dir == "+y" else
+            (0.0, -t, 0.0) if tilt_dir == "+x" else (0.0, t, 0.0), "XYZ")
+        cuerpos.append(_pintar(obj, mat_cuerpo))
+        # El cono se dibuja un 15 % mas largo que el tiro para que se vea
+        # que pasa de largo del cable y termina en el piso.
+        cono_de_haz(f"Haz_{i:02d}", loc, tilt_deg, tiro * 1.15, haz,
+                    mat_cono, tilt_dir=tilt_dir)
+    return cuerpos, ys, corrimiento, tiro
 
 
 def marcas_de_piso(y0, y1, paso, mat):
@@ -308,6 +431,168 @@ def escena_estudio():
               (pts[-1][0], y1, pts[-1][2]), 0.09, mast)
     return dict(cord_x=cord_x, y0=y0, y1=y1, cord_z=cord_z, lamp_z=lamp_z,
                 lamp_ys=lamp_ys, pts=pts)
+
+
+def escena_estudio_real(spec="storm1200x:45:4,ls1200d_pro:45:1",
+                        cord_z=1.5, lamp_z=6.0, y0=2.0, y1=20.0,
+                        tilt_deg=40.0, molton=True):
+    """El TV2 como se va a montar el viernes 11, con las luminarias que hay.
+
+    Sustituye a ``escena_estudio``, que dibuja los doce paneles de 1 x 1 m
+    que suponiamos. Ese dibujo no esta mal, es de otro montaje: el estudio
+    tiene cuatro STORM 1200x y dos LS 1200d Pro, que son proyectores de cono.
+
+    Tres cosas de este dibujo no son decoracion y conviene leerlas:
+
+    * **el cable baja a 1.5 m**, porque un cono de 45 grados necesita de 4.5
+      a 6 m de tiro para cubrir su tramo y con techo de 10 m eso no deja el
+      cable a 5. A 1.5 m se tiende a mano, sin andamio.
+    * **el piso es de madera y lleva molton negro encima.** El cable que se
+      mide tiene 1 mm, asi que cualquier fondo claro lo tapa, y al bajar el
+      cable el piso entra en cuadro a 5.1 m en vez de a 17. El rectangulo
+      oscuro del dibujo es la tela, 20 x 3 m.
+    * **las luminarias no estan sobre el punto que iluminan.** Van 3.78 m rio
+      arriba, porque inclinar es apuntar.
+    """
+    S._clear()
+    ambiente()
+    rasante()
+
+    cord_x = 0.0
+    over = lamp_z - cord_z
+    W, D, H = S.ROOM["width_m"], S.ROOM["depth_m"], S.ROOM["height_m"]
+
+    # El cuarto abierto, como en ``escena_estudio``: piso, fondo y un lateral.
+    # El piso va de color madera, que es lo que Jose confirmo que hay, para
+    # que la tela se lea como lo que es y no como una sombra.
+    madera = _mat_color("PisoMadera", COLORES["madera"])
+    pared = _mat_color("ParedDiagrama", (0.24, 0.24, 0.26))
+    for nombre, loc, escala, rot, mat in (
+            ("Piso", (0.0, D / 2.0, 0.0), (W, D, 1.0), (0, 0, 0), madera),
+            ("ParedFondo", (0.0, D, H / 2.0), (W, H, 1.0),
+             (math.radians(90.0), 0, 0), pared),
+            ("ParedLateral", (-W / 2.0, D / 2.0, H / 2.0), (D, H, 1.0),
+             (0, math.radians(90.0), math.radians(90.0)), pared)):
+        bpy.ops.mesh.primitive_plane_add(size=1.0)
+        obj = bpy.context.active_object
+        obj.name = nombre
+        obj.scale = escala
+        obj.rotation_euler = Euler(rot, "XYZ")
+        obj.location = loc
+        bpy.ops.object.transform_apply(scale=True, rotation=True)
+        _pintar(obj, mat)
+
+    if molton:
+        bpy.ops.mesh.primitive_plane_add(size=1.0)
+        tela = bpy.context.active_object
+        tela.name = "MoltonNegro"
+        tela.scale = (3.0, (y1 - y0) + 2.0, 1.0)
+        tela.location = (0.0, (y0 + y1) / 2.0, 0.015)
+        bpy.ops.object.transform_apply(scale=True, location=True)
+        _pintar(tela, _mat_color("MoltonDiagrama", COLORES["molton"]))
+
+    pts = S.cord_points(cord_x, cord_z, y0, y1, 512, wave=S.WAVE)
+    cordon_grueso(pts, _mat_color("CordonDiagrama", COLORES["cordon"], 1.2))
+
+    unidades = []
+    for modelo, ref in CL.unidades_de(spec):
+        cd, _ = CL.intensidad_cd(modelo, ref)
+        unidades.append((cd, CL.LUMINARIAS[modelo]["haz"][ref],
+                         "STORM" if modelo.startswith("storm") else "LS"))
+    _, lamp_ys, corrimiento, tiro = proyectores_proxy(
+        cord_x, lamp_z, y0, y1, unidades,
+        _mat_color("CuerpoProyector", (0.82, 0.82, 0.84), 0.2),
+        _mat_translucido("HazDiagrama", COLORES["haz"]),
+        tilt_deg=tilt_deg, over=over)
+
+    camaras_proxy(cord_z, S.OPTICS["baseline_mm"], y0,
+                  _mat_color("CamaraDiagrama", COLORES["camara"], 0.4))
+    marcas_de_piso(5.0, 20.0, 5.0,
+                   _mat_color("MarcaDiagrama", COLORES["marca"], 0.6))
+
+    mast = _mat_color("MastilDiagrama", COLORES["mastil"])
+    _cilindro("Mastil_cerca", (0.0, y0, 0.0), (0.0, y0, cord_z - 0.12),
+              0.07, mast)
+    _cilindro("Mastil_lejos", (pts[-1][0], y1, 0.0),
+              (pts[-1][0], y1, pts[-1][2]), 0.07, mast)
+    return dict(cord_x=cord_x, y0=y0, y1=y1, cord_z=cord_z, lamp_z=lamp_z,
+                lamp_ys=lamp_ys, pts=pts, corrimiento=corrimiento, tiro=tiro,
+                unidades=unidades)
+
+
+def escena_esfera(azimutes=16, inclinaciones=(-60.0, -30.0, 0.0, 30.0, 60.0),
+                  destacada=(45.0, 30.0)):
+    """El cable y la ESFERA de direcciones desde las que puede llegar el sol.
+
+    El anillo que dibuja ``escena_orbita`` es un corte de esto: un azimut que
+    gira alrededor del eje del cable, a inclinacion cero. La esfera es el
+    experimento completo, porque no se sabe en que direccion va a estar el
+    sol y el azimut solo recorre un circulo maximo.
+
+    Cada bolita es una direccion renderizada, puesta en el radio del
+    diagrama. Hay ``azimutes * len(inclinaciones)`` mas los dos polos, y la
+    destacada lleva un sol de verdad, una esfera y no un circulo, con una
+    linea hasta el cable para que se vea que el haz apunta ahi.
+    """
+    S._clear()
+    S._build_world(stars=True)
+    rasante(energia=2.0)
+
+    cord_x, y0, y1 = 0.0, 2.0, 20.0
+    cord_z = 5.0
+    pts = S.cord_points(cord_x, cord_z, y0, y1, 512, wave=S.WAVE)
+    cordon_grueso(pts, _mat_color("CordonDiagrama", COLORES["cordon"], 1.4))
+    camaras_proxy(cord_z, S.OPTICS["baseline_mm"], y0,
+                  _mat_color("CamaraDiagrama", COLORES["camara"], 0.5))
+
+    centro = (cord_x, (y0 + y1) / 2.0, cord_z)
+    radio = 7.5
+    mat_dir = _mat_color("DireccionDiagrama", COLORES["direccion"], 2.2)
+    mat_sol = _mat_color("SolDiagrama", (1.0, 0.93, 0.70), 9.0)
+
+    def punto(az_deg, inc_deg):
+        """La direccion de la que viene el haz, en el radio del diagrama.
+
+        Es la inversa de ``build_sun``: alli el haz viaja en
+        ``(cos t sin o, -sin t, -cos t cos o)``, asi que el sol esta en menos
+        eso. Se reconstruye aqui con la misma formula y no con otra, que es
+        la unica forma de que el dibujo y el render hablen del mismo angulo.
+        """
+        t, o = math.radians(inc_deg), math.radians(az_deg)
+        haz = (math.cos(t) * math.sin(o), -math.sin(t),
+               -math.cos(t) * math.cos(o))
+        return (centro[0] - haz[0] * radio, centro[1] - haz[1] * radio,
+                centro[2] - haz[2] * radio)
+
+    direcciones = []
+    for i in range(azimutes):
+        az = 360.0 * i / azimutes
+        for inc in inclinaciones:
+            direcciones.append((az, inc))
+    direcciones += [(0.0, -89.0), (0.0, 89.0)]
+
+    for k, (az, inc) in enumerate(direcciones):
+        pp = punto(az, inc)
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.22, segments=16,
+                                             ring_count=8, location=pp)
+        obj = bpy.context.active_object
+        obj.name = f"Dir_{k:03d}_az{az:05.1f}_inc{inc:+05.1f}"
+        _pintar(obj, mat_dir)
+        obj.visible_shadow = False
+
+    # El sol destacado: una ESFERA, con su tamano exagerado para que se vea,
+    # y la linea del haz hasta el cable.
+    ps = punto(*destacada)
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.95, segments=32,
+                                         ring_count=16, location=ps)
+    sol = bpy.context.active_object
+    sol.name = "Sol_destacado"
+    _pintar(sol, mat_sol)
+    sol.visible_shadow = False
+    _cilindro("Haz_destacado", ps, centro, 0.045,
+              _mat_color("HazLinea", COLORES["haz"], 2.0))
+    return dict(centro=centro, radio=radio, direcciones=direcciones,
+                destacada=destacada, pts=pts)
 
 
 def escena_orbita(orbit_deg=45.0, marcas=16):
@@ -450,6 +735,60 @@ def main():
             cam = camara_vista("VistaPlanta", (0.0, 15.0, 9.7), orto=32.0,
                                euler=E_PLAN)
             hechos.append(_render("estudio_planta", cam, args.samples))
+
+    # --- El cuarto con las luminarias que el estudio tiene ----------------
+    if quiere("tv2_tres_cuartos") or quiere("tv2_elevacion") \
+            or quiere("tv2_planta"):
+        g = escena_estudio_real()
+        tinta = _mat_color("RotuloTV2", (0.97, 0.97, 0.98), 1.6)
+        E_ELEV = (math.radians(90.0), 0.0, math.radians(90.0))
+        E_PLAN = (0.0, 0.0, math.radians(90.0))
+        if quiere("tv2_tres_cuartos"):
+            cam = camara_vista("TV2TresCuartos", (10.5, -5.5, 7.0),
+                               mirando_a=(0.0, 10.0, 2.6), lente=24.0)
+            hechos.append(_render("tv2_tres_cuartos", cam, args.samples))
+        if quiere("tv2_elevacion"):
+            for txt, loc, tam in (
+                    ("5 luminarias reales a 6.0 m: 4 STORM 1200x + 1 LS 1200d Pro",
+                     (2.0, 2.2, 6.55), 0.62),
+                    ("cada una va 3.78 m rio arriba del punto que ilumina, "
+                     "porque inclinar es apuntar", (2.0, 2.2, 5.95), 0.52),
+                    ("cono de 45 grados, tiro de 5.87 m por el eje",
+                     (2.0, 12.6, 4.15), 0.55),
+                    ("cable 1 mm (dibujado x150), 18 m, a 1.5 m del piso",
+                     (2.0, 4.0, 2.25), 0.62),
+                    ("par estereo, base 100 mm", (2.0, -1.2, 1.15), 0.55),
+                    ("molton negro sobre piso de madera",
+                     (2.0, 13.0, 0.35), 0.55),
+                    ("techo a 10 m", (2.0, 17.0, 9.3), 0.55)):
+                _texto(txt, loc, E_ELEV, tam, tinta)
+            cam = camara_vista("TV2Elevacion", (14.0, 10.5, 4.2),
+                               orto=26.0, euler=E_ELEV)
+            hechos.append(_render("tv2_elevacion", cam, args.samples))
+            for o in [o for o in bpy.data.objects
+                      if o.name.startswith("Txt_")]:
+                bpy.data.objects.remove(o, do_unlink=True)
+        if quiere("tv2_planta"):
+            for txt, loc, tam in (
+                    ("18 m de cable", (-4.2, 7.0, 0.06), 0.72),
+                    ("5 luminarias, una cada 4.5 m", (1.6, 5.0, 0.06), 0.62),
+                    ("par estereo", (-2.0, 0.6, 0.06), 0.62),
+                    ("molton negro, 20 x 3 m", (3.4, 14.0, 0.06), 0.62),
+                    ("15 m de ancho", (5.8, 19.0, 0.06), 0.62)):
+                _texto(txt, loc, E_PLAN, tam, tinta)
+            cam = camara_vista("TV2Planta", (0.0, 10.5, 9.7), orto=26.0,
+                               euler=E_PLAN)
+            hechos.append(_render("tv2_planta", cam, args.samples))
+            for o in [o for o in bpy.data.objects
+                      if o.name.startswith("Txt_")]:
+                bpy.data.objects.remove(o, do_unlink=True)
+
+    # --- La esfera de direcciones del sol ---------------------------------
+    if quiere("orbita_esfera"):
+        escena_esfera()
+        cam = camara_vista("VistaEsfera", (-13.0, -7.0, 12.5),
+                           mirando_a=(0.0, 11.0, 5.0), lente=26.0)
+        hechos.append(_render("orbita_esfera", cam, args.samples))
 
     if quiere("orbita_anillo"):
         escena_orbita(orbit_deg=45.0)

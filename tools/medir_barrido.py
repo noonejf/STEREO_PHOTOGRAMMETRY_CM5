@@ -51,6 +51,14 @@ import build_tv2_studio as S  # noqa: E402
 
 FONDO_LAMPARA = 20.0   # niveles: por encima de esto, detras hay una lampara
 
+#: Niveles de contraste por debajo de los cuales la mascara ya no tiene nada
+#: que segmentar. No es un umbral elegido para que salga bonito: 5 niveles de
+#: 8 bits sobre el fondo local es el orden del ruido de lectura del propio
+#: render a 8 muestras, asi que por debajo de eso el cordon no esta medido,
+#: esta supuesto. Se media en un script suelto en el barrido de azimut; vive
+#: aqui para que la esfera y el anillo usen el mismo criterio.
+UMBRAL_CIEGO = 5.0
+
 
 def _bilineal(img, u, r):
     x0, y0 = int(np.floor(u)), int(np.floor(r))
@@ -94,8 +102,6 @@ def medir(carpeta, desde_m, lado="left"):
         if uv[i] is None or uv[i - 10] is None or uv[i + 10] is None:
             continue
         d = float(pts[i][1] - cam[1])
-        if d < desde_m:
-            continue
         u, r = uv[i]
         if not (16 <= u < W - 17 and 16 <= r < H - 17):
             continue
@@ -117,15 +123,39 @@ def medir(carpeta, desde_m, lado="left"):
     bases = np.array(bases)
     dist = np.array(dist)
     sobre = bases > FONDO_LAMPARA
-    limpio = picos[~sobre]
+
+    # **Las dos medidas no se toman sobre el mismo tramo, y es a proposito.**
+    #
+    # El contraste se promedia desde ``desde_m`` porque el cable nace en el
+    # plano del lente: sus primeros dos metros llevan 1400 niveles contra 60
+    # a 20 m, asi que dominan cualquier promedio y lo que se mediria es la
+    # distancia al cable, no la luz.
+    #
+    # El cable ciego se cuenta sobre el cable ENTERO, porque la pregunta es
+    # que fraccion no se puede segmentar, y el tramo cercano es parte del
+    # cable. Si se contara desde 5 m, el tramo ciego que a 270 grados
+    # empieza en 0.4 m no existiria, y la fraccion saldria mas alta por
+    # quitar del denominador justo las muestras brillantes: a 180 grados,
+    # 44.3 % en vez de 35.8 %. Cambiar cualquiera de los dos dominios
+    # invalida la comparacion con el barrido de azimut.
+    lejos = dist >= desde_m
+    limpio = picos[(~sobre) & lejos]
+    ciego = (~sobre) & (picos < UMBRAL_CIEGO)
+    n_limpio = int((~sobre).sum())
     return dict(
         contraste=float(limpio.mean()) if limpio.size else float("nan"),
         contraste_lejos=float(picos[(~sobre) & (dist > 18)].mean())
         if ((~sobre) & (dist > 18)).any() else float("nan"),
+        ciego_pct=float(ciego.sum() / n_limpio * 100.0) if n_limpio else
+        float("nan"),
+        ciego_desde_m=float(dist[ciego].min()) if ciego.any() else float("nan"),
+        ciego_hasta_m=float(dist[ciego].max()) if ciego.any() else float("nan"),
         sobre_lampara_pct=float(sobre.mean() * 100.0),
         tramo_lampara_m=float(dist[sobre].max() - dist[sobre].min())
         if sobre.any() else 0.0,
         muestras=int(picos.size),
+        muestras_desde=int(lejos.sum()),
+        desde_m=desde_m,
         sensor=(meta.get("sensor") or {}).get("name", "IMX477"),
         focal_mm=meta["optics"]["focal_mm"],
         resolucion=[img.shape[1], img.shape[0]])
@@ -153,15 +183,15 @@ def main():
         return
 
     print(f"{'angulo':>7} {'contraste':>10} {'lejos>18m':>10} "
-          f"{'lampara':>8} {'tramo':>7} {'muestras':>9}")
+          f"{'ciego':>7} {'lampara':>8} {'tramo':>7} {'muestras':>9}")
     filas = []
     for ang in sorted(carpetas):
         r = medir(carpetas[ang], args.desde)
         if r is None:
             continue
         print(f"{ang:7.1f} {r['contraste']:10.1f} {r['contraste_lejos']:10.1f}"
-              f" {r['sobre_lampara_pct']:7.1f}% {r['tramo_lampara_m']:6.1f}m"
-              f" {r['muestras']:9d}")
+              f" {r['ciego_pct']:6.1f}% {r['sobre_lampara_pct']:7.1f}%"
+              f" {r['tramo_lampara_m']:6.1f}m {r['muestras']:9d}")
         filas.append(dict(angulo_deg=ang, **r))
 
     if filas:
