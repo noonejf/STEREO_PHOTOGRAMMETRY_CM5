@@ -117,7 +117,10 @@ def main():
         "blender --background --python SIMULATION/render_studio_iterations.py -- \\",
         "        --variant SOL --sun-orbit 0,22.5,45,67.5,90,112.5,135,157.5,180,"
         "202.5,225,247.5,270,292.5,315,337.5 \\",
-        "        --sun-tilt -60,-30,0,30,60 --samples 8 --scale 25",
+        "        --sun-tilt=-60,-30,30,60 --samples 24 --scale 100",
+        "#    el signo igual no es adorno: con espacio argparse lee el -60 como",
+        "#    una opcion y el barrido no corre. La fila de inclinacion cero es",
+        "#    el anillo ya publicado y no se vuelve a renderizar.",
         "",
         "# los diagramas del montaje",
         "blender --background --python SIMULATION/render_escenario.py -- \\",
