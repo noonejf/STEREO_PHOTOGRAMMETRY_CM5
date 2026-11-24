@@ -1,0 +1,549 @@
+<title>Luz sobre el cable</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #0c0d10;
+    --bg2: #13151a;
+    --bg3: #1a1d24;
+    --line: #262a33;
+    --fg: #e8eaf0;
+    --fg2: #9aa1b0;
+    --fg3: #6b7280;
+    --cord: #ff7a35;
+    --beam: #9fc6f0;
+    --warm: #ffcf7a;
+    --ok: #5fcf8a;
+    --bad: #e85d5d;
+    --shadow: 0 1px 0 rgba(255,255,255,.03), 0 8px 24px rgba(0,0,0,.45);
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f6f6f4;
+      --bg2: #ffffff;
+      --bg3: #ecece8;
+      --line: #d9d9d3;
+      --fg: #17181c;
+      --fg2: #52565f;
+      --fg3: #80848d;
+      --cord: #c4480c;
+      --beam: #2c6ba8;
+      --warm: #a07420;
+      --ok: #1d7a44;
+      --bad: #b02626;
+      --shadow: 0 1px 2px rgba(0,0,0,.06), 0 6px 18px rgba(0,0,0,.07);
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f6f4;
+    --bg2: #ffffff;
+    --bg3: #ecece8;
+    --line: #d9d9d3;
+    --fg: #17181c;
+    --fg2: #52565f;
+    --fg3: #80848d;
+    --cord: #c4480c;
+    --beam: #2c6ba8;
+    --warm: #a07420;
+    --ok: #1d7a44;
+    --bad: #b02626;
+    --shadow: 0 1px 2px rgba(0,0,0,.06), 0 6px 18px rgba(0,0,0,.07);
+    color-scheme: light;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font: 400 16px/1.62 Inter, system-ui, -apple-system, Segoe UI, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding-block: 0 72px; padding-left: 16px; padding-right: 16px; }
+  h1, h2, h3 { font-family: Archivo, Inter, system-ui, sans-serif; text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(30px, 5.2vw, 50px); font-weight: 700; letter-spacing: -.02em; line-height: 1.05; }
+  h2 { font-size: clamp(20px, 3vw, 27px); font-weight: 600; letter-spacing: -.01em; }
+  h3 { font-size: 16px; font-weight: 600; }
+  p { margin: 0; }
+  a { color: var(--beam); }
+  .lede { color: var(--fg2); font-size: clamp(16px, 2.1vw, 19px); max-width: 65ch; }
+  .meta { color: var(--fg3); font-size: 13px; }
+  .kicker {
+    font-family: Archivo, sans-serif; font-size: 11.5px; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--cord);
+  }
+  header.top { padding-block: 56px 36px; display: flex; flex-direction: column; gap: 16px; border-bottom: 1px solid var(--line); }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag {
+    font-size: 12.5px; color: var(--fg2); background: var(--bg3);
+    border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px;
+  }
+  section { padding-block: 44px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 20px; }
+  section > p, section > .note { max-width: 68ch; }
+  .note { color: var(--fg2); font-size: 14.5px; }
+  .grid { display: grid; gap: 18px; }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  figure { margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  figure img {
+    width: 100%; height: auto; display: block; border-radius: 7px;
+    border: 1px solid var(--line); background: #000; box-shadow: var(--shadow);
+  }
+  figcaption { color: var(--fg2); font-size: 13px; }
+  figcaption b { color: var(--fg); font-weight: 600; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .scroll { overflow-x: auto; }
+  th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { color: var(--fg3); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  tbody tr.hi td { background: color-mix(in srgb, var(--cord) 10%, transparent); }
+  tbody tr.hi td:first-child { font-weight: 600; }
+  .num { font-variant-numeric: tabular-nums; }
+  .big { font-family: Archivo, sans-serif; font-size: 30px; font-weight: 700; letter-spacing: -.02em; }
+  .card {
+    background: var(--bg2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; min-width: 0;
+  }
+  .card .lab { color: var(--fg3); font-size: 12px; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; }
+  .card .sub { color: var(--fg2); font-size: 13px; }
+  .warn {
+    border-left: 3px solid var(--warm); background: var(--bg2);
+    padding: 14px 16px; border-radius: 0 8px 8px 0; color: var(--fg2); font-size: 14.5px;
+  }
+  .warn b { color: var(--fg); }
+
+  /* la esfera */
+  .esfera { display: grid; gap: 22px; grid-template-columns: minmax(280px, 400px) minmax(0, 1fr); align-items: start; }
+  @media (max-width: 800px) { .esfera { grid-template-columns: 1fr; } }
+  .bolaCaja { background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+  svg.bola { width: 100%; height: auto; display: block; touch-action: none; cursor: grab; }
+  svg.bola:active { cursor: grabbing; }
+  .controles { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 13px; color: var(--fg2); }
+  .controles button {
+    font: 500 12.5px/1 Inter, sans-serif; color: var(--fg); background: var(--bg3);
+    border: 1px solid var(--line); border-radius: 7px; padding: 7px 11px; cursor: pointer;
+  }
+  .controles button[aria-pressed="true"] { border-color: var(--cord); color: var(--cord); }
+  .leyenda { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--fg3); }
+  .barra { width: 110px; height: 9px; border-radius: 5px; border: 1px solid var(--line); }
+  .detalle { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .detalle img { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); background: #000; }
+  .cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; }
+  .cifra { background: var(--bg2); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; }
+  .cifra .v { font-family: Archivo, sans-serif; font-size: 21px; font-weight: 700; }
+  .cifra .k { color: var(--fg3); font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; }
+  footer { padding-block: 36px; color: var(--fg3); font-size: 13px; display: flex; flex-direction: column; gap: 10px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; background: var(--bg3); padding: 1.5px 5px; border-radius: 4px; }
+  pre { margin: 0; overflow-x: auto; background: var(--bg2); border: 1px solid var(--line); border-radius: 9px; padding: 14px 16px; }
+  pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.7; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <span class="kicker">Proyecto LINKU, PUCP / APSCO</span>
+    <h1>Luz sobre el cable</h1>
+    <p class="lede" id="lede">Cargando las medidas.</p>
+    <div class="tags" id="tags"></div>
+  </header>
+
+  <section id="s-cambio">
+    <span class="kicker">1. Lo que cambio</span>
+    <h2>El estudio no tiene doce paneles, tiene cinco proyectores</h2>
+    <p class="note">Todo lo simulado hasta el 23 de noviembre de 2026 iluminaba el cable con doce
+      paneles de 1 x 1 m, que era una suposicion nuestra. El TV2 tiene cuatro Aputure STORM 1200x y
+      dos LS 1200d Pro, que son proyectores puntuales con reflector conico. La diferencia que manda
+      no es la potencia: es el reparto. Un panel de 1 x 1 m a 2 m de altura bana su tramo de cable;
+      un cono de 45 grados a 2 m ilumina un circulo de 1.66 m y deja el resto a oscuras.</p>
+    <div class="grid g3" id="tarjetas"></div>
+    <div class="scroll"><table id="t-fichas"></table></div>
+    <p class="meta">Intensidades calculadas de la tabla fotometrica de cada ficha con
+      <code>I = lux * d^2</code>, comprobadas contra las cuatro distancias que publica el
+      fabricante: menos del 5 % de dispersion. Fichas versionadas en
+      <code>Documentation/LINKU_Experiment_TV2/Sources/luminarias/</code>.</p>
+  </section>
+
+  <section id="s-montaje">
+    <span class="kicker">2. El montaje</span>
+    <h2>Como queda el estudio el viernes 11</h2>
+    <p class="note">Tres vistas de la misma escena de Blender, dibujadas desde fuera. No son
+      renders del experimento: el cable esta engordado 150 veces para que se vea y el cuarto esta
+      aclarado, porque con su albedo real, 0.02, un dibujo del montaje sale negro.</p>
+    <div class="grid g2" id="diagramas"></div>
+    <div class="warn" id="porque-baja"></div>
+  </section>
+
+  <section id="s-haz">
+    <span class="kicker">3. Hacia donde apuntarlas</span>
+    <h2>Mirando a lo largo del cable, el haz va vertical</h2>
+    <p class="note">Esta medicion contradijo lo que el proyecto venia diciendo, asi que se hizo el
+      test limpio: el mismo cuarto, el mismo cable y las mismas cinco luminarias, con la unica
+      diferencia de a donde apuntan. El argumento que estaba escrito, que un haz desde arriba
+      ilumina la cara de arriba del cilindro mientras las camaras le miran el costado, vale en la
+      vista de costado y no dice nada sobre esta: aqui la camara mira a lo largo del cable, asi que
+      de cada tramo ve el limbo del cilindro, cuyas normales apuntan en x y en z. Un haz vertical
+      ilumina justamente una de ellas.</p>
+    <div class="grid g3" id="haz"></div>
+  </section>
+
+  <section id="s-tela">
+    <span class="kicker">4. La tela</span>
+    <h2>El molton negro no es una mejora, es una condicion</h2>
+    <p class="note">Al bajar el cable a 1.5 m el piso entra en cuadro a 5.1 m en vez de a 17, y el
+      piso del TV2 es de madera. El par de abajo es el mismo render con lo unico que cambia siendo
+      el albedo del piso.</p>
+    <div class="grid g2" id="tela"></div>
+    <p class="meta" id="tela-meta"></p>
+  </section>
+
+  <section id="s-esfera">
+    <span class="kicker">5. La esfera del sol</span>
+    <h2>En orbita no se elige de donde viene la luz</h2>
+    <p class="note">El experimento del cuarto tiene la luz colgada donde la pongamos. El de orbita
+      no: el sol llega de donde llega. Lo ya medido era un anillo, un azimut que gira alrededor del
+      eje del cable con la inclinacion en cero, y un anillo no es una esfera. Aqui esta la rejilla
+      completa. <b>Arrastra la bola</b> para girarla y <b>toca una direccion</b> para ver ese
+      render.</p>
+    <div class="esfera">
+      <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+        <div class="bolaCaja"><svg class="bola" id="bola" viewBox="0 0 420 420" role="img"
+          aria-label="Esfera de direcciones del sol alrededor del cable"></svg></div>
+        <div class="controles">
+          <button id="b-contraste" aria-pressed="true">Colorear por contraste</button>
+          <button id="b-ciego" aria-pressed="false">Por cable ciego</button>
+        </div>
+        <div class="leyenda"><span id="leyenda-min"></span><span class="barra" id="barra"></span><span id="leyenda-max"></span></div>
+        <p class="meta" id="esfera-meta"></p>
+      </div>
+      <div class="detalle">
+        <h3 id="d-titulo">Direccion</h3>
+        <div class="cifras" id="d-cifras"></div>
+        <img id="d-img" alt="Render de la camara izquierda para la direccion del sol elegida">
+        <p class="meta" id="d-pie"></p>
+      </div>
+    </div>
+    <div class="grid" id="figs-esfera"></div>
+  </section>
+
+  <section id="s-falta">
+    <span class="kicker">6. Lo que no esta medido</span>
+    <h2>Lo que manda el dia de la sesion es el fotometro</h2>
+    <div class="grid g2" id="falta"></div>
+  </section>
+
+  <section>
+    <span class="kicker">7. Como se reproduce</span>
+    <h2>Todo esto sale de cuatro comandos</h2>
+    <pre><code id="comandos"></code></pre>
+  </section>
+
+  <footer>
+    <p id="pie-fecha"></p>
+    <p>Las imagenes de la esfera estan realzadas con una curva de gamma para poder verse en
+      pantalla. Es monotona, asi que no cambia el orden de dos pixeles, pero deja de ser
+      proporcional a la luz: ninguna medida de esta pagina sale de ellas. Las medidas salen del
+      render crudo, y los lux del render lineal en OpenEXR.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var D = null;
+
+  function el(t, cls, txt) {
+    var n = document.createElement(t);
+    if (cls) n.className = cls;
+    if (txt !== undefined) n.textContent = txt;
+    return n;
+  }
+  function num(v, d) {
+    if (v === null || v === undefined || (typeof v === "number" && !isFinite(v))) return "---";
+    return (typeof v === "number") ? v.toLocaleString("es-PE",
+      { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }) : String(v);
+  }
+
+  // ---------------------------------------------------------- cabecera
+  function cabecera() {
+    document.getElementById("lede").textContent = D.lede;
+    var t = document.getElementById("tags");
+    D.etiquetas.forEach(function (x) { t.appendChild(el("span", "tag", x)); });
+    document.getElementById("pie-fecha").textContent = D.pie;
+    document.getElementById("comandos").textContent = D.comandos.join("\n");
+  }
+
+  // ------------------------------------------------------------ seccion 1
+  function cambio() {
+    var c = document.getElementById("tarjetas");
+    D.tarjetas.forEach(function (x) {
+      var k = el("div", "card");
+      k.appendChild(el("span", "lab", x.lab));
+      k.appendChild(el("span", "big", x.v));
+      k.appendChild(el("span", "sub", x.sub));
+      c.appendChild(k);
+    });
+    tabla(document.getElementById("t-fichas"), D.fichas.cols, D.fichas.filas);
+  }
+
+  function tabla(t, cols, filas) {
+    var thead = el("thead"), tr = el("tr");
+    cols.forEach(function (c) { tr.appendChild(el("th", null, c)); });
+    thead.appendChild(tr);
+    var tb = el("tbody");
+    filas.forEach(function (f) {
+      var r = el("tr", f.hi ? "hi" : null);
+      f.v.forEach(function (v) { r.appendChild(el("td", "num", v)); });
+      tb.appendChild(r);
+    });
+    t.innerHTML = "";
+    t.appendChild(thead);
+    t.appendChild(tb);
+  }
+
+  function figuras(destino, lista, clase) {
+    var c = document.getElementById(destino);
+    if (clase) c.className = "grid " + clase;
+    lista.forEach(function (f) {
+      var fig = el("figure");
+      var im = el("img");
+      im.src = f.img;
+      im.alt = f.alt || f.titulo;
+      im.loading = "lazy";
+      fig.appendChild(im);
+      var cap = el("figcaption");
+      var b = el("b", null, f.titulo);
+      cap.appendChild(b);
+      cap.appendChild(document.createTextNode(" " + f.pie));
+      fig.appendChild(cap);
+      c.appendChild(fig);
+    });
+  }
+
+  // ------------------------------------------------------------ la esfera
+  var rotX = -0.33, rotY = 0.6, modo = "contraste", sel = null;
+  var SVG = "http://www.w3.org/2000/svg";
+  var R = 150, CX = 210, CY = 210;
+
+  function crear(t, at) {
+    var n = document.createElementNS(SVG, t);
+    for (var k in at) n.setAttribute(k, at[k]);
+    return n;
+  }
+
+  // Direccion de la que VIENE el haz, en el convenio de build_sun: el haz
+  // viaja en (cos t sin o, -sin t, -cos t cos o), asi que el sol esta en
+  // menos eso. Se reconstruye con la misma formula que el render y que el
+  // diagrama de Blender, no con otra.
+  function dirDelSol(az, inc) {
+    var t = inc * Math.PI / 180, o = az * Math.PI / 180;
+    return [-(Math.cos(t) * Math.sin(o)), Math.sin(t), Math.cos(t) * Math.cos(o)];
+  }
+
+  // El cable corre por el eje Y del mundo. Para que se vea tumbado en el
+  // dibujo se mapea a la horizontal de la pantalla: x_pantalla viene del eje
+  // del cable y lo demas gira alrededor de el.
+  function proyectar(v) {
+    var cy = Math.cos(rotY), sy = Math.sin(rotY);
+    var cx = Math.cos(rotX), sx = Math.sin(rotX);
+    // giro alrededor del eje del cable (Y del mundo, horizontal en pantalla)
+    var x = v[1];
+    var y = v[0] * cy - v[2] * sy;
+    var z = v[0] * sy + v[2] * cy;
+    // inclinacion del punto de vista
+    var y2 = y * cx - z * sx;
+    var z2 = y * sx + z * cx;
+    return [CX + x * R, CY - y2 * R, z2];
+  }
+
+  function color(f) {
+    var v, lo, hi;
+    if (modo === "contraste") {
+      v = f.contraste; lo = D.esfera.rango.contraste[0]; hi = D.esfera.rango.contraste[1];
+      var u = Math.max(0, Math.min(1, (v - lo) / (hi - lo)));
+      // azul frio a ambar: frio es poco contraste
+      return "hsl(" + (210 - 180 * u) + " " + (55 + 30 * u) + "% " + (38 + 26 * u) + "%)";
+    }
+    v = f.ciego_pct; lo = 0; hi = D.esfera.rango.ciego[1];
+    var w = Math.max(0, Math.min(1, (v - lo) / (hi - lo)));
+    return "hsl(" + (150 - 150 * w) + " " + (45 + 35 * w) + "% " + (46 - 8 * w) + "%)";
+  }
+
+  function pintarBola() {
+    var s = document.getElementById("bola");
+    s.innerHTML = "";
+
+    // el cuerpo de la esfera, para que se lea como volumen y no como disco
+    var defs = crear("defs", {});
+    var g = crear("radialGradient", { id: "gb", cx: "36%", cy: "30%", r: "78%" });
+    g.appendChild(crear("stop", { offset: "0", "stop-color": "#2a303c" }));
+    g.appendChild(crear("stop", { offset: "1", "stop-color": "#0f1116" }));
+    defs.appendChild(g);
+    s.appendChild(defs);
+    s.appendChild(crear("circle", { cx: CX, cy: CY, r: R, fill: "url(#gb)",
+      stroke: "#2b3240", "stroke-width": 1 }));
+
+    // paralelos y meridianos, dibujados por puntos para que el giro se vea
+    var i, j, p, pts;
+    for (i = -60; i <= 60; i += 30) {
+      pts = [];
+      for (j = 0; j <= 360; j += 6) {
+        p = proyectar(dirDelSol(j, i));
+        if (p[2] > -0.02) pts.push(p[0].toFixed(1) + "," + p[1].toFixed(1));
+      }
+      if (pts.length > 1) s.appendChild(crear("polyline", { points: pts.join(" "),
+        fill: "none", stroke: "#3a4252", "stroke-width": i === 0 ? 1.4 : 0.7,
+        "stroke-dasharray": i === 0 ? "none" : "2 3" }));
+    }
+    for (i = 0; i < 360; i += 45) {
+      pts = [];
+      for (j = -90; j <= 90; j += 4) {
+        p = proyectar(dirDelSol(i, j));
+        if (p[2] > -0.02) pts.push(p[0].toFixed(1) + "," + p[1].toFixed(1));
+      }
+      if (pts.length > 1) s.appendChild(crear("polyline", { points: pts.join(" "),
+        fill: "none", stroke: "#343c4a", "stroke-width": 0.7, "stroke-dasharray": "2 3" }));
+    }
+
+    // el cable, por el eje de la esfera
+    var a = proyectar([0, -1.22, 0]), b = proyectar([0, 1.22, 0]);
+    s.appendChild(crear("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1],
+      stroke: "#ff7a35", "stroke-width": 3, "stroke-linecap": "round", opacity: .95 }));
+    s.appendChild(crear("circle", { cx: a[0], cy: a[1], r: 4.5, fill: "#9fc6f0" }));
+    var et = crear("text", { x: a[0], y: a[1] + 18, "text-anchor": "middle",
+      fill: "#9aa1b0", "font-size": 10.5, "font-family": "Inter, sans-serif" });
+    et.textContent = "camaras";
+    s.appendChild(et);
+
+    // las direcciones, de atras adelante
+    var orden = D.esfera.direcciones.map(function (f, k) {
+      var q = proyectar(dirDelSol(f.azimut, f.inclinacion));
+      return { f: f, k: k, x: q[0], y: q[1], z: q[2] };
+    }).sort(function (u, v) { return u.z - v.z; });
+
+    orden.forEach(function (o) {
+      var frente = o.z > 0;
+      var r = (o.f === sel ? 8.5 : 5.2) * (0.72 + 0.28 * (o.z + 1) / 2);
+      var c = crear("circle", { cx: o.x, cy: o.y, r: r, fill: color(o.f),
+        stroke: o.f === sel ? "#ffffff" : "#0c0d10",
+        "stroke-width": o.f === sel ? 2 : 0.8,
+        opacity: frente ? 1 : 0.34, cursor: "pointer" });
+      c.addEventListener("click", function () { elegir(o.f); });
+      s.appendChild(c);
+    });
+
+    // el sol elegido, una esfera y no un circulo
+    if (sel) {
+      var q = proyectar(dirDelSol(sel.azimut, sel.inclinacion));
+      var k = 1.26;
+      var sp = proyectar([dirDelSol(sel.azimut, sel.inclinacion)[0] * k,
+        dirDelSol(sel.azimut, sel.inclinacion)[1] * k,
+        dirDelSol(sel.azimut, sel.inclinacion)[2] * k]);
+      var gd = crear("radialGradient", { id: "gs", cx: "34%", cy: "30%", r: "70%" });
+      gd.appendChild(crear("stop", { offset: "0", "stop-color": "#fffdf2" }));
+      gd.appendChild(crear("stop", { offset: ".55", "stop-color": "#ffd88a" }));
+      gd.appendChild(crear("stop", { offset: "1", "stop-color": "#b8791f" }));
+      s.querySelector("defs").appendChild(gd);
+      s.appendChild(crear("line", { x1: sp[0], y1: sp[1], x2: CX, y2: CY,
+        stroke: "#ffcf7a", "stroke-width": 1.1, "stroke-dasharray": "4 4", opacity: .7 }));
+      s.appendChild(crear("circle", { cx: sp[0], cy: sp[1], r: 13, fill: "url(#gs)",
+        stroke: "#5a4418", "stroke-width": 0.8 }));
+    }
+  }
+
+  function elegir(f) {
+    sel = f;
+    document.getElementById("d-titulo").textContent =
+      "Azimut " + f.azimut.toFixed(1) + ", inclinacion " +
+      (f.inclinacion > 0 ? "+" : "") + f.inclinacion.toFixed(1) + " grados";
+    var c = document.getElementById("d-cifras");
+    c.innerHTML = "";
+    [["contraste", num(f.contraste, 1), "niveles"],
+     ["cable ciego", num(f.ciego_pct, 1) + " %", "del cable"],
+     ["mas de 18 m", num(f.contraste_lejos, 1), "niveles"],
+     ["tramo ciego", f.ciego_desde_m === null ? "ninguno" :
+       num(f.ciego_desde_m, 1) + " a " + num(f.ciego_hasta_m, 1) + " m", ""]
+    ].forEach(function (x) {
+      var k = el("div", "cifra");
+      k.appendChild(el("div", "v", x[1]));
+      k.appendChild(el("div", "k", x[0]));
+      c.appendChild(k);
+    });
+    document.getElementById("d-img").src = D.esfera.ruta + f.imagen;
+    document.getElementById("d-pie").textContent =
+      "Camara izquierda, " + f.ancho + " x " + f.alto + " px, realzada. Captura " + f.captura + ".";
+    pintarBola();
+  }
+
+  function arrastre() {
+    var s = document.getElementById("bola");
+    var ax = 0, ay = 0, on = false;
+    function baja(e) { on = true; ax = e.clientX; ay = e.clientY; s.setPointerCapture(e.pointerId); }
+    function mueve(e) {
+      if (!on) return;
+      rotY += (e.clientX - ax) * 0.0085;
+      rotX += (e.clientY - ay) * 0.0085;
+      rotX = Math.max(-1.3, Math.min(1.3, rotX));
+      ax = e.clientX; ay = e.clientY;
+      pintarBola();
+    }
+    function sube(e) { on = false; try { s.releasePointerCapture(e.pointerId); } catch (x) {} }
+    s.addEventListener("pointerdown", baja);
+    s.addEventListener("pointermove", mueve);
+    s.addEventListener("pointerup", sube);
+    s.addEventListener("pointercancel", sube);
+  }
+
+  function esfera() {
+    document.getElementById("esfera-meta").textContent = D.esfera.meta;
+    var bc = document.getElementById("b-contraste"), bz = document.getElementById("b-ciego");
+    function cambiar(m) {
+      modo = m;
+      bc.setAttribute("aria-pressed", String(m === "contraste"));
+      bz.setAttribute("aria-pressed", String(m === "ciego"));
+      leyenda();
+      pintarBola();
+    }
+    bc.addEventListener("click", function () { cambiar("contraste"); });
+    bz.addEventListener("click", function () { cambiar("ciego"); });
+
+    function leyenda() {
+      var r = modo === "contraste" ? D.esfera.rango.contraste : D.esfera.rango.ciego;
+      document.getElementById("leyenda-min").textContent =
+        modo === "contraste" ? num(r[0], 0) + " niveles" : "0 % ciego";
+      document.getElementById("leyenda-max").textContent =
+        modo === "contraste" ? num(r[1], 0) : num(r[1], 0) + " %";
+      var b = document.getElementById("barra");
+      b.style.background = modo === "contraste"
+        ? "linear-gradient(90deg, hsl(210 55% 38%), hsl(30 85% 64%))"
+        : "linear-gradient(90deg, hsl(150 45% 46%), hsl(0 80% 38%))";
+    }
+    leyenda();
+    arrastre();
+    elegir(D.esfera.inicial !== undefined
+      ? D.esfera.direcciones[D.esfera.inicial] : D.esfera.direcciones[0]);
+  }
+
+  // ------------------------------------------------------------------ carga
+  fetch("datos.json").then(function (r) { return r.json(); }).then(function (d) {
+    D = d;
+    cabecera();
+    cambio();
+    figuras("diagramas", D.diagramas, "g2");
+    document.getElementById("porque-baja").innerHTML = D.porque_baja;
+    figuras("haz", D.haz, "g3");
+    figuras("tela", D.tela, "g2");
+    document.getElementById("tela-meta").textContent = D.tela_meta;
+    figuras("figs-esfera", D.figuras_esfera, "");
+    var f = document.getElementById("falta");
+    D.falta.forEach(function (x) {
+      var k = el("div", "card");
+      k.appendChild(el("span", "lab", x.lab));
+      k.appendChild(el("h3", null, x.t));
+      k.appendChild(el("span", "sub", x.d));
+      f.appendChild(k);
+    });
+    esfera();
+  }).catch(function (e) {
+    document.getElementById("lede").textContent =
+      "No se pudo cargar datos.json: " + e;
+  });
+})();
+</script>

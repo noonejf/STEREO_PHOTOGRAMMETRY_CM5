@@ -967,10 +967,19 @@ def render(variant, samples, scale, both_cameras, linear=False,
         scene.render.filepath = path
         print(f"[render] {variant} {side} -> {path}", flush=True)
         bpy.ops.render.render(write_still=True)
+        # La resolucion que se anota es la del ARCHIVO, con el porcentaje ya
+        # aplicado. Anotar la nominal costo un barrido entero: 82 renders a
+        # scale 25 quedaron registrados como 4056 x 3040, se midieron como
+        # si lo fueran y dieron contraste 1.4 contra el 50 del anillo, que
+        # esta a resolucion completa. El archivo medido tenia 1014 x 760.
+        esc = scene.render.resolution_percentage / 100.0
         meta[f"{side}_camera"] = dict(
             location_m=[round(c, 4) for c in cam.location],
             focal_mm=cam.data.lens,
-            resolution=[scene.render.resolution_y, scene.render.resolution_x])
+            resolution=[int(scene.render.resolution_y * esc),
+                        int(scene.render.resolution_x * esc)],
+            resolution_nominal=[scene.render.resolution_y,
+                                scene.render.resolution_x])
 
     with open(os.path.join(out_dir, "metadata.json"), "w", encoding="utf-8") as fh:
         json.dump(meta, fh, indent=4)
@@ -998,7 +1007,11 @@ def main():
                     help="lista de inclinaciones del sol, en grados, con "
                          "signo. Junto con --sun-orbit barre la ESFERA: el "
                          "azimut gira el haz alrededor del eje del cable y "
-                         "la inclinacion lo tumba a lo largo de ese eje")
+                         "la inclinacion lo tumba a lo largo de ese eje. "
+                         "**Hay que pasarlo con signo igual**, "
+                         "--sun-tilt=-60,-30,0,30,60: separado por espacio, "
+                         "argparse lee el -60 como si fuera una opcion y el "
+                         "barrido no corre")
     ap.add_argument("--tilts", default="",
                     help="lista de inclinaciones de las LUMINARIAS del "
                          "estudio, en grados. Es el otro barrido: la luz "

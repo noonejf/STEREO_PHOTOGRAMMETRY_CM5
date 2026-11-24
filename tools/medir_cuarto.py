@@ -27,9 +27,11 @@ modelar. Un plano no tiene ninguno de los dos problemas.
 from __future__ import annotations
 
 import argparse
+import csv
 import glob
 import json
 import os
+import re
 import sys
 
 import numpy as np
@@ -37,6 +39,12 @@ import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 sys.path.insert(0, os.path.join(ROOT, "SIMULATION"))
+
+# **Antes de importar cv2**, no despues. La rueda de opencv-python se publica
+# con el codec de OpenEXR desactivado, y la variable se lee una sola vez al
+# inicializar el modulo: puesta despues del import, la lectura del EXR falla
+# con "OpenEXR codec is disabled" y el error no dice que llego tarde.
+os.environ.setdefault("OPENCV_IO_ENABLE_OPENEXR", "1")
 
 import cv2  # noqa: E402
 from medir_barrido import medir  # noqa: E402
@@ -49,16 +57,20 @@ FAMILIA = ("TV2", "TV2MADERA", "TV2RECTO", "TV2PANEL", "TV2SEIS",
            "TV2HAZ0", "TV2HAZCAM", "TV2HAZLEJOS")
 
 
-def ultima(variant):
-    """La ultima captura COMPLETA de esa variante.
+def ultima(variant, archivo="left.jpg"):
+    """La ultima captura COMPLETA de esa variante que tenga ``archivo``.
 
-    Se exige el metadata porque la carpeta se crea antes de renderizar: si
-    una cola esta corriendo, la mas reciente es la que se esta escribiendo y
-    todavia no tiene nada que leer.
+    Dos razones para exigir el archivo y no solo la carpeta. El metadata se
+    escribe al final, asi que mientras una cola corre la carpeta mas reciente
+    existe y esta vacia. Y la misma variante se renderiza dos veces, en JPEG
+    para mirarla y en EXR lineal para medir lux, asi que "la ultima" depende
+    de para que se pide: pedir la de los lux y recibir la del JPEG, o al
+    contrario, es un fallo silencioso.
     """
     d = [x for x in sorted(glob.glob(os.path.join(
         ROOT, "data", "captures", f"stereo_sim_studio{variant}_2*")))
-        if os.path.exists(os.path.join(x, "metadata.json"))]
+        if os.path.exists(os.path.join(x, "metadata.json"))
+        and os.path.exists(os.path.join(x, archivo))]
     return d[-1] if d else None
 
 
@@ -113,7 +125,14 @@ def lux_del_piso(carpeta, muestras=24):
         u0, v0 = int(cx), int(v)
         parche = img[max(0, v0 - 4):v0 + 5, max(0, u0 - 4):u0 + 5]
         L = float(np.median(parche))
-        medido = np.pi * L / rho
+        # **Dos conversiones, no una.** El EXR lleva radiancia radiometrica,
+        # W/m2/sr, asi que de un lambertiano se saca la irradiancia con
+        # ``E_W = pi L / rho`` y de ahi a lux hay que multiplicar por la
+        # eficacia luminosa del espectro, los 97.58 lm/W que el proyecto
+        # deriva de su propio par AM0. Sin ese factor la razon
+        # medido/modelo sale 0.01, que es 1/97.58 y no un fallo de la
+        # escena: fue exactamente lo que salio la primera vez.
+        medido = np.pi * L / rho * CL.S.LER
         # Prediccion del mismo modelo que dimensiono la fila, evaluada en el
         # piso (altura 0) y en ese mismo y.
         datos, _p, _c, _tiro = CL.perfil_inclinado(
@@ -124,6 +143,15 @@ def lux_del_piso(carpeta, muestras=24):
     return fuera, None
 
 
+def escribir(ruta, filas):
+    with open(ruta, "w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=list(filas[0].keys()))
+        w.writeheader()
+        for f in filas:
+            w.writerow(f)
+    print(f"  {ruta}  ({len(filas)} filas)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--variants", default=",".join(FAMILIA))
@@ -131,10 +159,17 @@ def main():
     ap.add_argument("--lux", action="store_true",
                     help="recupera los lux del piso del render lineal y los "
                          "compara contra el modelo fotometrico")
+    ap.add_argument("--csv-dir", dest="csv_dir", default=None,
+                    help="escribe las tres tablas: la familia, el barrido de "
+                         "inclinacion de las luminarias y los lux del piso")
     args = ap.parse_args()
+    filas_familia = []
 
-    print(f"\n{'variante':12} {'luminarias':>11} {'kW':>6} {'contraste':>10} "
-          f"{'ciego':>7} {'fondo':>7} {'cuadro>10':>10} {'pred peor lx':>13}")
+    print(f"\n{'variante':12} {'lum':>4} {'kW':>6} {'todo el':>8} "
+          f"{'fondo':>8} {'ciego':>7} {'fondo':>7} {'detras':>7} "
+          f"{'cuadro>10':>10} {'pred peor':>10}")
+    print(f"{'':12} {'':4} {'':6} {'cable':>8} {'oscuro':>8} {'':7} "
+          f"{'medio':>7} {'del hilo':>7} {'':10} {'lx':>10}")
     for v in args.variants.split(","):
         v = v.strip()
         d = ultima(v)
@@ -151,12 +186,83 @@ def main():
         kw = (fix or lamps or {}).get("kw_electrical_total", float("nan"))
         pred = (fix or {}).get("predicted") or {}
         peor = pred.get("peor_lx_cara_a_la_luz")
-        print(f"{v:12} {n:11d} {kw:6.2f} "
-              f"{(r['contraste'] if r else float('nan')):10.1f} "
+        filas_familia.append(dict(
+            variante=v, luminarias=n, kw=kw, tipo=(
+                "proyectores reales de ficha" if fix else
+                "paneles de 1x1 m supuestos"),
+            contraste_fondo_oscuro=None if r is None else
+            round(r["contraste"], 2),
+            contraste_todo_el_cable=None if r is None else
+            round(r["contraste_todo"], 2),
+            fondo_detras_del_hilo=None if r is None else
+            round(r["fondo_detras_mediano"], 2),
+            ciego_pct=None if r is None else round(r["ciego_pct"], 2),
+            fondo_medio=None if img is None else round(float(img.mean()), 3),
+            cuadro_sobre_10_pct=None if img is None else
+            round(float((img > 10).mean() * 100), 3),
+            piso=(meta.get("floor") or {}).get("covering"),
+            albedo_piso=(meta.get("floor") or {}).get("albedo"),
+            inclinacion_deg=(fix or lamps or {}).get("tilt_deg"),
+            direccion_haz=(fix or lamps or {}).get("tilt_dir"),
+            vista=meta.get("view"), sensor=(meta.get("sensor") or {}).get("name"),
+            focal_mm=meta["optics"]["focal_mm"],
+            cable_m=meta["cord"]["length_m"], cable_z_m=meta["cord"]["z_m"],
+            pred_peor_lx=peor,
+            pred_uniformidad=pred.get("uniformidad_peor_sobre_mejor"),
+            captura=os.path.basename(d)))
+        print(f"{v:12} {n:4d} {kw:6.2f} "
+              f"{(r['contraste_todo'] if r else float('nan')):8.1f} "
+              f"{(r['contraste'] if r else float('nan')):8.1f} "
               f"{(r['ciego_pct'] if r else float('nan')):6.1f}% "
               f"{(img.mean() if img is not None else float('nan')):7.2f} "
+              f"{(r['fondo_detras_mediano'] if r else float('nan')):7.1f} "
               f"{((img > 10).mean() * 100 if img is not None else float('nan')):9.1f}% "
-              f"{(f'{peor:,.0f}' if peor else '---'):>13}")
+              f"{(f'{peor:,.0f}' if peor else '---'):>10}")
+
+    if args.csv_dir:
+        dcsv = os.path.join(ROOT, args.csv_dir)
+        os.makedirs(dcsv, exist_ok=True)
+        escribir(os.path.join(dcsv, "medidas_familia.csv"), filas_familia)
+
+        # El barrido de inclinacion de las luminarias vive en carpetas
+        # ``..._tiltNNN.N_...``, el mismo formato que el roll y el sol, asi
+        # que se leen con la misma expresion.
+        filas_inc = []
+        for d in sorted(glob.glob(os.path.join(
+                ROOT, "data", "captures", "stereo_sim_studioTV2_tilt*"))):
+            m = re.search(r"_tilt(\d+\.\d)_", os.path.basename(d) + "_")
+            if not m or not os.path.exists(os.path.join(d, "metadata.json")):
+                continue
+            r = medir(d, args.desde)
+            img = cv2.imread(os.path.join(d, "left.jpg"), cv2.IMREAD_GRAYSCALE)
+            if r is None:
+                continue
+            filas_inc.append(dict(
+                inclinacion_deg=float(m.group(1)),
+                contraste=round(r["contraste"], 2),
+                ciego_pct=round(r["ciego_pct"], 2),
+                sobre_lampara_pct=round(r["sobre_lampara_pct"], 2),
+                fondo_medio=None if img is None else round(float(img.mean()), 3),
+                captura=os.path.basename(d)))
+        if filas_inc:
+            escribir(os.path.join(dcsv, "medidas_inclinacion.csv"), filas_inc)
+
+        filas_lux = []
+        for v in args.variants.split(","):
+            d = ultima(v.strip(), "left.exr")
+            if d is None:
+                continue
+            pares, _err = lux_del_piso(d)
+            if not pares:
+                continue
+            for y, me, pr in pares:
+                filas_lux.append(dict(
+                    variante=v.strip(), y_m=round(y, 3),
+                    lux_medidos=round(me, 1), lux_modelo=round(pr, 1),
+                    razon=round(me / pr, 4) if pr > 1.0 else None))
+        if filas_lux:
+            escribir(os.path.join(dcsv, "medidas_lux_piso.csv"), filas_lux)
+        print(f"\ntablas escritas en {dcsv}")
 
     if not args.lux:
         return
@@ -164,7 +270,7 @@ def main():
     print("  El piso es lambertiano de albedo conocido, asi que E = pi L / rho.")
     for v in args.variants.split(","):
         v = v.strip()
-        d = ultima(v)
+        d = ultima(v, "left.exr")
         if d is None:
             continue
         datos, err = lux_del_piso(d)

@@ -86,8 +86,61 @@ cuadro a 5.1 m en vez de a 17, y la fracción de cuadro encendido pasa de 5.1 %
 a 32.8 %. **Por eso hace falta molton negro en el piso** desde los 5 m en
 adelante. Esa es ahora una condición del montaje, no una mejora opcional.
 
+## Lo que midieron los renders del 24 de noviembre
+
+Hasta aquí el plan salía de `tools/calculadora_luz.py`, que es fotometría de
+fuente puntual. El 24 se reconstruyó la escena de Blender con estas cinco
+luminarias y se renderizó la familia entera. Está en
+`SIMULATION/experimentos/estudio_luminarias_reales/RESULTADOS.md`, y tres
+cosas de ahí cambian lo que hay que hacer en el estudio.
+
+**1. El haz va VERTICAL, no inclinado 40 grados.** Esta es la que cambia una
+instrucción de montaje. Todas las simulaciones anteriores inclinaban el haz,
+con el argumento de que un haz desde arriba ilumina la cara de arriba del
+cilindro mientras las cámaras le miran el costado. Ese argumento vale en la
+vista de costado y no en la principal, que mira **a lo largo** del cable: ahí
+la cámara ve el limbo del cilindro, cuyas normales apuntan en x y en z, y el
+haz vertical ilumina justamente una de ellas.
+
+| inclinación | contraste del cordón | respecto del vertical |
+|---:|---:|---:|
+| **0 grados** | **112.9** | --- |
+| 20 grados | 104.8 | -7 % |
+| 30 grados | 98.8 | -13 % |
+| 50 grados | 80.9 | -28 % |
+| 60 grados | 65.6 | -42 % |
+
+No es falta de luz: inclinar 40 grados sube el peor punto de 4419 a 4597 lx,
+porque un cono oblicuo estira su huella. Es luz puesta en una cara que la
+cámara no ve. En la vista de costado el cordón empata, 93.6 contra 94.6, y el
+fondo mejora mucho con el haz vertical: media de 9.8 niveles con el 20 % del
+cuadro encendido, contra 16.5 con el 56 %.
+
+**Para el montaje esto simplifica:** cada luminaria va justo encima del tramo
+que ilumina, no 3.78 m río arriba.
+
+**2. El molton deja de ser una recomendación.** Medido, el piso de madera
+triplica el fondo medio del cuadro, de 17.5 a 50.2 niveles. Los dos albedos
+siguen asumidos, 0.04 y 0.30, y son lo primero que hay que comprobar con el
+fotómetro.
+
+**3. La cadena fotométrica cierra.** Recuperando los lux del piso de molton
+desde el render lineal, que es un plano lambertiano de albedo conocido, el
+render entrega un 30 % más que la calculadora (razón mediana 1.27 a 1.32 sobre
+24 puntos). Es la dirección y el orden que la propia calculadora anticipa, por
+ignorar los rebotes de pared. O sea que **las cifras de este plan son la cota
+pesimista**, que es como conviene que sea.
+
+Un cuarto resultado que no cambia nada pero conviene saber: las cinco
+luminarias reales dan más contraste que los doce paneles de 1 x 1 m que
+supóniamos, 112.9 contra 68.2, con dos kilovatios menos. Un proyector
+concentra su flujo en un cono y un panel lo reparte en un hemisferio.
+
 ## Ajustes de las luminarias para la sesión
 
+- **Haz vertical, apuntando recto abajo.** Medido, no supuesto: inclinarlo
+  cuesta entre el 7 y el 42 % del contraste del cordón según el ángulo, y no
+  compra luz. Cada luminaria va encima del tramo que ilumina.
 - **5600 K en los STORM**, para igualar a las LS, que son de CCT fijo. Mezclar
   temperaturas mete un gradiente de color a lo largo del cable que no aporta
   nada y ensucia la segmentación.
@@ -136,7 +189,7 @@ permisos que el mismo ofrecio mandar.
 
 | | tarea |
 |---|---|
-| 1 | Rehacer la escena de Blender con 5 proyectores puntuales en vez de 12 paneles, con el cono de 45 grados y la intensidad de la ficha |
+| 1 | ~~Rehacer la escena de Blender con 5 proyectores puntuales~~ **hecho el 24 de noviembre**, `build_projector_row` con las candelas de la ficha |
 | 2 | Volver a correr el ensayo en seco de los criterios A3 sobre esa escena: la uniformidad empeora mucho y hay que saber si A3.1 aguanta |
 | 3 | Medir con luxómetro el día de la sesión, cada 2 o 3 m, con la célula mirando a las luminarias, y comparar contra esta tabla |
 | 4 | Decidir y registrar el largo del cable antes de la sesión, porque cambia el criterio A3.5 |

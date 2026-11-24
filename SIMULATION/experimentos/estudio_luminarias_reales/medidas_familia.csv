@@ -1,0 +1,12 @@
+variante,luminarias,kw,tipo,contraste_fondo_oscuro,contraste_todo_el_cable,fondo_detras_del_hilo,ciego_pct,fondo_medio,cuadro_sobre_10_pct,piso,albedo_piso,inclinacion_deg,direccion_haz,vista,sensor,focal_mm,cable_m,cable_z_m,pred_peor_lx,pred_uniformidad,captura
+TV2,5,7.64,proyectores reales de ficha,91.11,77.27,0.0,0.0,17.468,35.775,molton,0.04,40.0,-y,axis,IMX477,8.0,18.0,1.5,4597.2,0.5562,stereo_sim_studioTV2_20261124_133327
+TV2MADERA,5,7.64,proyectores reales de ficha,101.69,76.01,0.0,0.0,50.212,36.796,wood,0.3,40.0,-y,axis,IMX477,8.0,18.0,1.5,4597.2,0.5562,stereo_sim_studioTV2MADERA_20261124_133718
+TV2RECTO,5,7.64,proyectores reales de ficha,112.95,92.37,0.0,0.0,18.518,33.85,molton,0.04,0.0,-y,axis,IMX477,8.0,18.0,1.5,4419.4,0.4848,stereo_sim_studioTV2RECTO_20261124_134119
+TV2PANEL,12,9.62,paneles de 1x1 m supuestos,68.24,59.47,0.0,0.0,17.453,39.312,molton,0.04,40.0,-y,axis,IMX477,8.0,18.0,1.5,,,stereo_sim_studioTV2PANEL_20261124_134533
+TV2SEIS,6,9.08,proyectores reales de ficha,90.26,77.88,0.0,0.0,18.379,36.485,molton,0.04,40.0,-y,axis,IMX477,8.0,20.0,1.5,5138.8,0.5377,stereo_sim_studioTV2SEIS_20261124_135205
+TV2TENSO,5,7.64,proyectores reales de ficha,76.82,76.82,0.0,0.0,17.601,35.932,molton,0.04,40.0,-y,axis,IMX477,8.0,18.0,1.5,4964.3,0.6272,stereo_sim_studioTV2TENSO_20261124_135938
+TV2COSTADO,5,7.64,proyectores reales de ficha,nan,94.64,26.0,nan,16.53,56.29,molton,0.04,40.0,+x,side,IMX477,8.0,18.0,1.5,,,stereo_sim_studioTV2COSTADO_20261124_140434
+TV2296,5,7.64,proyectores reales de ficha,44.4,38.36,0.0,0.0,17.765,36.318,molton,0.04,40.0,-y,axis,IMX296,6.0,18.0,1.5,4597.2,0.5562,stereo_sim_studioTV2296_20261124_140856
+TV2HAZ0,5,7.64,proyectores reales de ficha,110.57,90.73,0.0,0.0,18.518,33.85,molton,0.04,0.0,-y,axis,IMX477,8.0,18.0,1.5,4419.4,0.4848,stereo_sim_studioTV2HAZ0_20261124_135003
+TV2HAZCAM,5,7.64,proyectores reales de ficha,89.54,76.14,0.0,0.0,17.462,35.775,molton,0.04,40.0,-y,axis,IMX477,8.0,18.0,1.5,4597.2,0.5562,stereo_sim_studioTV2HAZCAM_20261124_135348
+TV2HAZLEJOS,5,7.64,proyectores reales de ficha,86.03,72.8,13.0,0.0,17.405,38.69,molton,0.04,40.0,+y,axis,IMX477,8.0,18.0,1.5,4509.7,0.5756,stereo_sim_studioTV2HAZLEJOS_20261124_135728

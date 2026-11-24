@@ -46,15 +46,42 @@ from medir_barrido import medir, UMBRAL_CIEGO  # noqa: E402
 PATRON = re.compile(r"_sun(\d+\.\d)_inc([+-]\d+\.\d)_")
 
 
-def recoger(variant="SOL", carpeta_base=None):
-    """Todas las direcciones renderizadas, indexadas por (azimut, inclinacion)."""
+#: El anillo, que es la fila de inclinacion cero de esta misma esfera.
+PATRON_ANILLO = re.compile(r"_sun(\d+\.\d)_\d{8}_")
+
+
+def recoger(variant="SOL", carpeta_base=None, incluir_anillo=True):
+    """Todas las direcciones renderizadas, indexadas por (azimut, inclinacion).
+
+    **El anillo ya publicado ES la fila de inclinacion cero**, asi que se
+    recoge aqui en vez de renderizarse de nuevo. Sus carpetas no llevan
+    ``_inc`` en el nombre porque se hicieron con ``--sun-orbit`` a secas,
+    cuando la inclinacion no era todavia un eje del barrido, pero la escena
+    es la misma variante con ``tilt`` en cero y los mismos 24 muestras a
+    resolucion completa. Reutilizarlo tiene una ventaja sobre repetirlo: la
+    fila de cero de la esfera coincide entonces **exactamente** con la tabla
+    que ya esta publicada en sol_orbita/RESULTADOS.md, en vez de parecerse.
+
+    Para cada azimut se queda la carpeta mas reciente, que es lo que hace
+    falta porque el anillo se renderizo dos veces: una prueba a 25 % de
+    escala y la definitiva a resolucion completa. Esa prueba es la que, leida
+    por error, devolvio contraste 1.4 en vez de 50.
+    """
     base = carpeta_base or os.path.join(ROOT, "data", "captures")
-    patron = os.path.join(base, f"stereo_sim_studio{variant}_sun*_inc*")
     fuera = {}
-    for d in sorted(glob.glob(patron)):
-        m = PATRON.search(os.path.basename(d) + "_")
+    for d in sorted(glob.glob(os.path.join(
+            base, f"stereo_sim_studio{variant}_sun*"))):
+        nombre = os.path.basename(d) + "_"
+        if not os.path.exists(os.path.join(d, "left.jpg")):
+            continue
+        m = PATRON.search(nombre)
         if m:
             fuera[(float(m.group(1)), float(m.group(2)))] = d
+            continue
+        if incluir_anillo:
+            a = PATRON_ANILLO.search(nombre)
+            if a:
+                fuera[(float(a.group(1)), 0.0)] = d
     return fuera
 
 

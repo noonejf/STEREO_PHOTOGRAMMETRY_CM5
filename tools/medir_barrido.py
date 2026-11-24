@@ -49,7 +49,23 @@ sys.path.insert(0, os.path.join(ROOT, "SIMULATION"))
 import cv2  # noqa: E402
 import build_tv2_studio as S  # noqa: E402
 
-FONDO_LAMPARA = 20.0   # niveles: por encima de esto, detras hay una lampara
+#: Niveles: por encima de esto se da por supuesto que detras del cordon hay
+#: una lampara y la muestra se descarta del promedio de contraste.
+#:
+#: **El umbral se calibro contra fondo negro y no significa lo mismo en el
+#: cuarto.** En la orbita, y en el estudio con el cable a 5 m, detras del
+#: cordon no hay nada: una base sobre 20 niveles solo puede ser una lampara
+#: en cuadro. Con el cable a 1.5 m el piso entra en cuadro a 5.1 m, asi que
+#: lo que queda detras es molton iluminado y pasa de 20 por su cuenta. En
+#: TV2 el filtro descarta el 22 % del cable y sube el contraste de 77.3 a
+#: 91.1, y en la vista de costado descarta el 100 % y devuelve ``nan``.
+#:
+#: Por eso es un parametro de ``medir`` y no una constante escondida, y por
+#: eso ``medir`` devuelve las dos cifras: ``contraste`` sobre el tramo de
+#: fondo oscuro, que es la comparable con todo lo ya publicado, y
+#: ``contraste_todo`` sobre el cable entero, que es lo que la mascara tiene
+#: que resolver de verdad.
+FONDO_LAMPARA = 20.0
 
 #: Niveles de contraste por debajo de los cuales la mascara ya no tiene nada
 #: que segmentar. No es un umbral elegido para que salga bonito: 5 niveles de
@@ -69,7 +85,7 @@ def _bilineal(img, u, r):
                  + img[y0 + 1, x0 + 1] * fx * fy)
 
 
-def medir(carpeta, desde_m, lado="left"):
+def medir(carpeta, desde_m, lado="left", fondo_max=None):
     meta = json.load(open(os.path.join(carpeta, "metadata.json"),
                           encoding="utf-8"))
     img = cv2.imread(os.path.join(carpeta, f"{lado}.jpg"),
@@ -83,15 +99,32 @@ def medir(carpeta, desde_m, lado="left"):
     cam = np.array(meta[f"{lado}_camera"]["location_m"])
     px_um = (meta.get("sensor") or {}).get("pixel_um", 1.55)
     fx = meta["optics"]["focal_mm"] / (px_um * 1e-3)
+    # **La camara no siempre mira a lo largo del cable.** En la vista de eje
+    # mira por +Y, que es la direccion del cable, y la base va por X. En la
+    # de costado ``build_stereo_pair`` la gira con el euler (90, 0, -90), que
+    # la deja mirando por +X con el derecho de la imagen en -Y y el arriba en
+    # +Z, y el par apilado en vertical porque una base paralela al cable deja
+    # la correspondencia indeterminada.
+    #
+    # Suponer la de eje sobre un render de costado no da un numero malo, da
+    # ``nan``: la profundidad sale del componente equivocado, queda negativa
+    # para todo el cable y no se mide ni una muestra. Eso fue exactamente lo
+    # que devolvio TV2COSTADO antes de esto.
     roll = math.radians(meta.get("roll_deg", 0.0))
-    der = np.array([math.cos(roll), 0.0, -math.sin(roll)])
-    arr = np.array([math.sin(roll), 0.0, math.cos(roll)])
+    if meta.get("view") == "side":
+        frente = np.array([1.0, 0.0, 0.0])
+        der = np.array([0.0, -1.0, 0.0])
+        arr = np.array([0.0, 0.0, 1.0])
+    else:
+        frente = np.array([0.0, 1.0, 0.0])
+        der = np.array([math.cos(roll), 0.0, -math.sin(roll)])
+        arr = np.array([math.sin(roll), 0.0, math.cos(roll)])
     H, W = img.shape
 
     uv = []
     for p in pts:
         v = np.array(p) - cam
-        d = v[1]
+        d = float(v @ frente)
         uv.append(None if d < 0.4 else
                   (W / 2.0 + fx * float(v @ der) / d,
                    H / 2.0 - fx * float(v @ arr) / d))
@@ -101,7 +134,7 @@ def medir(carpeta, desde_m, lado="left"):
     for i in range(20, len(uv) - 20, 20):
         if uv[i] is None or uv[i - 10] is None or uv[i + 10] is None:
             continue
-        d = float(pts[i][1] - cam[1])
+        d = float((np.array(pts[i]) - cam) @ frente)
         u, r = uv[i]
         if not (16 <= u < W - 17 and 16 <= r < H - 17):
             continue
@@ -122,7 +155,7 @@ def medir(carpeta, desde_m, lado="left"):
     picos = np.array(picos)
     bases = np.array(bases)
     dist = np.array(dist)
-    sobre = bases > FONDO_LAMPARA
+    sobre = bases > (FONDO_LAMPARA if fondo_max is None else fondo_max)
 
     # **Las dos medidas no se toman sobre el mismo tramo, y es a proposito.**
     #
@@ -144,6 +177,10 @@ def medir(carpeta, desde_m, lado="left"):
     n_limpio = int((~sobre).sum())
     return dict(
         contraste=float(limpio.mean()) if limpio.size else float("nan"),
+        contraste_todo=float(picos[lejos].mean()) if lejos.any()
+        else float("nan"),
+        fondo_detras_mediano=float(np.median(bases[lejos])) if lejos.any()
+        else float("nan"),
         contraste_lejos=float(picos[(~sobre) & (dist > 18)].mean())
         if ((~sobre) & (dist > 18)).any() else float("nan"),
         ciego_pct=float(ciego.sum() / n_limpio * 100.0) if n_limpio else
@@ -164,7 +201,11 @@ def medir(carpeta, desde_m, lado="left"):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--variant", default="SOL")
-    ap.add_argument("--tag", default="sun", choices=("roll", "sun"))
+    ap.add_argument("--tag", default="sun", choices=("roll", "sun", "tilt"),
+                    help="roll gira las camaras, sun gira el haz del sol y "
+                         "tilt inclina las luminarias del estudio. Los tres "
+                         "dejan el angulo en el nombre de la carpeta con el "
+                         "mismo formato, asi que se leen igual")
     ap.add_argument("--desde", type=float, default=5.0,
                     help="metros desde la camara a partir de los cuales se "
                          "mide: el arranque del cable falsea el promedio")
@@ -175,7 +216,15 @@ def main():
                           f"stereo_sim_studio{args.variant}_{args.tag}*")
     carpetas = {}
     for d in sorted(glob.glob(patron)):
-        m = re.search(rf"_{args.tag}(\d+\.\d)_", os.path.basename(d) + "_")
+        base = os.path.basename(d)
+        # **La esfera tambien casa con ``SOL_sun*``.** Sus carpetas llevan
+        # ``_sun000.0_inc-60.0_`` y el patron del anillo las recoge, asi que
+        # sin este filtro el anillo termina midiendo renders de otra
+        # geometria y a otra resolucion. Paso: el contraste del anillo
+        # bajo de 55.0 a 1.9 y nada en la salida decia por que.
+        if "_inc" in base:
+            continue
+        m = re.search(rf"_{args.tag}(\d+\.\d)_", base + "_")
         if m:
             carpetas[float(m.group(1))] = d
     if not carpetas:
