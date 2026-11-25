@@ -70,6 +70,18 @@ which worked but lived in one account: `SIMULATION/experimentos/visor/` is
 still the source of that artifact and is now the second implementation, so
 prefer the page.
 
+**The orbit diagram is drawn mirrored on X** (`ESPEJO_X` in
+`gui/simulation_page.py`), so the box labelled L appears on the right and the
+Sun of a given azimuth on the side opposite to the one it lights in the
+frame. Jose chose that on 25 November 2026 as how he wants to read the
+figure. It is **not** a correction and it must not be "fixed" back as a bug:
+the measurement went the other way twice. The disparity `x_left - x_right` is
+positive in 3 of 3 sampled rows, implying 13.1 m and 20.6 m on a 24.5 m cord,
+and at azimuth 90 the left camera at x = -50 mm sees 27479 lit cord pixels
+against the right camera's 2478, reversing exactly at 270. So the renders,
+the CSVs and chapter 6 keep the measured orientation and only the diagram is
+flipped; the widget says so on screen. One constant turns it off.
+
 Its orbit diagram draws the scene, not just a disc of markers: the cord with
 the wave it has in the render, the stereo pair at the near end with its image
 frame, and a corner gizmo that names what each world axis is **in the

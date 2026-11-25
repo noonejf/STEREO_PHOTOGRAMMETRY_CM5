@@ -103,6 +103,31 @@ YAW_MIN, YAW_MAX = 4.0, 176.0
 #: una sola caja ``L+R``.
 SEPARACION_MINIMA = 0.5
 
+#: **El diagrama se dibuja en espejo sobre el eje X.** Lo pidio Jose el 25 de
+#: noviembre de 2026 y es una decision suya sobre como quiere leer la figura,
+#: no una correccion: se le midio en contra dos veces y las dos dieron que el
+#: reparto original era el correcto.
+#:
+#: * El signo de la disparidad. En el par de azimut 0, ``x_izq - x_der`` sale
+#:   POSITIVO en 3 de 3 filas muestreadas, y las profundidades implicadas son
+#:   13.1 m y 20.6 m sobre un cable de 24.5 m. Con las imagenes cambiadas la
+#:   disparidad seria negativa y la profundidad tambien.
+#: * La iluminacion. A azimut 90 el sol esta en -x y la camara izquierda, que
+#:   esta en x = -50 mm, ve 27479 px de cordon iluminado contra 2478 de la
+#:   derecha; a azimut 270 se invierte exacto, 1351 contra 63186; a 0 y a 180
+#:   quedan parejas.
+#:
+#: Asi que el espejo es una preferencia de lectura y **el diagrama queda
+#: invertido respecto de los renders y del capitulo 6 del informe**, que no
+#: se tocan. La figura lo dice en pantalla para que nadie compare las dos
+#: cosas y concluya que los renders estan mal.
+#:
+#: Se aplica en un solo sitio, ``_proyectar``, asi que arrastra a todo lo que
+#: dibuja el widget: el cordon, el par estereo, la esfera, los 82 marcadores
+#: y el rayo del sol. Poner ``False`` devuelve la figura a la orientacion
+#: medida, y es un cambio de una linea.
+ESPEJO_X = True
+
 
 # ─────────────────────────────────────────────────────── la escena medida
 
@@ -392,6 +417,8 @@ class VistaOrbital(QWidget):
 
     def _proyectar(self, p, cam):
         f, r, u, ojo, foco = cam
+        if ESPEJO_X:
+            p = (-p[0], p[1], p[2])
         v = (p[0] - ojo[0], p[1] - ojo[1], p[2] - ojo[2])
         dz = v[0] * f[0] + v[1] * f[1] + v[2] * f[2]
         if dz < 0.2:
@@ -454,9 +481,12 @@ class VistaOrbital(QWidget):
     #: Los tres ejes del mundo, con lo que significan **en la imagen**. Es la
     #: unica traduccion que hace falta para leer un render: +Z sale arriba,
     #: +X a la derecha, +Y se aleja por el cable.
-    EJES = (((1.0, 0.0, 0.0), "+X  derecha", "#F87171"),
-            ((0.0, 1.0, 0.0), "+Y  cable", "#4ADE80"),
-            ((0.0, 0.0, 1.0), "+Z  arriba", "#60A5FA"))
+    #: El rotulo de X dice "de la foto" porque con ``ESPEJO_X`` la flecha
+    #: se dibuja hacia el otro lado: lo que no cambia es que +X es la
+    #: derecha del cuadro que graba la camara.
+    EJES = (((1.0, 0.0, 0.0), "+X der. foto", "#F87171"),
+            ((0.0, 1.0, 0.0), "+Y cable", "#4ADE80"),
+            ((0.0, 0.0, 1.0), "+Z arriba", "#60A5FA"))
 
     def _ejes(self, pintor, cam):
         """Una triada corta en el origen, sin rotulos.
@@ -495,6 +525,8 @@ class VistaOrbital(QWidget):
         pintor.drawEllipse(QRectF(cx - 28, cy - 28, 56, 56))
         pintor.setBrush(Qt.NoBrush)
         for v, rotulo, color in self.EJES:
+            if ESPEJO_X:
+                v = (-v[0], v[1], v[2])
             sx = largo * (v[0] * r[0] + v[1] * r[1] + v[2] * r[2])
             sy = -largo * (v[0] * u[0] + v[1] * u[1] + v[2] * u[2])
             delante = (v[0] * f[0] + v[1] * f[1] + v[2] * f[2]) < 0.0
@@ -502,8 +534,10 @@ class VistaOrbital(QWidget):
             c.setAlpha(255 if delante else 110)
             pintor.setPen(QPen(c, 1.6))
             pintor.drawLine(int(cx), int(cy), int(cx + sx), int(cy + sy))
-            tx = min(int(cx + sx * 1.45) - 14, self.width() - 62)
-            pintor.drawText(tx, int(cy + sy * 1.5) + 3, rotulo)
+            tx = min(max(2, int(cx + sx * 2.0) - 8 * len(rotulo) // 2),
+                     self.width() - 7 * len(rotulo) - 3)
+            ty = min(self.height() - 26, int(cy + sy * 2.0) + 3)
+            pintor.drawText(tx, ty, rotulo)
 
     def _cordon(self, pintor, cam):
         """El cable con la forma que tiene en el render, no una recta."""
@@ -539,10 +573,13 @@ class VistaOrbital(QWidget):
         pregunta que la figura tiene que contestar es cual camara esta a
         que lado, no cuanto miden.
 
-        Las dos cajas miran siempre al ojo: se arman con los vectores de
-        pantalla de la camara del visor y no con los ejes del mundo. Hechas
-        en el plano x-z salian de canto en la planta, como dos rayas, y la
-        letra encima no se leia.
+        Las dos cajas se dibujan como cuadrados **en pantalla**, alrededor
+        del punto proyectado y con el lado escalado por la distancia. Armar
+        el cuadrado en el mundo con los ejes x-z lo dejaba de canto en la
+        planta, como una raya con la letra encima; armarlo con los vectores
+        de pantalla lo arreglaba hasta que ``ESPEJO_X`` reflejo cada vertice
+        por separado y los convirtio en rombos. En pantalla no le pasa
+        ninguna de las dos cosas.
         """
         f, r, u = cam[0], cam[1], cam[2]
         escala = 60.0
@@ -568,33 +605,22 @@ class VistaOrbital(QWidget):
             caras = ((-1.0, "L"), (+1.0, "R"))
         for signo, nombre in caras:
             centro = (signo * media, -cuerpo, 0.0)
-            h = cuerpo / 2
-            caja = [tuple(centro[k] + a * h * r[k] + b * h * u[k]
-                          for k in range(3))
-                    for a, b in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-            poli = QPolygonF()
-            ok = True
-            for v in caja:
-                q = self._proyectar(v, cam)
-                if not q:
-                    ok = False
-                    break
-                poli.append(QPoint(int(q[0]), int(q[1])))
-            if not ok:
+            c = self._proyectar(centro, cam)
+            if not c:
                 continue
+            lado = max(9.0, cam[4] * cuerpo / c[2])
             pintor.setPen(QPen(QColor(ACCENT_CYAN), 1.4))
             pintor.setBrush(QBrush(QColor(34, 211, 238, 55)))
-            pintor.drawPolygon(poli)
+            pintor.drawRect(QRectF(c[0] - lado / 2, c[1] - lado / 2,
+                                   lado, lado))
             pintor.setBrush(Qt.NoBrush)
-            c = self._proyectar(centro, cam)
-            if c:
-                fuente = QFont()
-                fuente.setPointSize(7)
-                fuente.setBold(True)
-                pintor.setFont(fuente)
-                pintor.setPen(QPen(QColor(ACCENT_CYAN)))
-                pintor.drawText(int(c[0]) - 4 * len(nombre), int(c[1]) + 3,
-                                nombre)
+            fuente = QFont()
+            fuente.setPointSize(7)
+            fuente.setBold(True)
+            pintor.setFont(fuente)
+            pintor.setPen(QPen(QColor(ACCENT_CYAN)))
+            pintor.drawText(int(c[0]) - 4 * len(nombre), int(c[1]) + 3,
+                            nombre)
 
         # El cuadro de la imagen, un metro delante del par. Es la pieza que
         # ata el diagrama al render: lo que cae dentro de este rectangulo
@@ -674,7 +700,10 @@ class VistaOrbital(QWidget):
         fuente.setBold(True)
         pintor.setFont(fuente)
         pintor.setPen(QPen(QColor(ACCENT_AMBER)))
-        pintor.drawText(int(a[0]) + 10, int(a[1]) + 3, "sol")
+        if a[0] > self.width() - 34:
+            pintor.drawText(int(a[0]) - 32, int(a[1]) + 3, "sol")
+        else:
+            pintor.drawText(int(a[0]) + 10, int(a[1]) + 3, "sol")
 
     def _pie(self, pintor):
         fuente = QFont()
@@ -685,10 +714,16 @@ class VistaOrbital(QWidget):
             8, self.height() - 20,
             "Arrastra para girar LA VISTA. El sol se elige con un clic en un "
             "punto o con la rejilla.")
-        pintor.drawText(
-            8, self.height() - 8,
-            "La vista no cruza por detras del par: la L siempre a la "
-            "izquierda.")
+        if ESPEJO_X:
+            pintor.drawText(
+                8, self.height() - 8,
+                "Eje X en ESPEJO: la L se dibuja a la derecha. Las fotos no "
+                "estan en espejo.")
+        else:
+            pintor.drawText(
+                8, self.height() - 8,
+                "La vista no cruza por detras del par: la L siempre a la "
+                "izquierda.")
 
     def _valor(self, d: Direccion) -> float:
         return getattr(d, self.metrica)
