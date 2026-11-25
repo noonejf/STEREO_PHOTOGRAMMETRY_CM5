@@ -691,10 +691,10 @@ class WireTrackingWorkerThread(QThread):
                 self.path_updated.emit(result["path"], 0)
                 self.tracking_finished.emit(result)
                 return
-            print("[TRACE] el trazador de grafo no alcanzo el extremo, "
-                  "cayendo al DFS")
+            print("[TRACE] graph tracer did not reach the far endpoint, "
+                  "falling back to the DFS")
         except Exception as exc:                      # noqa: BLE001
-            print(f"[TRACE] trazador de grafo fallo ({exc}), cayendo al DFS")
+            print(f"[TRACE] graph tracer failed ({exc}), falling back to the DFS")
 
         from processing.smart_wire_tracker import SmartWireTracker
         resolution_scale = max(1.0, (h * w) / (1920 * 1440))
@@ -1041,7 +1041,7 @@ class ProcessingPage(QWidget):
         )
         v.addWidget(self.capture_info_label)
 
-        self.btn_select_session = QPushButton("📁  Select Capture Session")
+        self.btn_select_session = QPushButton("  Select Capture Session")
         self.btn_select_session.setStyleSheet(
             f"QPushButton {{ background-color: {ACCENT_BLUE}; color: white;"
             f"font-weight: bold; padding: 8px; border-radius: 5px; }}"
@@ -1050,12 +1050,12 @@ class ProcessingPage(QWidget):
         self.btn_select_session.clicked.connect(self.select_capture_session)
         v.addWidget(self.btn_select_session)
 
-        sep = QLabel("──────────────────────────────")
+        sep = QLabel("------------------------------")
         sep.setAlignment(Qt.AlignCenter)
         sep.setStyleSheet(f"color: {BORDER_SUBTLE}; font-size: 9px; background: transparent;")
         v.addWidget(sep)
 
-        self.btn_configure_cable = QPushButton("🔧  Configure Cable Filter")
+        self.btn_configure_cable = QPushButton("  Configure Cable Filter")
         self.btn_configure_cable.setStyleSheet(
             f"QPushButton {{ background-color: {ACCENT_ORANGE}; color: white;"
             f"font-weight: bold; padding: 8px; border-radius: 5px; }}"
@@ -1066,7 +1066,7 @@ class ProcessingPage(QWidget):
         self.btn_configure_cable.setEnabled(False)
         v.addWidget(self.btn_configure_cable)
 
-        self.filter_status_label = QLabel("⚠  Filter not configured")
+        self.filter_status_label = QLabel("Filter not configured")
         self.filter_status_label.setStyleSheet(
             f"background-color: {BG_CARD}; color: {YELLOW_WARN};"
             f"padding: 6px; border-radius: 3px; font-size: 11px;"
@@ -1129,7 +1129,7 @@ class ProcessingPage(QWidget):
             f"background-color: {BG_CARD}; border-radius: 4px; color: {TEXT_SECONDARY}; }}"
         )
         dir_row.addWidget(self.output_dir_label)
-        btn_dir = QPushButton("📁")
+        btn_dir = QPushButton("...")
         btn_dir.setFixedSize(30, 30)
         btn_dir.setStyleSheet(
             f"QPushButton {{ background-color: {BG_CARD}; border-radius: 4px; }}"
@@ -1220,12 +1220,12 @@ class ProcessingPage(QWidget):
                 self._set_no_capture_info("Last session is incomplete")
         except Exception as e:
             logger.error(f"Error loading last capture: {e}")
-            self.capture_info_label.setText(f"✗ Error: {e}")
+            self.capture_info_label.setText(f"Error: {e}")
             self.btn_start.setEnabled(False)
 
     def _set_no_capture_info(self, reason):
         self.capture_info_label.setText(
-            f"⚠  {reason}\n\n"
+            f"{reason}\n\n"
             "Take a photo with 'Capture for 3D Model' on the Dashboard\n"
             "or use the button below to select a session manually."
         )
@@ -1590,7 +1590,7 @@ class ProcessingPage(QWidget):
                         )
                     else:
                         self.wire_tracking_result = None
-                        self.filter_status_label.setText("⚠  Filter OK — Wire tracking incomplete")
+                        self.filter_status_label.setText("Filter OK — Wire tracking incomplete")
                         self.filter_status_label.setStyleSheet(
                             f"background-color: {BG_CARD}; color: {YELLOW_WARN};"
                             f"padding: 6px; border-radius: 3px; font-size: 11px;"

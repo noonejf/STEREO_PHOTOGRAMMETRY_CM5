@@ -380,7 +380,7 @@ class GuidedStatusPanel(QWidget):
         lay.setSpacing(8)
 
         # Orden principal
-        self.banner = QLabel("Listo para empezar")
+        self.banner = QLabel("Ready to start")
         self.banner.setAlignment(Qt.AlignCenter)
         self.banner.setWordWrap(True)
         self.banner.setMinimumHeight(92)

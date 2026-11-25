@@ -177,7 +177,7 @@ class CameraPreviewWidget(QWidget):
         title_layout.addWidget(self.title_label)
         
         # Indicador de estado
-        self.status_indicator = QLabel("●")
+        self.status_indicator = QLabel("*")
         self.status_indicator.setFont(QFont("Arial", 16, QFont.Bold))
         self.status_indicator.setStyleSheet("color: #F44336;")  # Rojo por defecto
         self.status_indicator.setAlignment(Qt.AlignRight)

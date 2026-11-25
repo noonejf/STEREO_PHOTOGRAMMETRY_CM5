@@ -84,7 +84,7 @@ class MaskTrainingThread(QThread):
             TW, TH = self.TARGET_W, self.TARGET_H
 
             # ── 1. load ──────────────────────────────────────────────
-            self.log_sig.emit("Cargando imágenes del dataset...", "INFO")
+            self.log_sig.emit("Loading dataset images...", "INFO")
             samples = self.dm.list_samples()
             pairs = []
             for s in samples:
@@ -100,14 +100,14 @@ class MaskTrainingThread(QThread):
                         pairs.append((ri, rm))
 
             if not pairs:
-                self.done_sig.emit(False, "No se encontraron pares imagen/máscara válidos.")
+                self.done_sig.emit(False, "No valid image/mask pairs found.")
                 return
 
-            self.log_sig.emit(f"{len(pairs)} imágenes cargadas (izq + der)", "INFO")
+            self.log_sig.emit(f"{len(pairs)} images loaded (left + right)", "INFO")
             self.progress_sig.emit(10)
 
             # ── 2. augmentation ───────────────────────────────────────
-            self.log_sig.emit("Augmentando datos (flip H/V + brillo)...", "INFO")
+            self.log_sig.emit("Augmenting data (H/V flip + brightness)...", "INFO")
             augmented = []
             for img, mask in pairs:
                 augmented.append((img, mask))
@@ -118,11 +118,11 @@ class MaskTrainingThread(QThread):
                 augmented.append((bright, mask))
                 augmented.append((dark,   mask))
 
-            self.log_sig.emit(f"{len(augmented)} imágenes tras augmentación", "INFO")
+            self.log_sig.emit(f"{len(augmented)} images after augmentation", "INFO")
             self.progress_sig.emit(20)
 
             # ── 3. extract features ───────────────────────────────────
-            self.log_sig.emit("Extrayendo features de píxeles...", "INFO")
+            self.log_sig.emit("Extracting pixel features...", "INFO")
             Xs, ys = [], []
             for i, (img, mask) in enumerate(augmented):
                 img_r  = cv2.resize(img,  (TW, TH))
@@ -135,7 +135,7 @@ class MaskTrainingThread(QThread):
             X = np.vstack(Xs)
             y = np.concatenate(ys)
             self.log_sig.emit(
-                f"Features: {X.shape[0]:,} píxeles  |  positivos: {np.sum(y):,} ({100*np.mean(y):.1f}%)",
+                f"Features: {X.shape[0]:,} pixels  |  positive: {np.sum(y):,} ({100*np.mean(y):.1f}%)",
                 "INFO"
             )
             self.progress_sig.emit(42)
@@ -154,13 +154,13 @@ class MaskTrainingThread(QThread):
             rng.shuffle(sel)
             X_tr, y_tr = X[sel], y[sel]
             self.log_sig.emit(
-                f"Dataset balanceado: {len(X_tr):,} píxeles  ({n_pos:,} pos / {n_neg:,} neg)",
+                f"Balanced dataset: {len(X_tr):,} pixels  ({n_pos:,} pos / {n_neg:,} neg)",
                 "INFO"
             )
             self.progress_sig.emit(50)
 
             # ── 5. train ──────────────────────────────────────────────
-            self.log_sig.emit("Entrenando Random Forest (100 árboles, max_depth=12)...", "INFO")
+            self.log_sig.emit("Training Random Forest (100 trees, max_depth=12)...", "INFO")
             clf = RandomForestClassifier(
                 n_estimators=100,
                 max_depth=12,
@@ -173,7 +173,7 @@ class MaskTrainingThread(QThread):
             self.progress_sig.emit(85)
 
             # ── 6. evaluate ───────────────────────────────────────────
-            self.log_sig.emit("Evaluando en dataset de entrenamiento...", "INFO")
+            self.log_sig.emit("Scoring on the training set...", "INFO")
             y_pred = clf.predict(X_tr)
             f1   = f1_score(y_tr, y_pred, zero_division=0)
             prec = precision_score(y_tr, y_pred, zero_division=0)
@@ -211,7 +211,7 @@ class MaskTrainingThread(QThread):
             )
 
         except ImportError as e:
-            self.done_sig.emit(False, f"Librería no instalada: {e}")
+            self.done_sig.emit(False, f"Library not installed: {e}")
         except Exception as e:
             logger.error(f"Training error: {e}", exc_info=True)
             self.done_sig.emit(False, str(e))
@@ -246,7 +246,7 @@ class AIPage(QWidget):
         bb = QHBoxLayout(back_bar)
         bb.setContentsMargins(8, 0, 8, 0)
         bb.addStretch()
-        page_title = QLabel("Inteligencia Artificial — Entrenamiento de Modelos")
+        page_title = QLabel("Artificial Intelligence: model training")
         page_title.setStyleSheet(
             f"color:{TEXT_SEC}; font-size:12px; background:transparent;"
         )
@@ -261,7 +261,7 @@ class AIPage(QWidget):
         root.addLayout(cards_row)
 
         # ── Training log ──────────────────────────────────────────────
-        log_group = QGroupBox("Log de Entrenamiento")
+        log_group = QGroupBox("Training log")
         log_group.setStyleSheet(
             f"QGroupBox {{ background:{BG_PANEL}; border:1px solid {BORDER};"
             f" border-radius:8px; margin-top:14px; padding:14px 10px 10px; }}"
@@ -301,14 +301,14 @@ class AIPage(QWidget):
         )
 
     def _build_mask_card(self) -> QGroupBox:
-        g = QGroupBox("🎭  Modelo: Segmentación de Cable (Máscaras)")
+        g = QGroupBox("Model: cable segmentation (masks)")
         g.setStyleSheet(self._card_style())
         v = QVBoxLayout(g)
         v.setSpacing(8)
 
         # Dataset info row
         ds_row = QHBoxLayout()
-        self._mask_ds_label = QLabel("Dataset: — muestras")
+        self._mask_ds_label = QLabel("Dataset: - samples")
         self._mask_ds_label.setStyleSheet(f"color:{TEXT_SEC}; font-size:12px;")
         ds_row.addWidget(self._mask_ds_label)
         ds_row.addStretch()
@@ -323,7 +323,7 @@ class AIPage(QWidget):
         v.addLayout(ds_row)
 
         # Status
-        self._mask_status_label = QLabel("Estado: ✗ No entrenado")
+        self._mask_status_label = QLabel("Status: not trained")
         self._mask_status_label.setStyleSheet(f"color:{RED_OFF}; font-size:12px;")
         v.addWidget(self._mask_status_label)
 
@@ -333,8 +333,8 @@ class AIPage(QWidget):
 
         # Description
         desc = QLabel(
-            "Random Forest pixel-level · Features: BGR + HSV + contraste local\n"
-            "Augmentación automática (flip H/V + brillo) · CPU-only · Funciona en RPi"
+            "Pixel-level Random Forest. Features: BGR + HSV + local contrast.\n"
+            "Automatic augmentation (H/V flip + brightness), CPU only, runs on the RPi."
         )
         desc.setWordWrap(True)
         desc.setStyleSheet(f"color:{TEXT_DIM}; font-size:11px;")
@@ -355,14 +355,14 @@ class AIPage(QWidget):
         return g
 
     def _build_path_card(self) -> QGroupBox:
-        g = QGroupBox("🔀  Modelo: Wire Path Tracker (Caminos)")
+        g = QGroupBox("Model: wire path tracker (paths)")
         g.setStyleSheet(self._card_style())
         v = QVBoxLayout(g)
         v.setSpacing(8)
 
         # Dataset info row
         ds_row = QHBoxLayout()
-        self._path_ds_label = QLabel("Dataset: — muestras")
+        self._path_ds_label = QLabel("Dataset: - samples")
         self._path_ds_label.setStyleSheet(f"color:{TEXT_SEC}; font-size:12px;")
         ds_row.addWidget(self._path_ds_label)
         ds_row.addStretch()
@@ -376,7 +376,7 @@ class AIPage(QWidget):
         ds_row.addWidget(btn_view)
         v.addLayout(ds_row)
 
-        self._path_status_label = QLabel("Estado: ✗ No entrenado")
+        self._path_status_label = QLabel("Status: not trained")
         self._path_status_label.setStyleSheet(f"color:{RED_OFF}; font-size:12px;")
         v.addWidget(self._path_status_label)
 
@@ -385,9 +385,9 @@ class AIPage(QWidget):
         v.addWidget(self._path_meta_label)
 
         desc = QLabel(
-            "Modelo de secuencia que aprende a trazar el camino del cable\n"
-            "desde inicio hasta fin sobre la máscara predicha.\n"
-            "Necesita ≥ 30 muestras para entrenar de forma fiable."
+            "Sequence model that learns to trace the cable path from end to\n"
+            "end over the predicted mask.\n"
+            "Needs at least 30 samples to train reliably."
         )
         desc.setWordWrap(True)
         desc.setStyleSheet(f"color:{TEXT_DIM}; font-size:11px;")
@@ -412,7 +412,7 @@ class AIPage(QWidget):
         # Mask dataset
         n_mask = self._mask_dm.count()
         self._mask_ds_label.setText(
-            f"Dataset: {n_mask} muestras estéreo  (~{n_mask*2} imágenes)"
+            f"Dataset: {n_mask} stereo samples  (~{n_mask*2} images)"
         )
 
         if MASK_MODEL_PATH.exists():
@@ -422,19 +422,19 @@ class AIPage(QWidget):
                 self._mask_status_label.setText("Status: model trained")
                 self._mask_status_label.setStyleSheet(f"color:{GREEN_ON}; font-size:12px;")
                 self._mask_meta_label.setText(
-                    f"Última sesión: {md.get('date','?')}  |  "
+                    f"Last session: {md.get('date','?')}  |  "
                     f"F1={md.get('f1_train',0):.3f}  "
                     f"P={md.get('precision',0):.3f}  "
                     f"R={md.get('recall',0):.3f}  |  "
-                    f"{md.get('n_pairs',0)} imágenes · "
-                    f"{md.get('n_augmented',0)} augmentadas"
+                    f"{md.get('n_pairs',0)} images, "
+                    f"{md.get('n_augmented',0)} augmented"
                 )
-                self._btn_train_mask.setText("🔄  Re-entrenar Modelo de Máscaras")
+                self._btn_train_mask.setText("  Retrain mask model")
             except Exception:
-                self._mask_status_label.setText("Estado: ⚠ Error al leer modelo")
+                self._mask_status_label.setText("Status: could not read the model")
                 self._mask_status_label.setStyleSheet(f"color:{YELLOW_WARN}; font-size:12px;")
         else:
-            self._mask_status_label.setText("Estado: ✗ No entrenado")
+            self._mask_status_label.setText("Status: not trained")
             self._mask_status_label.setStyleSheet(f"color:{RED_OFF}; font-size:12px;")
             self._mask_meta_label.setText("")
             self._btn_train_mask.setText("  Train mask model")
@@ -444,7 +444,7 @@ class AIPage(QWidget):
         # Path dataset
         n_path = self._path_dm.count()
         self._path_ds_label.setText(
-            f"Dataset: {n_path} muestras estéreo  (~{n_path*2} imágenes)"
+            f"Dataset: {n_path} stereo samples  (~{n_path*2} images)"
         )
 
         if PATH_MODEL_PATH.exists():
@@ -454,19 +454,19 @@ class AIPage(QWidget):
                 self._path_status_label.setText("Status: model trained")
                 self._path_status_label.setStyleSheet(f"color:{GREEN_ON}; font-size:12px;")
                 self._path_meta_label.setText(
-                    f"Última sesión: {pd_.get('date','?')}  |  {pd_.get('n_pairs',0)} imágenes"
+                    f"Last session: {pd_.get('date','?')}  |  {pd_.get('n_pairs',0)} images"
                 )
-                self._btn_train_path.setText("🔄  Re-entrenar Modelo de Paths")
+                self._btn_train_path.setText("  Retrain path model")
             except Exception:
                 pass
         else:
             if n_path < 5:
                 self._path_status_label.setText(
-                    f"Estado: ✗ No entrenado  (tienes {n_path}, necesitas ≥ 5)"
+                    f"Status: not trained  (you have {n_path}, you need 5)"
                 )
                 self._path_status_label.setStyleSheet(f"color:{YELLOW_WARN}; font-size:12px;")
             else:
-                self._path_status_label.setText("Estado: ✗ No entrenado")
+                self._path_status_label.setText("Status: not trained")
                 self._path_status_label.setStyleSheet(f"color:{RED_OFF}; font-size:12px;")
             self._path_meta_label.setText("")
 
@@ -515,7 +515,7 @@ class AIPage(QWidget):
         if self._train_thread and self._train_thread.isRunning():
             return
         self._log.clear()
-        self._log_msg("═══ Iniciando entrenamiento: Segmentación de Cable ═══", "SUCCESS")
+        self._log_msg("--- Starting training: cable segmentation ---", "SUCCESS")
         self._set_training_ui(True)
 
         self._train_thread = MaskTrainingThread(self._mask_dm)
@@ -527,17 +527,17 @@ class AIPage(QWidget):
     def _on_mask_done(self, success: bool, summary: str):
         self._set_training_ui(False)
         if success:
-            self._log_msg(f"═══ {summary} ═══", "SUCCESS")
+            self._log_msg(f"--- {summary} ---", "SUCCESS")
             self._refresh_status()
         else:
-            self._log_msg(f"✗ Error: {summary}", "ERROR")
-            QMessageBox.warning(self, "Error de entrenamiento", summary)
+            self._log_msg(f"Error: {summary}", "ERROR")
+            QMessageBox.warning(self, "Training error", summary)
 
     def _train_path_model(self):
         """Path model training — placeholder, lógica a implementar."""
         QMessageBox.information(
-            self, "Próximamente",
-            "El modelo de Wire Path requiere más arquitectura (graph-based tracker).\n"
-            "Sigue recolectando muestras mientras tanto.\n\n"
-            f"Tienes {self._path_dm.count()} muestras actualmente."
+            self, "Coming soon",
+            "The wire path model needs more architecture (a graph-based tracker).\n"
+            "Keep collecting samples meanwhile.\n\n"
+            f"You currently have {self._path_dm.count()} samples."
         )

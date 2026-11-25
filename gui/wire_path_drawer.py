@@ -180,7 +180,7 @@ class WirePathDrawerDialog(QDialog):
     """
 
     def __init__(self, image: np.ndarray, mask: np.ndarray = None,
-                 title: str = "Dibujador de cable",
+                 title: str = "Cable path drawer",
                  initial_path: list = None, parent=None):
         super().__init__(parent)
         self.image = image
@@ -196,10 +196,10 @@ class WirePathDrawerDialog(QDialog):
         layout = QVBoxLayout(self)
 
         info = QLabel(
-            "Click izquierdo: añadir punto  |  "
-            "Click derecho / Backspace: deshacer  |  "
-            "Ctrl+Rueda / botones 🔍: zoom  |  "
-            "C: limpiar  |  0: reset zoom  |  Enter: confirmar"
+            "Left click: add point  |  "
+            "Right click / Backspace: undo  |  "
+            "Ctrl+Wheel or the zoom buttons: zoom  |  "
+            "C: clear  |  0: reset zoom  |  Enter: confirm"
         )
         info.setStyleSheet(
             "background:#2a2a2a; color:#ccc; padding:5px; border-radius:3px; font-size:10px;"
@@ -222,15 +222,15 @@ class WirePathDrawerDialog(QDialog):
 
         btns = QHBoxLayout()
 
-        btn_zin = QPushButton("🔍+")
+        btn_zin = QPushButton("+")
         btn_zin.setFixedWidth(48)
-        btn_zin.setToolTip("Zoom in (Ctrl+Rueda ↑ o tecla +)")
+        btn_zin.setToolTip("Zoom in (Ctrl+Wheel up, or the + key)")
         btn_zin.clicked.connect(lambda: self.canvas.zoom_by(1.3))
         btns.addWidget(btn_zin)
 
-        btn_zout = QPushButton("🔍-")
+        btn_zout = QPushButton("-")
         btn_zout.setFixedWidth(48)
-        btn_zout.setToolTip("Zoom out (Ctrl+Rueda ↓ o tecla -)")
+        btn_zout.setToolTip("Zoom out (Ctrl+Wheel down, or the - key)")
         btn_zout.clicked.connect(lambda: self.canvas.zoom_by(1 / 1.3))
         btns.addWidget(btn_zout)
 
@@ -242,11 +242,11 @@ class WirePathDrawerDialog(QDialog):
 
         btns.addSpacing(12)
 
-        btn_undo = QPushButton("↩ Deshacer (BS)")
+        btn_undo = QPushButton("Undo (BS)")
         btn_undo.clicked.connect(self.canvas.undo_last)
         btns.addWidget(btn_undo)
 
-        btn_clear = QPushButton("🗑 Limpiar (C)")
+        btn_clear = QPushButton("Clear (C)")
         btn_clear.clicked.connect(self.canvas.clear_path)
         btns.addWidget(btn_clear)
 

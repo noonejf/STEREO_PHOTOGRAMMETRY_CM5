@@ -363,9 +363,9 @@ class VistaOrbital(QWidget):
     #: dos ejes del render.
     VISTAS = {
         "3/4": (122.0, -24.0),
-        "Desde las camaras": (90.0, 0.0),
-        "Planta": (90.0, -86.0),
-        "Costado": (180.0, 0.0),
+        "From the cameras": (90.0, 0.0),
+        "Top": (90.0, -86.0),
+        "Side": (180.0, 0.0),
     }
 
     def __init__(self, parent=None):
@@ -492,9 +492,9 @@ class VistaOrbital(QWidget):
     #: El rotulo de X dice "de la foto" porque con ``ESPEJO_X`` la flecha
     #: se dibuja hacia el otro lado: lo que no cambia es que +X es la
     #: derecha del cuadro que graba la camara.
-    EJES = (((1.0, 0.0, 0.0), "+X der. foto", "#F87171"),
-            ((0.0, 1.0, 0.0), "+Y cable", "#4ADE80"),
-            ((0.0, 0.0, 1.0), "+Z arriba", "#60A5FA"))
+    EJES = (((1.0, 0.0, 0.0), "+X image right", "#F87171"),
+            ((0.0, 1.0, 0.0), "+Y along cord", "#4ADE80"),
+            ((0.0, 0.0, 1.0), "+Z up", "#60A5FA"))
 
     def _ejes(self, pintor, cam):
         """Una triada corta en el origen, sin rotulos.
@@ -569,7 +569,7 @@ class VistaOrbital(QWidget):
             pintor.setFont(fuente)
             pintor.setPen(QPen(QColor(TEXT_SECONDARY)))
             largo = ESCENA["cord_y1"] - ESCENA["cord_y0"]
-            texto = f"extremo lejano, {largo:.1f} m"
+            texto = f"far end, {largo:.1f} m"
             x = min(int(lejos[0]) + 5, self.width() - 7 * len(texto) - 4)
             pintor.drawText(x, int(lejos[1]), texto)
 
@@ -653,7 +653,7 @@ class VistaOrbital(QWidget):
             pintor.setFont(fuente)
             pintor.setPen(QPen(QColor(TEXT_DIM)))
             pintor.drawText(int(arriba[0]) - 46, int(arriba[1]) - 4,
-                            "arriba del cuadro")
+                            "top of frame")
 
     def _marcadores(self, pintor, cam):
         """Las direcciones medidas. De atras hacia adelante."""
@@ -709,9 +709,9 @@ class VistaOrbital(QWidget):
         pintor.setFont(fuente)
         pintor.setPen(QPen(QColor(ACCENT_AMBER)))
         if a[0] > self.width() - 34:
-            pintor.drawText(int(a[0]) - 32, int(a[1]) + 3, "sol")
+            pintor.drawText(int(a[0]) - 32, int(a[1]) + 3, "sun")
         else:
-            pintor.drawText(int(a[0]) + 10, int(a[1]) + 3, "sol")
+            pintor.drawText(int(a[0]) + 10, int(a[1]) + 3, "sun")
 
     def _pie(self, pintor):
         fuente = QFont()
@@ -720,15 +720,15 @@ class VistaOrbital(QWidget):
         pintor.setPen(QPen(QColor(TEXT_DIM)))
         pintor.drawText(
             8, self.height() - 20,
-            "Arrastra para girar LA VISTA. El sol se elige con un clic en un "
-            "punto o con la rejilla.")
-        espejo = "Eje X en ESPEJO. " if ESPEJO_X else ""
+            "Drag to turn THE VIEW. Pick the sun by clicking a marker or a "
+            "cell of the grid below.")
+        espejo = "X axis MIRRORED. " if ESPEJO_X else ""
         detras = math.sin(math.radians(self.yaw)) < 0.0
         pintor.drawText(
             8, self.height() - 8,
-            espejo + ("Mirando el par DESDE ATRAS: la L y la R salen al otro "
-                      "lado." if detras else
-                      "Mirando el par desde adelante."))
+            espejo + ("Looking at the pair FROM BEHIND: L and R come out on "
+                      "the other side." if detras else
+                      "Looking at the pair from the front."))
 
     def _valor(self, d: Direccion) -> float:
         return getattr(d, self.metrica)
@@ -756,9 +756,9 @@ class VistaOrbital(QWidget):
             self._hover = cerca.clave if cerca else None
             if cerca:
                 self.setToolTip(
-                    f"azimut {cerca.azimut:.1f}, inclinacion "
-                    f"{cerca.inclinacion:+.1f}\ncontraste {cerca.contraste:.1f}"
-                    f"   ciego {cerca.ciego_pct:.1f} %")
+                    f"azimuth {cerca.azimut:.1f}, inclination "
+                    f"{cerca.inclinacion:+.1f}\ncontrast {cerca.contraste:.1f}"
+                    f"   blind {cerca.ciego_pct:.1f} %")
             else:
                 self.setToolTip("")
             if prev != self._hover:
@@ -877,7 +877,7 @@ class RejillaEsfera(QWidget):
                 pintor.drawText(int(izq + col * w), self.height() - 6,
                                 f"{az:.0f}")
         pintor.setPen(QPen(QColor(TEXT_DIM)))
-        pintor.drawText(2, 10, "inclinacion / azimut, grados")
+        pintor.drawText(2, 10, "inclination / azimuth, degrees")
         pintor.end()
 
     def mousePressEvent(self, ev):
@@ -972,8 +972,8 @@ class PanelRender(QWidget):
     #: ``left.jpg``**, que es Cam_L, la que esta en x = -50 mm. No depende de
     #: como este girado el diagrama, y hace falta decirlo porque el diagrama
     #: se puede girar hasta poner la R a la izquierda.
-    ROTULOS = ("Izquierda   ·   Cam_L, x = -50 mm",
-               "Derecha   ·   Cam_R, x = +50 mm")
+    ROTULOS = ("Left   ·   Cam_L, x = -50 mm",
+               "Right   ·   Cam_R, x = +50 mm")
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1032,16 +1032,16 @@ class PanelRender(QWidget):
         self._pix = (self._leer(par.izquierda, realzar) if par.izquierda
                      else None,
                      self._leer(par.derecha, realzar) if par.derecha else None)
-        fuente = ("copia chica versionada" if par.ya_realzada
-                  else "render crudo de data/captures")
+        fuente = ("versioned small copy" if par.ya_realzada
+                  else "raw render from data/captures")
         if par.derecha:
-            nota = f"Camara izquierda y derecha, {fuente}, gamma 0.42."
+            nota = f"Left and right camera, {fuente}, gamma 0.42."
         elif par.izquierda:
-            nota = (f"Solo camara izquierda: este caso se renderizo con una "
-                    f"sola camara. {fuente.capitalize()}, gamma 0.42.")
+            nota = (f"Left camera only: this case was rendered with a single "
+                    f"camera. {fuente.capitalize()}, gamma 0.42.")
         else:
-            nota = ("No hay imagen de este caso, ni el render crudo ni la "
-                    "copia chica. Vuelve a generarla con: python "
+            nota = ("No image for this case, neither the raw render nor the "
+                    "small copy. Regenerate it with: python "
                     "tools/armar_vistas_simulacion.py")
         self.pie.setText(nota + ("  " + pie_extra if pie_extra else ""))
         self.col_der.setVisible(bool(par.derecha))
@@ -1051,7 +1051,7 @@ class PanelRender(QWidget):
         for lbl, pix in ((self.lbl_izq, self._pix[0]),
                          (self.lbl_der, self._pix[1])):
             if pix is None:
-                lbl.setText("sin imagen")
+                lbl.setText("no image")
                 lbl.setStyleSheet(
                     f"background-color: #000; border: 1px solid "
                     f"{BORDER_SUBTLE}; color: {TEXT_DIM}; font-size: 11px;")
@@ -1146,12 +1146,12 @@ class PaginaEsfera(QWidget):
         col.addLayout(botones)
 
         sel_fila = QHBoxLayout()
-        lbl = QLabel("Colorear por")
+        lbl = QLabel("Colour by")
         lbl.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px;")
         self.combo = QComboBox()
-        self.combo.addItem("Contraste del cordon", "contraste")
-        self.combo.addItem("Cable ciego (%)", "ciego_pct")
-        self.combo.addItem("Contraste mas alla de 18 m", "contraste_lejos")
+        self.combo.addItem("Cord contrast", "contraste")
+        self.combo.addItem("Blind cord (%)", "ciego_pct")
+        self.combo.addItem("Contrast beyond 18 m", "contraste_lejos")
         self.combo.setStyleSheet(
             f"QComboBox {{ background-color: {BG_CARD}; color: {TEXT_PRIMARY};"
             f"border: 1px solid {BORDER_SUBTLE}; border-radius: 4px;"
@@ -1169,11 +1169,21 @@ class PaginaEsfera(QWidget):
         col.addWidget(self.rejilla, 2)
 
         self.nota = QLabel(
-            "82 direcciones renderizadas de las 112 de la rejilla completa. "
-            "El contraste se promedia desde 5 m; cable ciego es la fraccion "
-            "bajo 5 niveles sobre el fondo local, que es donde la mascara ya "
-            "no tiene nada que segmentar. Medidas de "
-            "SIMULATION/experimentos/sol_esfera/medidas.csv.")
+            "Each cell is one rendered sun direction: a column is an azimuth, "
+            "a row is an inclination, and the colour is whichever figure is "
+            "chosen above. 82 in all, the 16 azimuths at each of the five "
+            "central inclinations plus a single azimuth at each pole; the "
+            "empty cells of the +89 and -89 rows are not rendered yet.\n\n"
+            "Contrast is the cord's peak above its local background on a "
+            "perpendicular cut, in 8-bit levels, averaged over the cord "
+            "beyond 5 m only: the cord starts at the lens plane, and its "
+            "first metres carry some 1400 levels against 60 at 20 m, so "
+            "including them would measure distance and not light. Blind cord "
+            "is counted over the whole cord instead, because there the "
+            "question is what fraction cannot be segmented at all, and under "
+            "5 levels there is nothing left to segment.\n\n"
+            "Read from SIMULATION/experimentos/sol_esfera/medidas.csv. "
+            "Nothing is recomputed here.")
         self.nota.setWordWrap(True)
         self.nota.setStyleSheet(
             f"color: {TEXT_DIM}; font-size: 10px; background: transparent;")
@@ -1184,7 +1194,7 @@ class PaginaEsfera(QWidget):
         dv = QVBoxLayout(derecha)
         dv.setContentsMargins(0, 0, 0, 0)
         dv.setSpacing(8)
-        self.titulo = QLabel("Elige una direccion")
+        self.titulo = QLabel("Pick a direction")
         self.titulo.setStyleSheet(
             f"color: {ACCENT_CYAN}; font-size: 16px; font-weight: bold;")
         dv.addWidget(self.titulo)
@@ -1192,10 +1202,10 @@ class PaginaEsfera(QWidget):
         tarjetas = QHBoxLayout()
         tarjetas.setSpacing(8)
         self._valores = {}
-        for clave, rotulo in (("contraste", "CONTRASTE"),
-                              ("ciego_pct", "CABLE CIEGO"),
-                              ("contraste_lejos", "MAS DE 18 M"),
-                              ("tramo", "TRAMO CIEGO")):
+        for clave, rotulo in (("contraste", "CONTRAST"),
+                              ("ciego_pct", "BLIND CORD"),
+                              ("contraste_lejos", "BEYOND 18 M"),
+                              ("tramo", "BLIND STRETCH")):
             marco, valor = _tarjeta(rotulo)
             self._valores[clave] = valor
             tarjetas.addWidget(marco)
@@ -1207,15 +1217,16 @@ class PaginaEsfera(QWidget):
         # La pregunta que esta pantalla provoca la primera vez que se mira, y
         # que no se contesta sola. Va escrita y no en un tooltip.
         self.aviso = QLabel(
-            "Por que las dos no se parecen cerca del borde, y por que eso no "
-            "es el sol: el cable arranca EN el punto medio de la base "
-            "estereo, y su primer metro pasa a 11 cm de cada lente, donde un "
-            "cordon de 1 mm mide 50 px y satura. A 11 cm, 10 cm de base son "
-            "media paralaje, asi que cada camara ve ese tramo en otro sitio "
-            "del cuadro. Del centro hacia afuera, que es el cable a mas de "
-            "5 m, las dos coinciden: 70.5 contra 80.9 niveles de media en el "
-            "recorte central de 600 px. El contraste se promedia desde 5 m, "
-            "asi que ninguna cifra de arriba usa ese primer metro.")
+            "Why the two frames do not look alike near the edges, and why "
+            "that is not the sun: the cord starts AT the midpoint of the "
+            "stereo baseline, and its first metre passes 11 cm from each "
+            "lens, where a 1 mm cord is 50 px wide and saturates. At 11 cm, "
+            "100 mm of baseline is half the parallax, so each camera sees "
+            "that stretch somewhere else in the frame. From the centre "
+            "outwards, which is the cord beyond 5 m, the two agree: 70.5 "
+            "against 80.9 levels of mean in the central 600 px crop. "
+            "Contrast is averaged from 5 m out, so no figure above uses that "
+            "first metre.")
         self.aviso.setWordWrap(True)
         self.aviso.setStyleSheet(
             f"color: {TEXT_DIM}; font-size: 10px; background: transparent;"
@@ -1228,10 +1239,10 @@ class PaginaEsfera(QWidget):
                           key=lambda d: (abs(d.inclinacion), abs(d.azimut)))
             self.seleccionar(inicial.azimut, inicial.inclinacion)
         else:
-            self.titulo.setText("No hay medidas de la esfera")
+            self.titulo.setText("No sphere measurements")
             self.nota.setText(
-                "Falta SIMULATION/experimentos/sol_esfera/medidas.csv. Se "
-                "genera con: python tools/medir_esfera.py --csv "
+                "SIMULATION/experimentos/sol_esfera/medidas.csv is missing. "
+                "Generate it with: python tools/medir_esfera.py --csv "
                 "SIMULATION/experimentos/sol_esfera/medidas.csv")
 
     def _vista_libre(self):
@@ -1268,21 +1279,21 @@ class PaginaEsfera(QWidget):
         if d is None:
             return
         self.titulo.setText(
-            f"Azimut {d.azimut:.1f}, inclinacion {d.inclinacion:+.1f} grados")
+            f"Azimuth {d.azimut:.1f}, inclination {d.inclinacion:+.1f} degrees")
         self._valores["contraste"].setText(f"{d.contraste:.1f}")
         self._valores["ciego_pct"].setText(f"{d.ciego_pct:.1f} %")
         self._valores["contraste_lejos"].setText(f"{d.contraste_lejos:.1f}")
         if d.ciego_pct > 0.0:
             self._valores["tramo"].setText(
-                f"{d.ciego_desde:.1f} a {d.ciego_hasta:.1f} m")
+                f"{d.ciego_desde:.1f} to {d.ciego_hasta:.1f} m")
         else:
             self._valores["tramo"].setText("---")
-        self.panel.mostrar(par_esfera(d), f"Captura {d.carpeta}.")
+        self.panel.mostrar(par_esfera(d), f"Capture {d.carpeta}.")
 
     #: Como se rotula cada metrica en la leyenda, y si mas es peor.
-    UNIDAD = {"contraste": ("niveles", False),
-              "ciego_pct": ("% ciego", True),
-              "contraste_lejos": ("niveles", False)}
+    UNIDAD = {"contraste": ("levels", False),
+              "ciego_pct": ("% blind", True),
+              "contraste_lejos": ("levels", False)}
 
     def _refrescar(self):
         self.vista.set_datos(self.direcciones, self.metrica, self.sel)
@@ -1298,10 +1309,10 @@ class PaginaEsfera(QWidget):
 class PaginaEstudio(QWidget):
     """La familia de variantes del TV2, con su render y sus cifras."""
 
-    COLUMNAS = (("variante", "Variante"), ("luminarias", "Luminarias"),
-                ("kw", "kW"), ("contraste_fondo_oscuro", "Contraste"),
-                ("fondo_medio", "Fondo medio"), ("piso", "Piso"),
-                ("inclinacion_deg", "Inclinacion"), ("sensor", "Sensor"),
+    COLUMNAS = (("variante", "Variant"), ("luminarias", "Fixtures"),
+                ("kw", "kW"), ("contraste_fondo_oscuro", "Contrast"),
+                ("fondo_medio", "Mean background"), ("piso", "Floor"),
+                ("inclinacion_deg", "Inclination"), ("sensor", "Sensor"),
                 ("focal_mm", "Focal mm"))
 
     def __init__(self, parent=None):
@@ -1317,7 +1328,7 @@ class PaginaEstudio(QWidget):
         col = QVBoxLayout(izq)
         col.setContentsMargins(0, 0, 0, 0)
         col.setSpacing(6)
-        tit = QLabel("Las variantes renderizadas")
+        tit = QLabel("The rendered variants")
         tit.setStyleSheet(
             f"color: {ACCENT_CYAN}; font-size: 14px; font-weight: bold;")
         col.addWidget(tit)
@@ -1331,7 +1342,7 @@ class PaginaEstudio(QWidget):
         lista.setSpacing(4)
         self._botones = []
         for fila in self.filas:
-            b = QPushButton(f"{fila['variante']}   ·   contraste "
+            b = QPushButton(f"{fila['variante']}   ·   contrast "
                             f"{_cifra(fila['contraste_fondo_oscuro'])}")
             b.setCheckable(True)
             b.setStyleSheet(PaginaEsfera._qss_boton())
@@ -1343,10 +1354,9 @@ class PaginaEstudio(QWidget):
         col.addWidget(area, 1)
 
         self.nota = QLabel(
-            "Medidas de SIMULATION/experimentos/estudio_luminarias_reales/"
-            "medidas_familia.csv, la misma tabla que el capitulo 5 del "
-            "informe de la sesion. Contraste sobre fondo oscuro, en niveles "
-            "de 8 bits.")
+            "Read from SIMULATION/experimentos/estudio_luminarias_reales/"
+            "medidas_familia.csv, the same table as chapter 5 of the session "
+            "report. Contrast against a dark background, in 8-bit levels.")
         self.nota.setWordWrap(True)
         self.nota.setStyleSheet(
             f"color: {TEXT_DIM}; font-size: 10px; background: transparent;")
@@ -1357,7 +1367,7 @@ class PaginaEstudio(QWidget):
         dv = QVBoxLayout(der)
         dv.setContentsMargins(0, 0, 0, 0)
         dv.setSpacing(8)
-        self.titulo = QLabel("Elige una variante")
+        self.titulo = QLabel("Pick a variant")
         self.titulo.setStyleSheet(
             f"color: {ACCENT_CYAN}; font-size: 16px; font-weight: bold;")
         dv.addWidget(self.titulo)
@@ -1374,7 +1384,7 @@ class PaginaEstudio(QWidget):
             self._botones[0][0].setChecked(True)
             self.elegir(self.filas[0])
         else:
-            self.titulo.setText("No hay medidas del estudio")
+            self.titulo.setText("No studio measurements")
 
     def elegir(self, fila):
         for b, f in self._botones:
@@ -1384,7 +1394,7 @@ class PaginaEstudio(QWidget):
                   for clave, rotulo in self.COLUMNAS[1:]]
         self.detalle.setText("   ·   ".join(partes))
         self.panel.mostrar(par_estudio(fila["variante"], fila["captura"]),
-                           f"Captura {fila['captura']}.")
+                           f"Capture {fila['captura']}.")
 
 
 # ───────────────────────────────────────────────────────────── la pagina
@@ -1407,8 +1417,9 @@ class SimulationPage(QWidget):
         v.setSpacing(0)
 
         cabecera = QLabel(
-            "  Simulacion: lo medido sobre los renders de Cycles. Las cifras "
-            "salen de las CSV versionadas, no se recalculan aqui.")
+            "  Simulation: what was measured on the Cycles renders. The "
+            "figures come from the versioned CSVs and are not recomputed "
+            "here.")
         cabecera.setStyleSheet(
             f"color: {TEXT_SECONDARY}; font-size: 11px; padding: 8px 12px;"
             f"background-color: {BG_PANEL}; border-bottom: 1px solid "
@@ -1425,14 +1436,14 @@ class SimulationPage(QWidget):
             f"QTabBar::tab:selected {{ background: {BG_DEEP};"
             f"color: {ACCENT_CYAN}; }}")
         try:
-            pestanas.addTab(PaginaEsfera(self), "Sol: la esfera")
-            pestanas.addTab(PaginaEstudio(self), "Estudio TV2")
+            pestanas.addTab(PaginaEsfera(self), "Sun: the sphere")
+            pestanas.addTab(PaginaEstudio(self), "TV2 studio")
             logger.info("Simulation page loaded")
         except Exception as exc:                              # noqa: BLE001
             logger.warning("Simulation page unavailable: %s", exc)
-            aviso = QLabel(f"La pagina de simulacion no pudo cargarse.\n\n{exc}")
+            aviso = QLabel(f"The simulation page could not be loaded.\n\n{exc}")
             aviso.setWordWrap(True)
             aviso.setStyleSheet(
                 f"color: {TEXT_SECONDARY}; font-size: 13px; padding: 40px;")
-            pestanas.addTab(aviso, "Simulacion")
+            pestanas.addTab(aviso, "Simulation")
         v.addWidget(pestanas, 1)

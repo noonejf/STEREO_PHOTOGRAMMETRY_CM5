@@ -555,7 +555,7 @@ class CalibrationPage(QWidget):
         group = QGroupBox("Progress")
         v = QVBoxLayout(group)
 
-        self.countdown_label = QLabel("Listo. Usa los botones de abajo")
+        self.countdown_label = QLabel("Ready. Use the buttons below")
         self.countdown_label.setFont(QFont("Segoe UI", 13, QFont.Bold))
         self.countdown_label.setAlignment(Qt.AlignCenter)
         self.countdown_label.setStyleSheet(
@@ -691,7 +691,7 @@ class CalibrationPage(QWidget):
                 )
                 self.details_label.setVisible(True)
         else:
-            self.status_label.setText("✗ Calibration Required")
+            self.status_label.setText("Calibration Required")
             self.status_label.setStyleSheet(
                 f"color: {RED_OFF}; font-weight: bold; font-size: 14px;"
                 f"background: transparent;"
@@ -1303,7 +1303,7 @@ class CalibrationPage(QWidget):
                               if hasattr(self.window(), 'navigate_to') else None)
         else:
             error_details = result.get('error', 'Unknown error')
-            self.add_log_message(f"✗ Calibration failed: {error_details}", "ERROR")
+            self.add_log_message(f"Calibration failed: {error_details}", "ERROR")
             self._set_countdown_style("CALIBRATION ERROR", "Check log and try again", -3)
             QMessageBox.critical(
                 self, "Calibration Error", f"Calibration failed:\n\n{error_details}"

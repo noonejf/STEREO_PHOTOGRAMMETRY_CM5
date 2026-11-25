@@ -199,7 +199,7 @@ class EdgeDetectionTuner(QDialog):
         # Estiramiento de brillo previo. Va arriba del todo porque se aplica
         # ANTES que cualquier metodo de deteccion: lo que los umbrales de
         # abajo ven es la imagen ya estirada.
-        gamma_group = QGroupBox("Brillo previo a la deteccion")
+        gamma_group = QGroupBox("Brightness before detection")
         gamma_layout = QGridLayout()
         gamma_layout.addWidget(QLabel("Gamma:"), 0, 0)
         self.gamma_slider = QSlider(Qt.Horizontal)
@@ -210,7 +210,7 @@ class EdgeDetectionTuner(QDialog):
         self.gamma_label = QLabel("1.00")
         gamma_layout.addWidget(self.gamma_label, 0, 2)
         gamma_layout.addWidget(
-            QLabel("1.00 = imagen tal cual.  0.42 para renders oscuros."),
+            QLabel("1.00 = image as it is.  0.42 for dark renders."),
             1, 0, 1, 3)
         gamma_group.setLayout(gamma_layout)
         layout.addWidget(gamma_group)
@@ -433,16 +433,16 @@ class EdgeDetectionTuner(QDialog):
         layout.addWidget(self.stats_label)
 
         # === MODELO IA ===
-        ai_group = QGroupBox("Modelo IA Entrenado")
+        ai_group = QGroupBox("Trained AI model")
         ai_layout = QVBoxLayout()
         ai_layout.setSpacing(6)
 
-        self.ai_model_status = QLabel("Buscando modelo...")
+        self.ai_model_status = QLabel("Looking for a model...")
         self.ai_model_status.setStyleSheet("font-size:11px; color:#64748B;")
         self.ai_model_status.setWordWrap(True)
         ai_layout.addWidget(self.ai_model_status)
 
-        self.btn_apply_ai = QPushButton("Aplicar modelo IA")
+        self.btn_apply_ai = QPushButton("Apply AI model")
         self.btn_apply_ai.setStyleSheet(
             "background-color: #3B82F6; color: white; font-weight: bold;"
             " padding: 8px; border-radius: 6px;"
@@ -455,21 +455,21 @@ class EdgeDetectionTuner(QDialog):
         self._refresh_ai_model_status()
 
         # === DATASET IA ===
-        dataset_group = QGroupBox("Dataset Máscaras IA")
+        dataset_group = QGroupBox("AI mask dataset")
         dataset_layout = QVBoxLayout()
 
         count = self.dataset_manager.count()
-        self.dataset_count_label = QLabel(f"Muestras guardadas: {count}")
+        self.dataset_count_label = QLabel(f"Saved samples: {count}")
         dataset_layout.addWidget(self.dataset_count_label)
 
-        btn_save_ds = QPushButton("💾 Guardar en Dataset")
+        btn_save_ds = QPushButton("Save to dataset")
         btn_save_ds.setStyleSheet(
             "background-color: #F59E0B; color: white; font-weight: bold; padding: 8px; border-radius: 6px;"
         )
         btn_save_ds.clicked.connect(self.save_to_dataset)
         dataset_layout.addWidget(btn_save_ds)
 
-        btn_view_ds = QPushButton("📊 Ver Dataset")
+        btn_view_ds = QPushButton("View dataset")
         btn_view_ds.clicked.connect(self.view_dataset)
         dataset_layout.addWidget(btn_view_ds)
 
@@ -499,15 +499,15 @@ class EdgeDetectionTuner(QDialog):
 
         # Botones
         buttons_layout = QHBoxLayout()
-        btn_save = QPushButton("💾 Save As...")
+        btn_save = QPushButton("Save As...")
         btn_save.clicked.connect(self.save_config_with_name)
         buttons_layout.addWidget(btn_save)
 
-        btn_delete = QPushButton("🗑️ Delete")
+        btn_delete = QPushButton("Delete")
         btn_delete.clicked.connect(self.delete_config)
         buttons_layout.addWidget(btn_delete)
 
-        btn_refresh = QPushButton("🔄")
+        btn_refresh = QPushButton("Refresh")
         btn_refresh.clicked.connect(self.refresh_config_list)
         buttons_layout.addWidget(btn_refresh)
         config_layout.addLayout(buttons_layout)
@@ -516,7 +516,7 @@ class EdgeDetectionTuner(QDialog):
         layout.addWidget(config_group)
 
         # Botón para aplicar y cerrar (cuando se usa desde procesamiento)
-        self.btn_apply_close = QPushButton("✓ Apply and Continue Processing")
+        self.btn_apply_close = QPushButton("Apply and Continue Processing")
         self.btn_apply_close.clicked.connect(self.apply_and_close)
         self.btn_apply_close.setStyleSheet(
             "background-color: #16A34A; color: white; font-weight: bold; padding: 10px; border-radius: 6px;"
@@ -605,7 +605,7 @@ class EdgeDetectionTuner(QDialog):
     def load_image(self):
         """Cargar imagen desde archivo"""
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Seleccionar Imagen", "",
+            self, "Select image", "",
             "Images (*.png *.jpg *.jpeg *.bmp)"
         )
         if file_path:
@@ -706,9 +706,9 @@ class EdgeDetectionTuner(QDialog):
             gris = (cv2.cvtColor(self._work_img, cv2.COLOR_BGR2GRAY)
                     if len(self._work_img.shape) == 3 else self._work_img)
             if float(np.percentile(gris, 99)) < 25:
-                print("ATENCION: la imagen es muy oscura (percentil 99 = "
-                      f"{float(np.percentile(gris, 99)):.0f} de 255). "
-                      "Si la mascara sale pobre, baja Gamma a 0.42.")
+                print("WARNING: the image is very dark (99th percentile = "
+                      f"{float(np.percentile(gris, 99)):.0f} of 255). "
+                      "If the mask comes out poor, drop Gamma to 0.42.")
 
     def _schedule_update(self):
         """Debounce: espera 200ms tras el último cambio antes de recalcular"""
@@ -733,8 +733,8 @@ class EdgeDetectionTuner(QDialog):
                 return
             # El modelo fallo o desaparecio: caer al clasico en vez de
             # devolver una mascara vieja que ya no corresponde a la imagen.
-            logger_msg = "modelo IA no disponible, usando metodo clasico"
-            print(f"ATENCION: {logger_msg}")
+            logger_msg = "AI model unavailable, falling back to the classical method"
+            print(f"WARNING: {logger_msg}")
             self._ai_mode = False
         self.update_detection()
 
@@ -764,9 +764,9 @@ class EdgeDetectionTuner(QDialog):
             # mascara plausible y equivocada, sin error. Mejor no correrlo.
             want = getattr(clf, "n_features_in_", None)
             if want is not None and want != mask_features.n_features(version):
-                print(f"ERROR: {self._MASK_MODEL_PATH.name} dice features "
-                      f"v{version} pero fue ajustado con {want} columnas. "
-                      f"No se usa.")
+                print(f"ERROR: {self._MASK_MODEL_PATH.name} says features "
+                      f"v{version} but was fitted with {want} columns. "
+                      f"Not used.")
                 return None
 
             img_small = cv2.resize(img, (tw, th), interpolation=cv2.INTER_AREA)
@@ -1106,7 +1106,7 @@ class EdgeDetectionTuner(QDialog):
             f.write(f"cleanup_enabled: {config['cleanup_enabled']}\n")
             f.write(f"cleanup_area_percent: {config['cleanup_area_percent']}\n")
 
-        print(f"✓ Configuration saved to {config_path}")
+        print(f"Configuration saved to {config_path}")
         print("\nCurrent configuration:")
         print(config)
 
@@ -1163,7 +1163,7 @@ class EdgeDetectionTuner(QDialog):
         with open(last_used_path, 'w') as f:
             json.dump({'config_name': name}, f)
 
-        print(f"✓ Configuration '{name}' saved")
+        print(f"Configuration '{name}' saved")
         self.config_name_input.clear()
         self.refresh_config_list()
 
@@ -1251,7 +1251,7 @@ class EdgeDetectionTuner(QDialog):
         self.cleanup_enable.setChecked(config.get('cleanup_enabled', True))
         self.cleanup_area_slider.setValue(config.get('cleanup_area_percent', 10))
 
-        print(f"✓ Configuration '{config_name}' loaded")
+        print(f"Configuration '{config_name}' loaded")
 
     def delete_config(self):
         """Eliminar configuración seleccionada"""
@@ -1270,7 +1270,7 @@ class EdgeDetectionTuner(QDialog):
             config_path = self.get_config_dir() / f"{config_name}.json"
             if config_path.exists():
                 config_path.unlink()
-                print(f"✓ Configuration '{config_name}' deleted")
+                print(f"Configuration '{config_name}' deleted")
                 self.refresh_config_list()
                 QMessageBox.information(self, "Deleted", f"Configuration '{config_name}' deleted")
 
@@ -1282,10 +1282,10 @@ class EdgeDetectionTuner(QDialog):
         """Guarda el par estéreo completo (izq + der) en el dataset."""
         from PyQt5.QtWidgets import QMessageBox
         if self.original_img is None:
-            QMessageBox.warning(self, "Sin imagen", "Carga una imagen primero.")
+            QMessageBox.warning(self, "No image", "Load an image first.")
             return
         if self.mask_result is None:
-            QMessageBox.warning(self, "Sin máscara", "Genera la máscara antes de guardar.")
+            QMessageBox.warning(self, "No mask", "Generate the mask before saving.")
             return
 
         # Guardar una mascara generada por el propio modelo como etiqueta de
@@ -1295,14 +1295,14 @@ class EdgeDetectionTuner(QDialog):
         # vio en pantalla) es peor, pero se avisa.
         if self._ai_mode:
             resp = QMessageBox.question(
-                self, "Mascara generada por el modelo",
-                "La mascara activa la produjo el modelo IA, no el metodo clasico.\n\n"
-                "Guardarla como etiqueta de entrenamiento significa entrenar el "
-                "modelo con su propia salida, sin verificacion humana. Eso refuerza "
-                "sus errores.\n\n"
-                "Recomendado: corrige la mascara con el metodo clasico antes de "
-                "guardarla, o verifica que sea correcta.\n\n"
-                "Guardar de todas formas?",
+                self, "Mask generated by the model",
+                "The active mask was produced by the AI model, not by the classical method.\n\n"
+                "Saving it as a training label means training the model on its own "
+                "output, with nobody checking it. That reinforces its "
+                "mistakes.\n\n"
+                "Recommended: fix the mask with the classical method before saving "
+                "it, or check that it is correct.\n\n"
+                "Save it anyway?",
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if resp != QMessageBox.Yes:
                 return
@@ -1337,9 +1337,9 @@ class EdgeDetectionTuner(QDialog):
         is_dup, existing_id = self.dataset_manager.is_duplicate(save_img)
         if is_dup:
             reply = QMessageBox.question(
-                self, "Imagen duplicada",
-                f"Esta imagen ya existe en el dataset como muestra #{existing_id:04d}.\n"
-                "¿Guardar de todas formas como nueva muestra?",
+                self, "Duplicate image",
+                f"This image is already in the dataset as sample #{existing_id:04d}.\n"
+                "Save it anyway as a new sample?",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No
             )
@@ -1351,14 +1351,14 @@ class EdgeDetectionTuner(QDialog):
             right_image=right_img, right_mask=right_mask,
         )
         count = self.dataset_manager.count()
-        self.dataset_count_label.setText(f"Muestras guardadas: {count}")
-        stereo_txt = " (izq + der, 4 archivos)" if right_img is not None else ""
-        print(f"✓ Dataset: muestra #{sample_id:04d}{stereo_txt} guardada ({count} total)")
+        self.dataset_count_label.setText(f"Saved samples: {count}")
+        stereo_txt = " (left + right, 4 files)" if right_img is not None else ""
+        print(f"Dataset: sample #{sample_id:04d}{stereo_txt} saved ({count} total)")
 
         QMessageBox.information(
-            self, "Guardado",
-            f"Muestra #{sample_id:04d}{stereo_txt} guardada en el dataset.\n"
-            f"Total: {count} muestras."
+            self, "Saved",
+            f"Sample #{sample_id:04d}{stereo_txt} saved to the dataset.\n"
+            f"Total: {count} samples."
         )
 
     def view_dataset(self):
@@ -1368,7 +1368,7 @@ class EdgeDetectionTuner(QDialog):
         dlg.exec_()
         # Actualizar contador por si se borraron muestras
         count = self.dataset_manager.count()
-        self.dataset_count_label.setText(f"Muestras guardadas: {count}")
+        self.dataset_count_label.setText(f"Saved samples: {count}")
 
     def apply_and_close(self):
         """Aplicar configuración actual y cerrar (para modo procesamiento)"""
@@ -1391,14 +1391,14 @@ class EdgeDetectionTuner(QDialog):
                     current_name = "left" if self.current_view == "left" else "right"
                     mask_path = mask_dir / f"cable_mask_{current_name}.png"
                     cv2.imwrite(str(mask_path), self.mask_result)
-                    print(f"✓ Mask saved: {mask_path}")
+                    print(f"Mask saved: {mask_path}")
                 else:
                     # Modo normal (una sola imagen)
                     mask_path = mask_dir / "cable_mask.png"
                     cv2.imwrite(str(mask_path), self.mask_result)
-                    print(f"✓ Mask saved: {mask_path}")
+                    print(f"Mask saved: {mask_path}")
             except Exception as e:
-                print(f"⚠️ Could not save mask: {e}")
+                print(f"WARNING: could not save mask: {e}")
 
         self.accept()  # Cerrar ventana con éxito
 
@@ -1424,18 +1424,18 @@ class EdgeDetectionTuner(QDialog):
                 f1    = md.get("f1_train", 0)
                 npairs = md.get("n_pairs", 0)
                 self.ai_model_status.setText(
-                    f"✓ Modelo listo — {date}\n"
-                    f"F1={f1:.3f}  |  {npairs} imágenes entrenadas"
+                    f"Model ready, {date}\n"
+                    f"F1={f1:.3f}  |  trained on {npairs} images"
                 )
                 self.ai_model_status.setStyleSheet("font-size:11px; color:#22C55E;")
                 self.btn_apply_ai.setEnabled(True)
             except Exception as e:
-                self.ai_model_status.setText(f"⚠ Error al leer modelo: {e}")
+                self.ai_model_status.setText(f"Could not read the model: {e}")
                 self.ai_model_status.setStyleSheet("font-size:11px; color:#EAB308;")
                 self.btn_apply_ai.setEnabled(False)
         else:
             self.ai_model_status.setText(
-                "✗ Modelo no entrenado\nVe a la pestaña AI y entrena primero."
+                "Model not trained.\nGo to the AI page and train it first."
             )
             self.ai_model_status.setStyleSheet("font-size:11px; color:#EF4444;")
             self.btn_apply_ai.setEnabled(False)
@@ -1454,7 +1454,7 @@ class EdgeDetectionTuner(QDialog):
         """Corre el modelo IA sobre la imagen actual y actualiza la visualización."""
         if self.original_img is None:
             from PyQt5.QtWidgets import QMessageBox
-            QMessageBox.warning(self, "Sin imagen", "Carga una imagen primero.")
+            QMessageBox.warning(self, "No image", "Load an image first.")
             return
 
         self._refresh_ai_model_status()
@@ -1464,14 +1464,14 @@ class EdgeDetectionTuner(QDialog):
         try:
             import pickle
             from PyQt5.QtWidgets import QApplication
-            self.btn_apply_ai.setText("Procesando...")
+            self.btn_apply_ai.setText("Processing...")
             self.btn_apply_ai.setEnabled(False)
             QApplication.processEvents()
 
             mask_full = self._infer_ai_mask(self.original_img)
             if mask_full is None:
                 raise RuntimeError(
-                    "No se pudo correr el modelo. Revisa data/models/mask_model.pkl"
+                    "Could not run the model. Check data/models/mask_model.pkl"
                 )
 
             # A partir de aqui la mascara IA es la mascara activa, y
@@ -1499,12 +1499,12 @@ class EdgeDetectionTuner(QDialog):
             # Mostrar resultado en panel de visualización
             self.display_results(mask_preview)
 
-            self.btn_apply_ai.setText("Aplicar modelo IA")
+            self.btn_apply_ai.setText("Apply AI model")
             self.btn_apply_ai.setEnabled(True)
 
         except Exception as e:
             from PyQt5.QtWidgets import QMessageBox
-            self.btn_apply_ai.setText("Aplicar modelo IA")
+            self.btn_apply_ai.setText("Apply AI model")
             self.btn_apply_ai.setEnabled(True)
             QMessageBox.critical(self, "Error IA", str(e))
 
@@ -1524,7 +1524,7 @@ class EdgeDetectionTuner(QDialog):
 
         # Añadir botón de switch si hay imagen derecha
         if right_img is not None:
-            self.btn_switch = QPushButton("↔️ Switch to RIGHT Image")
+            self.btn_switch = QPushButton("Switch to RIGHT Image")
             self.btn_switch.setStyleSheet(
                 "background-color: #3B82F6; color: white; font-weight: bold;"
                 " padding: 8px; border-radius: 6px;"
@@ -1548,13 +1548,13 @@ class EdgeDetectionTuner(QDialog):
             self.current_view = "right"
             self.original_img = self.right_img_data
             self.setWindowTitle("Tune Cable Detection - RIGHT Image")
-            self.btn_switch.setText("↔️ Switch to LEFT Image")
+            self.btn_switch.setText("Switch to LEFT Image")
         else:
             # Cambiar a imagen izquierda
             self.current_view = "left"
             self.original_img = self.left_img_data
             self.setWindowTitle("Tune Cable Detection - LEFT Image")
-            self.btn_switch.setText("↔️ Switch to RIGHT Image")
+            self.btn_switch.setText("Switch to RIGHT Image")
 
         # Actualizar detección con la nueva imagen, respetando el modo activo
         self._prepare_preview()
@@ -1637,7 +1637,7 @@ def open_cable_detection_tuner_with_switch(left_img, right_img, left_path="", ri
     tuner.set_processing_mode(left_img, right_img, left_path, right_path)
 
     # Indicar que debe configurar ambas
-    tuner.setWindowTitle("Configure Filter - Adjust for both images (use ↔️)")
+    tuner.setWindowTitle("Configure Filter - Adjust for both images (use the switch button)")
 
     result = tuner.exec_()
 
@@ -1697,11 +1697,11 @@ def open_cable_detection_tuner_with_switch(left_img, right_img, left_path="", ri
 
             cv2.imwrite(str(mask_dir / "cable_mask_left.png"), mask_left)
             cv2.imwrite(str(mask_dir / "cable_mask_right.png"), mask_right)
-            print(f"✓ Masks saved:")
+            print(f"Masks saved:")
             print(f"  - {mask_dir / 'cable_mask_left.png'}")
             print(f"  - {mask_dir / 'cable_mask_right.png'}")
         except Exception as e:
-            print(f"⚠️ Could not save masks: {e}")
+            print(f"WARNING: could not save masks: {e}")
 
         return mask_left, mask_right
 

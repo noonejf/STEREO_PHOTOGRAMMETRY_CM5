@@ -104,7 +104,7 @@ class WireMethodChoiceDialog(QDialog):
         from utils.dataset_manager import DatasetManager
         self._dm = DatasetManager("data/ai_dataset/path_dataset")
 
-        self.setWindowTitle("Método de Wire Tracking")
+        self.setWindowTitle("Wire tracking method")
         self.setMinimumSize(960, 580)
         self.setStyleSheet(_DARK_QSS)
         self._setup_ui()
@@ -118,7 +118,7 @@ class WireMethodChoiceDialog(QDialog):
         # ── Panel izquierdo: preview izq + der lado a lado ──────────────
         left = QVBoxLayout()
 
-        lbl_title = QLabel("Vista previa — inicio (verde) / fin (rojo) detectados")
+        lbl_title = QLabel("Preview: detected start (green) / end (red)")
         lbl_title.setStyleSheet("color:#22D3EE; font-weight:bold; font-size:13px;")
         left.addWidget(lbl_title)
 
@@ -147,15 +147,15 @@ class WireMethodChoiceDialog(QDialog):
             return col, lbl
 
         left_col, self.preview_label = _build_side(
-            "Izquierda", self.left_img, self.mask_left, self.start_left, self.end_left)
+            "Left", self.left_img, self.mask_left, self.start_left, self.end_left)
         right_col, self.preview_label_right = _build_side(
-            "Derecha", self.right_img, self.mask_right, self.start_right, self.end_right)
+            "Right", self.right_img, self.mask_right, self.start_right, self.end_right)
 
         previews_row.addLayout(left_col, 1)
         previews_row.addLayout(right_col, 1)
         left.addLayout(previews_row, stretch=1)
 
-        self.status_label = QLabel("Sin método elegido")
+        self.status_label = QLabel("No method chosen")
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setStyleSheet(
             "color:#64748B; font-style:italic; padding:4px; font-size:11px;"
@@ -169,11 +169,11 @@ class WireMethodChoiceDialog(QDialog):
         right.setSpacing(8)
 
         # --- Opción 1 ---
-        g1 = QGroupBox("Opción 1 — SmartWireTracker (automático)")
+        g1 = QGroupBox("Option 1: SmartWireTracker (automatic)")
         l1 = QVBoxLayout()
         d1 = QLabel(
-            "Trazado automático con DFS + backtracking.\n"
-            "Funciona bien en casos sin enredos complejos."
+            "Automatic tracing with DFS + backtracking.\n"
+            "Works well on cases without complex tangles."
         )
         d1.setWordWrap(True)
         d1.setStyleSheet("color:#94A3B8; font-size:11px;")
@@ -189,16 +189,16 @@ class WireMethodChoiceDialog(QDialog):
         right.addWidget(g1)
 
         # --- Opción 2 ---
-        g2 = QGroupBox("Opción 2 — Dibujo manual")
+        g2 = QGroupBox("Option 2: draw by hand")
         l2 = QVBoxLayout()
         d2 = QLabel(
-            "Tú dibujas el camino correcto haciendo click en la imagen.\n"
-            "Ideal para casos complejos o para etiquetar el dataset IA."
+            "You draw the correct path by clicking on the image.\n"
+            "Best for complex cases, and for labelling the AI dataset."
         )
         d2.setWordWrap(True)
         d2.setStyleSheet("color:#94A3B8; font-size:11px;")
         l2.addWidget(d2)
-        btn2 = QPushButton("✏️ Dibujar manualmente")
+        btn2 = QPushButton("Draw by hand")
         btn2.setStyleSheet(
             "background:#F59E0B; color:white; font-weight:bold;"
             " padding:8px; border-radius:6px;"
@@ -209,17 +209,17 @@ class WireMethodChoiceDialog(QDialog):
         right.addWidget(g2)
 
         # --- Opción 3 ---
-        g3 = QGroupBox("Opción 3 — IA Wire Tracker (no disponible aún)")
+        g3 = QGroupBox("Option 3: AI wire tracker (not available yet)")
         l3 = QVBoxLayout()
         count = self._dm.count()
         d3 = QLabel(
-            f"Modelo de IA que aprende de tu dataset.\n"
-            f"Dataset actual: {count} muestras — necesita ~100 para entrenar."
+            f"An AI model that learns from your dataset.\n"
+            f"Current dataset: {count} samples, about 100 are needed to train."
         )
         d3.setWordWrap(True)
         d3.setStyleSheet("color:#64748B; font-size:11px;")
         l3.addWidget(d3)
-        self.btn_ai = QPushButton("IA Wire Tracker (próximamente)")
+        self.btn_ai = QPushButton("AI wire tracker (coming soon)")
         self.btn_ai.setEnabled(False)
         l3.addWidget(self.btn_ai)
         g3.setLayout(l3)
@@ -232,11 +232,11 @@ class WireMethodChoiceDialog(QDialog):
         right.addWidget(sep)
 
         # --- Dataset ---
-        gds = QGroupBox("Dataset Caminos IA  (imagen + máscara + path)")
+        gds = QGroupBox("AI path dataset  (image + mask + path)")
         lds = QVBoxLayout()
         lds.setSpacing(6)
 
-        self.ds_count_label = QLabel(f"Muestras guardadas: {count}  (izq + der + paths)")
+        self.ds_count_label = QLabel(f"Saved samples: {count}  (left + right + paths)")
         self.ds_count_label.setStyleSheet("color:#94A3B8; font-size:11px;")
         lds.addWidget(self.ds_count_label)
 
@@ -302,9 +302,9 @@ class WireMethodChoiceDialog(QDialog):
             self._result = res
             self._on_result("SmartWireTracker")
         else:
-            QMessageBox.warning(self, "Incompleto",
-                "El tracker no completó el path correctamente.\n"
-                "Puedes intentar con Dibujo manual.")
+            QMessageBox.warning(self, "Incomplete",
+                "The tracker did not complete the path.\n"
+                "You can try drawing it by hand instead.")
 
     def _run_manual(self):
         """Opción 2: dibujador manual, primero izquierda luego derecha."""
@@ -312,7 +312,7 @@ class WireMethodChoiceDialog(QDialog):
 
         dlg_l = WirePathDrawerDialog(
             self.left_img, self.mask_left,
-            title="Dibujar camino — IMAGEN IZQUIERDA",
+            title="Draw the path: LEFT IMAGE",
             parent=self
         )
         if dlg_l.exec_() != QDialog.Accepted:
@@ -321,7 +321,7 @@ class WireMethodChoiceDialog(QDialog):
 
         dlg_r = WirePathDrawerDialog(
             self.right_img, self.mask_right,
-            title="Dibujar camino — IMAGEN DERECHA",
+            title="Draw the path: RIGHT IMAGE",
             parent=self
         )
         if dlg_r.exec_() != QDialog.Accepted:
@@ -365,9 +365,9 @@ class WireMethodChoiceDialog(QDialog):
         is_dup, existing_id = self._dm.is_duplicate(self.left_img)
         if is_dup:
             reply = QMessageBox.question(
-                self, "Imagen duplicada",
-                f"Esta imagen ya existe en el dataset como muestra #{existing_id:04d}.\n"
-                "¿Guardar de todas formas como nueva muestra?",
+                self, "Duplicate image",
+                f"This image is already in the dataset as sample #{existing_id:04d}.\n"
+                "Save it anyway as a new sample?",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No
             )
@@ -388,23 +388,23 @@ class WireMethodChoiceDialog(QDialog):
             right_mask=self.mask_right,
         )
         count = self._dm.count()
-        self.ds_count_label.setText(f"Muestras guardadas: {count}  (izq + der + paths)")
+        self.ds_count_label.setText(f"Saved samples: {count}  (left + right + paths)")
         self.btn_ai.setToolTip(
-            f"Dataset actual: {count} muestras — necesita ~100 para entrenar."
+            f"Current dataset: {count} samples, about 100 are needed to train."
         )
         self.btn_ds.setEnabled(False)
 
-        files = "img izq+der  +  mask izq+der" + ("  +  paths" if wire_paths_json else "")
+        files = "img left+right  +  mask left+right" + ("  +  paths" if wire_paths_json else "")
         print(f"Dataset path: sample #{sample_id:04d} ({files})")
 
         QMessageBox.information(
-            self, "Guardado en dataset",
-            f"Muestra #{sample_id:04d} guardada correctamente.\n"
-            f"Par estéreo: imagen izquierda + derecha + máscaras"
-            + (f"\n+ paths izq ({len(wire_paths_json['left'])} pts)"
-               f" y der ({len(wire_paths_json['right'])} pts)"
+            self, "Saved to dataset",
+            f"Sample #{sample_id:04d} saved.\n"
+            f"Stereo pair: left and right image plus masks"
+            + (f"\n+ paths left ({len(wire_paths_json['left'])} pts)"
+               f" and right ({len(wire_paths_json['right'])} pts)"
                if wire_paths_json else "") +
-            f"\n\nTotal en dataset: {count} muestras."
+            f"\n\nTotal in dataset: {count} samples."
         )
 
     def _view_dataset(self):
@@ -413,7 +413,7 @@ class WireMethodChoiceDialog(QDialog):
         dlg = DatasetViewerDialog(self._dm, parent=self)
         dlg.exec_()
         count = self._dm.count()
-        self.ds_count_label.setText(f"Muestras guardadas: {count}  (izq + der + paths)")
+        self.ds_count_label.setText(f"Saved samples: {count}  (left + right + paths)")
 
     def get_results(self):
         return self._result

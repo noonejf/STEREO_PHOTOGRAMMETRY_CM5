@@ -121,7 +121,7 @@ def main():
 
     # Mostrar advertencias (libcamera) pero continuar
     if warnings:
-        logger.warning(f"Advertencias del sistema: {warnings}")
+        logger.warning(f"System warnings: {warnings}")
 
     logger.info("Verificaciones del sistema completadas")
 

@@ -178,11 +178,11 @@ class DatasetViewerDialog(QDialog):
         self.notes_edit.returnPressed.connect(self._save_notes)
         left_layout.addWidget(self.notes_edit)
 
-        btn_save_notes = QPushButton("💬 Save Notes")
+        btn_save_notes = QPushButton("Save Notes")
         btn_save_notes.clicked.connect(self._save_notes)
         left_layout.addWidget(btn_save_notes)
 
-        btn_delete = QPushButton("🗑️ Delete Selected")
+        btn_delete = QPushButton("Delete Selected")
         btn_delete.setStyleSheet(
             "background-color: #7F1D1D; color: #FCA5A5; font-weight: bold;"
             " border-radius: 6px; padding: 8px;"
@@ -190,7 +190,7 @@ class DatasetViewerDialog(QDialog):
         btn_delete.clicked.connect(self._delete_selected)
         left_layout.addWidget(btn_delete)
 
-        btn_summary = QPushButton("📋 Print Summary")
+        btn_summary = QPushButton("Print Summary")
         btn_summary.setStyleSheet(
             "background-color: #273548; color: #E2E8F0; border-radius: 6px; padding: 8px;"
         )

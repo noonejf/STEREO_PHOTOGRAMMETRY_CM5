@@ -900,7 +900,7 @@ class PhotogrammetryDashboard(QMainWindow):
             self.is_calibrated = True
 
         else:
-            self.calibration_status_label.setText("✗ Calibration Required")
+            self.calibration_status_label.setText("Calibration Required")
             self.calibration_status_label.setStyleSheet(
                 f"color: {RED_OFF}; font-weight: bold; background: transparent;"
             )
@@ -990,12 +990,12 @@ class PhotogrammetryDashboard(QMainWindow):
                     self.log_message(
                         f"Capture error: {result.get('error', 'Unknown')}", "ERROR"
                     )
-                    self.countdown_label.setText("✗ Capture Error")
+                    self.countdown_label.setText("Capture Error")
 
             self._cleanup_after_capture(preview_was_active)
         except Exception as e:
             self.log_message(f"Capture error: {e}", "ERROR")
-            self.countdown_label.setText("✗ Capture Error")
+            self.countdown_label.setText("Capture Error")
             self._cleanup_after_capture(preview_was_active)
 
     def _cleanup_after_capture(self, restart_preview=False):
