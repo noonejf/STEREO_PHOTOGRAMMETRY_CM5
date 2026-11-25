@@ -475,10 +475,118 @@ measured before the tether came down to 1.5~m. The ordering of the
 arrangements is the same under both, so no conclusion in this chapter depends
 on the choice.
 
+\section{What these renders do not predict}
+\label{sec:sim-notpredicted}
+
+Everything in this chapter rests on a physically based render: Cycles
+transports radiance, the fixtures carry their data sheet intensity, and the
+surfaces carry an albedo. That is what makes the contrast figures comparable
+with one another and with the orbital sphere of Chapter \ref{chap:sun}. It is
+also the limit of what they say, and three omissions matter enough to be
+written down before anyone sets up the studio against them.
+
+\subsection{The highlights are tone-mapped, not clipped}
+
+Every frame leaves the renderer through Blender's AgX view transform
+(\texttt{SIMULATION/build\_tv2\_studio.py}), a film-like curve with a long
+shoulder in the highlights. A real sensor has no shoulder: it fills the well
+and stops. \textbf{So the way a fixture looks in these frames is a property
+of the tone curve and not a prediction of what the camera will record.}
+
+What the render does predict is the ratio, and the ratio leaves no room for
+doubt. The STORM 1200x with its 45\textdegree\ reflector puts
+\textbf{178\,592~cd} on axis, averaged over the four distances of its own
+data sheet, which agree within 4.8\%. The tether at the 3600~lx of
+requirement R5, with the albedo of 0.65 used throughout, has a luminance of
+\textbf{745~cd/m\textsuperscript{2}}. The one quantity not measured here is
+the diameter of the fixture's mouth, so Table \ref{tab:fixture-luminance}
+brackets it.
+
+\begin{table}[htbp]
+\centering
+\caption[Fixture against tether]{How far the fixture's own luminance sits
+above the tether's, as a function of the emitting aperture. The intensity is
+from the data sheet; the tether is at 3600~lx with albedo 0.65.}
+\label{tab:fixture-luminance}
+\begin{tabularx}{\textwidth}{@{}X r r r@{}}
+\toprule
+\textbf{Mouth diameter} & \textbf{Luminance} & \textbf{Times the tether} &
+\textbf{Stops} \\
+(cm) & (cd/m\textsuperscript{2}) & & \\
+\midrule
+15 & 10\,106\,000 & 13\,568 & 13.7 \\
+20 & 5\,685\,000 & 7\,632 & 12.9 \\
+25 & 3\,638\,000 & 4\,885 & 12.3 \\
+30 & 2\,527\,000 & 3\,392 & 11.7 \\
+35 & 1\,856\,000 & 2\,492 & 11.3 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Between two and a half thousand and thirteen thousand times. A 1~mm tether is
+sub-pixel past a few metres, so it has to sit well clear of the noise floor
+for anything in this chapter to be measurable at all, and \textbf{no single
+exposure that achieves that leaves a fixture unclipped}. In the studio the
+fixtures will blow out. That is normal and it is not a defect of the
+arrangement; it is only a defect of reading the renders as if they showed it.
+
+\textbf{What the renders do say is which arrangements put a fixture in
+shot}, and Section \ref{sec:sim-beam} already counts it for the three aiming
+tests, as parameter L7. Extended to all twelve arrangements rendered, the
+nine of Table \ref{tab:family} and the three of Table \ref{tab:threeway}, the
+pattern has no exception: the \textbf{seven whose beam is tilted
+40\textdegree\ towards the cameras} all reach the clipping level of 255
+somewhere, between 258 and 154\,396 pixels, and the \textbf{five that do
+not}, the two with a vertical beam, the one aimed away from the cameras and
+the two side views, reach it \textbf{nowhere at all}. The reason is geometric
+rather than photometric: tilting the beam towards the cameras turns the
+emitting mouth towards the lens. With the beam tilted towards them the
+clipped region is a single disc of 62 by 63 pixels, which is one fixture
+about 11.5~m ahead of the camera.
+
+\subsection{What a clipped fixture does, and does not do, to the number}
+
+The contrast reported in this chapter is the tether's peak above \emph{its
+own local background}, measured on a cut perpendicular to the cord
+(\texttt{tools/medir\_barrido.py}). A blown fixture elsewhere in the frame
+does not enter those pixels.
+
+What does reach them is \textbf{veiling glare}, the light scattered by the
+glass and the barrel, and Cycles models none of it. The useful detail is that
+\textbf{a uniform veil cancels exactly} in that subtraction, because it adds
+the same amount to the peak and to the background beside it. What a veil
+costs is therefore not the contrast figure but the photon shot noise riding
+on the background it adds, and the exposure headroom it eats. A veil that is
+\emph{not} uniform, a gradient across the frame or a ghost of the source,
+does not cancel, and nothing in this chapter bounds it.
+
+\subsection{The rest of the omissions}
+
+Neither the full well nor the read noise is modelled, so no figure here is a
+statement about signal-to-noise; that needs the sensor model, not the
+renderer, and Chapter \ref{chap:sun} carries the same caveat for the orbital
+case. Lens flare and ghosting are not modelled. The rolling shutter is not
+modelled, and it has its own deliverable.
+
+\subsection{What follows for the session}
+
+Nothing above changes the arrangement this chapter already recommends. It
+reinforces it: the vertical beam wins on contrast by more than twenty levels
+(Section \ref{sec:sim-beam}) and it is also one of the five arrangements that
+puts no fixture in the lens, so the saturation question does not arise for
+it. Where a fixture does fall in shot, flagging it with the barn doors is
+ordinary studio practice and costs nothing.
+
+The veil is then settled on the day rather than argued about: two frames of
+the same framing, one with a fixture visible and one with it flagged,
+comparing the background behind the tether. If the two agree, the veil does
+not exist for this measurement and that is on the record. Item 6 of Section
+\ref{sec:sim-open} carries it.
+
 \section{Looking at the renders rather than reading them}
 
-Every variant in Table \ref{tab:sim-family} can be opened in the
-application's \textbf{Simulation} page, tab \emph{Estudio TV2}, which lists
+Every variant in Table \ref{tab:family} can be opened in the
+application's \textbf{Simulation} page, tab \emph{TV2 studio}, which lists
 them with their stereo pair and their figures. It reads
 \texttt{medidas\_familia.csv}, the same file this chapter's tables come
 from, and recomputes nothing. The images it shows carry a gamma curve so
@@ -510,6 +618,9 @@ before the simulated figures are trusted.}
 5 & Confirm the flicker behaviour of both models on site, criterion A2.7. The
     data sheets claim flicker-free operation; the sheet is not the
     measurement \\
+6 & Measure the veiling glare, which no render bounds: two
+    frames of one framing, fixture visible and fixture flagged, comparing the
+    background behind the tether. See Section \ref{sec:sim-notpredicted} \\
 \bottomrule
 \end{tabularx}
 \end{table}
