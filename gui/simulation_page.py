@@ -85,17 +85,24 @@ GAMMA = 0.42
 #: pixeles, el gesto fue un clic y selecciona; por encima giro la vista.
 UMBRAL_ARRASTRE = 4
 
-#: La vista no puede pasar por detras del par estereo, y esto es lo que lo
-#: impide. El vector "derecha de la pantalla" del visor es
-#: ``(f_y, -f_x, 0)`` normalizado, asi que su componente en X vale
-#: ``sin(yaw)``: positiva entre 0 y 180 grados, negativa fuera. Con el yaw
-#: fuera de ese rango el mundo se dibuja **espejado respecto de la foto**:
-#: Cam_R sale a la izquierda, Cam_L a la derecha, y el sol de un azimut
-#: dado aparece del lado contrario al que ilumina en la imagen. Se llega
-#: ahi con dos arrastres y desde ahi el diagrama entero miente, asi que el
-#: yaw se recorta y el usuario nunca cruza. Quedan 172 grados de giro libre
-#: mas la inclinacion entera, de sobra para situar una direccion.
-YAW_MIN, YAW_MAX = 4.0, 176.0
+#: El yaw da la vuelta entera: la vista puede ponerse detras del par y
+#: mirarlo desde el otro lado, como cualquier visor de CAD.
+#:
+#: Estuvo recortado a 4..176 grados por una razon que ya no se sostiene. El
+#: vector "derecha de la pantalla" es ``(f_y, -f_x, 0)`` normalizado, asi
+#: que su componente en X vale ``sin(yaw)`` y cambia de signo al cruzar los
+#: 180: desde atras, las dos camaras se ven al reves que desde adelante.
+#: Eso no es un error de dibujo, es lo que pasa al rodear un objeto, y
+#: taparlo costaba media esfera de movimiento. Lo que queda en su lugar son
+#: dos avisos que no mienten en ninguna orientacion: la pareja se dibuja
+#: como una sola caja ``L+R`` cuando la vista no separa a las camaras lo
+#: suficiente (``SEPARACION_MINIMA``), y el pie de la figura dice cuando se
+#: esta mirando desde atras.
+#:
+#: La inclinacion si sigue acotada, pero por una razon tecnica y no de
+#: criterio: el vector hacia arriba se construye con un producto vectorial
+#: contra el eje Z del mundo, que degenera en los polos exactos.
+PITCH_LIMITE = 89.0
 
 #: Cuanto tiene que separar la vista a las dos camaras, en fraccion de la
 #: base, para que valga la pena decir cual es cual. Es ``sin(yaw)``, asi que
@@ -357,7 +364,7 @@ class VistaOrbital(QWidget):
         "3/4": (122.0, -24.0),
         "Desde las camaras": (90.0, 0.0),
         "Planta": (90.0, -86.0),
-        "Costado": (176.0, 0.0),
+        "Costado": (180.0, 0.0),
     }
 
     def __init__(self, parent=None):
@@ -402,7 +409,7 @@ class VistaOrbital(QWidget):
 
     def _camara(self):
         y = math.radians(self.yaw)
-        p = math.radians(max(-86.0, min(86.0, self.pitch)))
+        p = math.radians(max(-PITCH_LIMITE, min(PITCH_LIMITE, self.pitch)))
         f = (math.cos(p) * math.cos(y), math.cos(p) * math.sin(y), math.sin(p))
         rx, ry = f[1], -f[0]
         n = math.hypot(rx, ry) or 1.0
@@ -714,16 +721,13 @@ class VistaOrbital(QWidget):
             8, self.height() - 20,
             "Arrastra para girar LA VISTA. El sol se elige con un clic en un "
             "punto o con la rejilla.")
-        if ESPEJO_X:
-            pintor.drawText(
-                8, self.height() - 8,
-                "Eje X en ESPEJO: la L se dibuja a la derecha. Las fotos no "
-                "estan en espejo.")
-        else:
-            pintor.drawText(
-                8, self.height() - 8,
-                "La vista no cruza por detras del par: la L siempre a la "
-                "izquierda.")
+        espejo = "Eje X en ESPEJO. " if ESPEJO_X else ""
+        detras = math.sin(math.radians(self.yaw)) < 0.0
+        pintor.drawText(
+            8, self.height() - 8,
+            espejo + ("Mirando el par DESDE ATRAS: la L y la R salen al otro "
+                      "lado." if detras else
+                      "Mirando el par desde adelante."))
 
     def _valor(self, d: Direccion) -> float:
         return getattr(d, self.metrica)
@@ -766,10 +770,10 @@ class VistaOrbital(QWidget):
             self._movido = True
             self.setCursor(Qt.ClosedHandCursor)
             self.vista_libre.emit()
-        self.yaw = max(YAW_MIN, min(YAW_MAX,
-                                   self.yaw + (ev.x() - self._p0.x()) * 0.45))
-        self.pitch = max(-86.0, min(86.0,
-                                    self.pitch + (ev.y() - self._p0.y()) * 0.35))
+        self.yaw = (self.yaw + (ev.x() - self._p0.x()) * 0.45) % 360.0
+        self.pitch = max(-PITCH_LIMITE,
+                         min(PITCH_LIMITE,
+                             self.pitch + (ev.y() - self._p0.y()) * 0.35))
         self._p0 = ev.pos()
         self.update()
 
