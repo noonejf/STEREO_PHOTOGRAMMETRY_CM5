@@ -277,6 +277,33 @@ def par_esfera(d: "Direccion") -> Par:
     return Par(_si_esta(f"{base}.jpg"), _si_esta(f"{base}_right.jpg"), True)
 
 
+def leer_inclinacion() -> List[dict]:
+    """El barrido de inclinacion de las luminarias, ordenado por angulo.
+
+    Es la tercera CSV del experimento del estudio, la que escribe
+    ``tools/medir_cuarto.py --csv-dir``, y la que alimenta la tabla del
+    capitulo 5. Aqui no se recalcula nada, igual que en las otras dos.
+    """
+    ruta = os.path.join(ROOT, "SIMULATION", "experimentos",
+                        "estudio_luminarias_reales", "medidas_inclinacion.csv")
+    if not os.path.exists(ruta):
+        return []
+    with open(ruta, encoding="utf-8") as f:
+        filas = list(csv.DictReader(f))
+    return sorted(filas, key=lambda r: float(r["inclinacion_deg"]))
+
+
+def par_inclinacion(grados: float, carpeta: str) -> Par:
+    crudo = par_crudo(carpeta)
+    if crudo:
+        return crudo
+    base = os.path.join(ROOT, "SIMULATION", "experimentos",
+                        "estudio_luminarias_reales", "vistas")
+    nombre = f"tilt{grados:05.1f}"
+    return Par(_si_esta(os.path.join(base, f"{nombre}_left.jpg")),
+               _si_esta(os.path.join(base, f"{nombre}_right.jpg")), True)
+
+
 def par_estudio(variante: str, carpeta: str) -> Par:
     crudo = par_crudo(carpeta)
     if crudo:
@@ -1308,6 +1335,28 @@ class PaginaEsfera(QWidget):
 class PaginaEstudio(QWidget):
     """La familia de variantes del TV2, con su render y sus cifras."""
 
+    #: Que cambia cada variante, en una linea. **Los codigos de la CSV no se
+    #: muestran solos.** Son los nombres internos del generador y no dicen
+    #: nada a quien no escribio el generador: con once botones diciendo
+    #: TV2MADERA o TV2HAZLEJOS la lista no es una lista de montajes, es una
+    #: lista de siglas. El codigo se sigue viendo, pero detras del nombre.
+    #: La fuente de estos nombres es el capitulo 5 del informe, para que la
+    #: pantalla y el entregable llamen igual a lo mismo.
+    NOMBRES = {
+        "TV2RECTO": "Beam straight down, molton floor",
+        "TV2": "Beam tilted 40 deg towards the cameras",
+        "TV2MADERA": "Bare wood floor, no molton",
+        "TV2SEIS": "Six fixtures, 20 m tether",
+        "TV2PANEL": "Twelve 1x1 m panels instead of the cones",
+        "TV2TENSO": "Taut tether, no wave",
+        "TV2COSTADO": "Side view, beam tilted 40 deg",
+        "TV2COSTADO0": "Side view, beam straight down",
+        "TV2296": "IMX296 global shutter with the 6 mm",
+        "TV2HAZ0": "Aiming test: beam straight down",
+        "TV2HAZCAM": "Aiming test: beam 40 deg towards the cameras",
+        "TV2HAZLEJOS": "Aiming test: beam 40 deg away from the cameras",
+    }
+
     COLUMNAS = (("variante", "Variant"), ("luminarias", "Fixtures"),
                 ("kw", "kW"), ("contraste_fondo_oscuro", "Contrast"),
                 ("fondo_medio", "Mean background"), ("piso", "Floor"),
@@ -1341,8 +1390,11 @@ class PaginaEstudio(QWidget):
         lista.setSpacing(4)
         self._botones = []
         for fila in self.filas:
-            b = QPushButton(f"{fila['variante']}   ·   contrast "
-                            f"{_cifra(fila['contraste_fondo_oscuro'])}")
+            codigo = fila["variante"]
+            b = QPushButton(
+                f"{self.NOMBRES.get(codigo, codigo)}\n"
+                f"{codigo}   ·   contrast "
+                f"{_cifra(fila['contraste_fondo_oscuro'])}")
             b.setCheckable(True)
             b.setStyleSheet(PaginaEsfera._qss_boton())
             b.clicked.connect(lambda _c, f=fila: self.elegir(f))
@@ -1388,11 +1440,151 @@ class PaginaEstudio(QWidget):
     def elegir(self, fila):
         for b, f in self._botones:
             b.setChecked(f is fila)
-        self.titulo.setText(fila["variante"])
-        partes = [f"{rotulo}: {fila.get(clave, '---')}"
-                  for clave, rotulo in self.COLUMNAS[1:]]
+        codigo = fila["variante"]
+        self.titulo.setText(self.NOMBRES.get(codigo, codigo))
+        partes = [f"Variant: {codigo}"] + [
+            f"{rotulo}: {fila.get(clave, '---')}"
+            for clave, rotulo in self.COLUMNAS[1:]]
         self.detalle.setText("   ·   ".join(partes))
         self.panel.mostrar(par_estudio(fila["variante"], fila["captura"]),
+                           f"Capture {fila['captura']}.")
+
+
+
+# ──────────────────────────────────── pestana del barrido de inclinacion
+
+class PaginaInclinacion(QWidget):
+    """A que angulo se apuntan las luminarias, y como se ve el cable.
+
+    Existe porque las otras dos pestanas contestan preguntas de diseno y
+    esta contesta una de **operacion**: en el estudio la luminaria cuelga
+    de una barra y el tecnico la apunta a mano, asi que el angulo no es un
+    parametro que se elige una vez sino algo que se mueve el dia de la
+    sesion. Lo que hace falta antes de ese dia es haber visto el cuadro a
+    cada angulo, no solo la cifra.
+
+    La cifra igual esta, y sale de ``medidas_inclinacion.csv``, que es la
+    misma tabla del capitulo 5. Esta pagina no recalcula nada.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet(f"background-color: {BG_DEEP};")
+        self.filas = leer_inclinacion()
+        raiz = QVBoxLayout(self)
+        raiz.setContentsMargins(12, 12, 12, 12)
+        raiz.setSpacing(8)
+
+        cab = QHBoxLayout()
+        cab.setSpacing(8)
+        tit = QLabel("Beam tilt")
+        tit.setStyleSheet(
+            f"color: {ACCENT_CYAN}; font-size: 14px; font-weight: bold;")
+        cab.addWidget(tit)
+        cab.addStretch()
+        self._grupo = QButtonGroup(self)
+        self._botones = []
+        for i, fila in enumerate(self.filas):
+            g = float(fila["inclinacion_deg"])
+            b = QPushButton(f"{g:.0f} deg")
+            b.setCheckable(True)
+            b.setMinimumWidth(66)
+            b.setStyleSheet(PaginaEsfera._qss_boton())
+            b.clicked.connect(lambda _c, f=fila: self.elegir(f))
+            self._grupo.addButton(b)
+            self._botones.append((b, fila))
+            cab.addWidget(b)
+        raiz.addLayout(cab)
+
+        self.titulo = QLabel("Pick a tilt")
+        self.titulo.setStyleSheet(
+            f"color: {TEXT_PRIMARY}; font-size: 16px; font-weight: bold;")
+        raiz.addWidget(self.titulo)
+
+        tarjetas = QHBoxLayout()
+        tarjetas.setSpacing(8)
+        self._valores = {}
+        for clave, rotulo in (("contraste", "CORD CONTRAST"),
+                              ("contra_vertical", "AGAINST VERTICAL"),
+                              ("luminarias_en_cuadro", "FIXTURES IN SHOT"),
+                              ("fondo_medio", "MEAN FRAME")):
+            marco, valor = _tarjeta(rotulo)
+            self._valores[clave] = valor
+            tarjetas.addWidget(marco)
+        raiz.addLayout(tarjetas)
+
+        self.panel = PanelRender()
+        raiz.addWidget(self.panel, 1)
+
+        self.nota = QLabel(
+            "The five fixtures hang from the same bar at the same height and "
+            "draw the same 7.64 kW at every angle: what changes is only where "
+            "they are aimed. Contrast is the cord's peak above its local "
+            "background, in 8-bit levels, averaged beyond 5 m, and it is read "
+            "from medidas_inclinacion.csv, the table of chapter 5.\n\n"
+            "Tilting costs contrast and it is not a shortage of light: the "
+            "worst lit point on the cord actually rises slightly when the "
+            "beam is tilted, because an oblique cone stretches its footprint "
+            "along the tether. The light that tilting adds lands on the face "
+            "of the cylinder the camera cannot see.\n\n"
+            "FIXTURES IN SHOT counts the blown blobs in the left frame, which "
+            "in this scene can only be the mouth of a projector: the molton "
+            "floor is albedo 0.04 and the cord is sub-pixel. None is in shot "
+            "up to 30 degrees, one appears at 40 and six at 50, so past 30 "
+            "the fixtures need flagging. How large the blown area looks here "
+            "is not a prediction, because the render goes through AgX while a "
+            "sensor clips harder; whether the mouth is in shot is.\n\n"
+            "The frames carry gamma 0.42 so the cord is visible on screen; no "
+            "figure comes from the enhanced copies.")
+        self.nota.setWordWrap(True)
+        self.nota.setStyleSheet(
+            f"color: {TEXT_DIM}; font-size: 10px; background: transparent;"
+            f"border-top: 1px solid {BORDER_SUBTLE}; padding-top: 5px;")
+        raiz.addWidget(self.nota)
+
+        if self.filas:
+            self._botones[0][0].setChecked(True)
+            self.elegir(self.filas[0])
+        else:
+            self.titulo.setText("No tilt sweep measured")
+            self.nota.setText(
+                "medidas_inclinacion.csv is missing. Generate it with: "
+                "python tools/medir_cuarto.py --csv-dir "
+                "SIMULATION/experimentos/estudio_luminarias_reales")
+
+    #: El contraste a cero grados, que es contra lo que se compara el resto.
+    def _vertical(self) -> Optional[float]:
+        for f in self.filas:
+            if abs(float(f["inclinacion_deg"])) < 1e-6:
+                try:
+                    return float(f["contraste"])
+                except (TypeError, ValueError):
+                    return None
+        return None
+
+    def elegir(self, fila):
+        for b, f in self._botones:
+            b.setChecked(f is fila)
+        g = float(fila["inclinacion_deg"])
+        self.titulo.setText(
+            "Beam straight down" if abs(g) < 1e-6 else
+            f"Beam tilted {g:.0f} deg towards the cameras")
+        self._valores["contraste"].setText(_cifra(fila.get("contraste")))
+        self._valores["luminarias_en_cuadro"].setText(
+            _cifra(fila.get("luminarias_en_cuadro"), 0))
+        self._valores["fondo_medio"].setText(
+            _cifra(fila.get("fondo_medio"), 2))
+        base = self._vertical()
+        try:
+            c = float(fila["contraste"])
+        except (TypeError, ValueError):
+            c = None
+        if base and c is not None and abs(g) > 1e-6:
+            self._valores["contra_vertical"].setText(
+                f"{100.0 * (c - base) / base:+.0f} %")
+        else:
+            self._valores["contra_vertical"].setText("---")
+        self.panel.mostrar(par_inclinacion(g, fila["captura"]),
                            f"Capture {fila['captura']}.")
 
 
@@ -1437,6 +1629,7 @@ class SimulationPage(QWidget):
         try:
             pestanas.addTab(PaginaEsfera(self), "Sun: the sphere")
             pestanas.addTab(PaginaEstudio(self), "TV2 studio")
+            pestanas.addTab(PaginaInclinacion(self), "Beam tilt")
             logger.info("Simulation page loaded")
         except Exception as exc:                              # noqa: BLE001
             logger.warning("Simulation page unavailable: %s", exc)

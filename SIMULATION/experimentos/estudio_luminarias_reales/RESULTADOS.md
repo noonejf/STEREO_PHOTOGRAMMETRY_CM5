@@ -35,13 +35,36 @@ parte.
 
 Barrido completo de la inclinacion, misma escena y misma potencia:
 
-| inclinacion del haz | contraste del cordon | respecto del vertical |
-|--------------------:|---------------------:|----------------------:|
-| **0 grados** | **112.9** | --- |
-| 20 grados | 104.8 | -7 % |
-| 30 grados | 98.8 | -13 % |
-| 50 grados | 80.9 | -28 % |
-| 60 grados | 65.6 | -42 % |
+| inclinacion del haz | contraste del cordon | respecto del vertical | luminarias en cuadro |
+|--------------------:|---------------------:|----------------------:|---------------------:|
+| **0 grados** | **112.9** | --- | **0** |
+| 10 grados | 109.7 | -3 % | 0 |
+| 20 grados | 104.8 | -7 % | 0 |
+| 30 grados | 98.8 | -13 % | 0 |
+| 40 grados | 91.1 | -19 % | 1 |
+| 50 grados | 80.9 | -28 % | 6 |
+| 60 grados | 65.6 | -42 % | 6 |
+
+Completado el 25 de noviembre de 2026 a paso de 10 grados y con las dos
+camaras, a peticion de Jose: la inclinacion no es un parametro que se elija
+una vez en el plano, es lo que el tecnico mueve a mano el dia de la sesion,
+asi que hace falta haber visto el cuadro a cada angulo y no solo la cifra. Los
+cinco angulos que ya estaban salieron identicos al digito, que es lo que se
+espera de un render determinista.
+
+**Dos cosas que la tabla de cinco filas no dejaba ver.** La caida es monotona
+y se acelera: 3.3 niveles en los primeros diez grados contra 15.3 en los
+ultimos diez, o sea no hay meseta donde inclinar salga gratis. Y hay un
+segundo umbral, que no es fotometrico sino de montaje: **hasta 30 grados no
+entra ninguna boca de luminaria al cuadro, a 40 entra una y a 50 entran
+seis**. Pasado 30 grados hay que abanderarlas. La cuenta son las manchas que
+llegan a 255, que en esta escena solo pueden ser una boca de proyector porque
+el molton tiene albedo 0.04 y el cordon es subpixel; el area quemada no se
+lee como prediccion, porque el render pasa por AgX y un sensor corta mas
+duro, pero si la boca esta en cuadro o no, si.
+
+**Para mirarlo sin leer la tabla:** la pagina Simulation de `main.py`,
+pestana *Beam tilt*, con un boton por angulo.
 
 Y el test de tres vias, que separa la inclinacion de su direccion. Las tres con
 el cable corrido a y = 5.0 para que las tres quepan en la misma sala, porque
@@ -213,7 +236,8 @@ blender --background --python SIMULATION/render_studio_iterations.py -- \
 blender --background --python SIMULATION/render_studio_iterations.py -- \
         --variant TV2HAZ0,TV2HAZCAM,TV2HAZLEJOS --samples 24 --scale 100
 blender --background --python SIMULATION/render_studio_iterations.py -- \
-        --variant TV2 --tilts 0,20,30,50,60 --samples 24 --scale 100
+        --variant TV2 --tilts 0,10,20,30,40,50,60 --samples 24 --scale 100 \
+        --both
 
 # el render lineal del que salen los lux
 blender --background --python SIMULATION/render_studio_iterations.py -- \
@@ -237,6 +261,6 @@ blender --background --python SIMULATION/render_escenario.py -- \
 | `fig_renders_cuarto.png` | lo que ve la camara en seis variantes |
 | `fig_renders_haz.png` | el test de tres vias, visto |
 | `medidas_familia.csv` | la tabla de arriba, con la captura de cada fila |
-| `medidas_inclinacion.csv` | el barrido de 0 a 60 grados |
+| `medidas_inclinacion.csv` | el barrido de 0 a 60 grados, paso de 10 |
 | `medidas_lux_piso.csv` | los 72 puntos de piso, medidos contra el modelo |
 | `../escenario/tv2_*.png` | los tres diagramas del montaje |

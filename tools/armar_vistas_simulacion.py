@@ -114,13 +114,45 @@ def hacer_estudio() -> int:
     return total
 
 
+def hacer_inclinacion() -> int:
+    """El barrido de inclinacion de las luminarias, por angulo.
+
+    Es la tercera tabla del estudio y contesta una pregunta de operacion:
+    el tecnico apunta la luminaria a mano el dia de la sesion, asi que el
+    angulo no se elige una vez. El nombre del archivo es el angulo, no la
+    captura, para que la pagina lo pida por angulo y no tenga que saber
+    que carpeta se renderizo ultima.
+    """
+    ruta = os.path.join(ESTUDIO, "medidas_inclinacion.csv")
+    if not os.path.exists(ruta):
+        print("inclinacion: falta medidas_inclinacion.csv")
+        return 0
+    total = n = 0
+    with open(ruta, encoding="utf-8") as fh:
+        for fila in csv.DictReader(fh):
+            base = os.path.join(ROOT, "data", "captures", fila["captura"])
+            grados = float(fila["inclinacion_deg"])
+            for lado in ("left.jpg", "right.jpg"):
+                escritos = copia(
+                    os.path.join(base, lado),
+                    os.path.join(ESTUDIO, "vistas",
+                                 f"tilt{grados:05.1f}_{lado}"))
+                total += escritos
+                n += bool(escritos)
+    print(f"inclinacion: {n} vistas, {total / 1e6:.1f} MB")
+    return total
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--solo", default="", help="esfera o estudio")
+    ap.add_argument("--solo", default="",
+                    help="esfera, estudio o inclinacion")
     args = ap.parse_args()
     total = 0
     if args.solo in ("", "esfera"):
         total += hacer_esfera()
+    if args.solo in ("", "inclinacion"):
+        total += hacer_inclinacion()
     if args.solo in ("", "estudio"):
         total += hacer_estudio()
     print(f"total {total / 1e6:.1f} MB")

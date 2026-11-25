@@ -1,6 +1,8 @@
-inclinacion_deg,contraste,ciego_pct,sobre_lampara_pct,fondo_medio,captura
-0.0,112.95,0.0,22.21,18.518,stereo_sim_studioTV2_tilt000.0_20261124_141509
-20.0,104.78,0.0,20.37,18.455,stereo_sim_studioTV2_tilt020.0_20261124_141701
-30.0,98.78,0.0,20.06,18.178,stereo_sim_studioTV2_tilt030.0_20261124_141852
-50.0,80.91,0.0,21.6,15.729,stereo_sim_studioTV2_tilt050.0_20261124_142045
-60.0,65.65,0.0,24.26,13.083,stereo_sim_studioTV2_tilt060.0_20261124_142239
+inclinacion_deg,contraste,ciego_pct,sobre_lampara_pct,fondo_medio,camaras,luminarias_en_cuadro,px_quemados,captura
+0.0,112.95,0.0,22.21,18.518,2,0,0,stereo_sim_studioTV2_tilt000.0_20261125_172455
+10.0,109.67,0.0,20.98,18.62,2,0,0,stereo_sim_studioTV2_tilt010.0_20261125_172855
+20.0,104.78,0.0,20.37,18.455,2,0,0,stereo_sim_studioTV2_tilt020.0_20261125_173250
+30.0,98.78,0.0,20.06,18.178,2,0,0,stereo_sim_studioTV2_tilt030.0_20261125_173652
+40.0,91.11,0.0,20.47,17.468,2,1,2683,stereo_sim_studioTV2_tilt040.0_20261125_174045
+50.0,80.91,0.0,21.6,15.729,2,6,3723,stereo_sim_studioTV2_tilt050.0_20261125_174435
+60.0,65.65,0.0,24.26,13.083,2,6,5931,stereo_sim_studioTV2_tilt060.0_20261125_174840

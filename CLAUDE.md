@@ -63,7 +63,10 @@ that window's central widget, so the optics maths has one implementation.
 
 **Pages 4 and 5 are readers and must stay that way.** The Simulation page
 plots and tabulates what `tools/medir_esfera.py` and `tools/medir_cuarto.py`
-already wrote into the experiment's CSV; it recomputes nothing. A figure on
+already wrote into the experiment's CSV; it recomputes nothing. Three tabs,
+one per CSV: the orbital sphere, the TV2 studio family, and the beam-tilt
+sweep, which answers an operating question rather than a design one, since
+the technician aims the fixtures by hand on the day. A figure on
 screen that disagrees with a deliverable means the CSV is stale, and the fix
 is to re-run the measuring script. It replaced a published HTML artifact,
 which worked but lived in one account: `SIMULATION/experimentos/visor/` is

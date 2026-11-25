@@ -225,20 +225,35 @@ $y$, which is not visible from anywhere.
 \caption[Beam tilt against cord contrast]{Cord contrast against beam tilt,
 same scene and same electrical power throughout, measured on the rendered
 frame and not predicted. Contrast is in 8-bit levels above the local
-background, averaged from 5~m onward.}
+background, averaged from 5~m onward. ``Fixtures in shot'' counts the blown
+blobs in the frame, which in this scene can only be the mouth of a
+projector, since the molton floor is albedo 0.04 and the cord is sub-pixel.}
 \label{tab:tilt}
-\begin{tabular}{@{}r r r@{}}
+\begin{tabular}{@{}r r r r@{}}
 \toprule
-\textbf{Beam tilt} & \textbf{Cord contrast} & \textbf{Against vertical} \\
+\textbf{Beam tilt} & \textbf{Cord contrast} & \textbf{Against vertical} &
+\textbf{Fixtures in shot} \\
 \midrule
-\textbf{0\textdegree} & \textbf{112.9} & --- \\
-20\textdegree & 104.8 & $-7$\% \\
-30\textdegree & 98.8 & $-13$\% \\
-50\textdegree & 80.9 & $-28$\% \\
-60\textdegree & 65.6 & $-42$\% \\
+\textbf{0\textdegree} & \textbf{112.9} & --- & \textbf{0} \\
+10\textdegree & 109.7 & $-3$\% & 0 \\
+20\textdegree & 104.8 & $-7$\% & 0 \\
+30\textdegree & 98.8 & $-13$\% & 0 \\
+40\textdegree & 91.1 & $-19$\% & 1 \\
+50\textdegree & 80.9 & $-28$\% & 6 \\
+60\textdegree & 65.6 & $-42$\% & 6 \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\textbf{The sweep is monotone and it has a second threshold in it.} Contrast
+falls at every step from 0 to 60\textdegree, with no plateau that would let
+the beam be tilted for free, and the cost accelerates: 3.3 levels over the
+first ten degrees against 15.3 over the last ten. Separately from the
+contrast,
+\textbf{no fixture is in shot up to 30\textdegree, one appears at 40 and six
+at 50}. That is a rigging instruction rather than a photometric one, and it
+is sharper than the contrast curve: past 30\textdegree\ the fixtures have to
+be flagged.
 
 \begin{table}[htbp]
 \centering

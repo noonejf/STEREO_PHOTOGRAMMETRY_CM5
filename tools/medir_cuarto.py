@@ -143,6 +143,30 @@ def lux_del_piso(carpeta, muestras=24):
     return fuera, None
 
 
+def luminarias_en_cuadro(img):
+    """Cuantas manchas quemadas hay, y cuantos pixeles ocupan.
+
+    Una luminaria apuntando al lente es la unica cosa de esta escena que
+    llega a 255: el piso de molton tiene albedo 0.04 y el cordon es
+    subpixel. Asi que contar las manchas de 255 cuenta bocas de proyector
+    dentro del campo, que es un dato de montaje y no de fotometria: dice a
+    partir de que angulo hay que abanderar.
+
+    **Ojo con leer el area como si fuera saturacion real.** El render pasa
+    por AgX, que tiene hombro en las altas luces, mientras un sensor corta
+    en seco; el area quemada de verdad sera mayor. Lo que esta cuenta mide
+    bien es SI la boca esta en cuadro, no cuanto se desborda.
+    """
+    if img is None:
+        return 0, 0
+    m = (img == 255).astype("uint8")
+    total = int(m.sum())
+    if not total:
+        return 0, 0
+    n, _, _, _ = cv2.connectedComponentsWithStats(m, 8)
+    return n - 1, total
+
+
 def escribir(ruta, filas):
     with open(ruta, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(filas[0].keys()))
@@ -227,22 +251,39 @@ def main():
         # El barrido de inclinacion de las luminarias vive en carpetas
         # ``..._tiltNNN.N_...``, el mismo formato que el roll y el sol, asi
         # que se leen con la misma expresion.
-        filas_inc = []
+        #
+        # **Una fila por angulo, y la captura mas reciente.** Un angulo se
+        # renderiza mas de una vez: el barrido original salio con una sola
+        # camara y se repitio con las dos. Recorrer el glob sin agrupar
+        # metia las dos carpetas y daba dos filas del mismo angulo, que la
+        # tabla del capitulo 5 habria publicado como si fueran dos medidas.
+        # El nombre lleva la fecha al final, asi que ordenar alfabeticamente
+        # y quedarse con la ultima es quedarse con la mas nueva.
+        por_angulo = {}
         for d in sorted(glob.glob(os.path.join(
                 ROOT, "data", "captures", "stereo_sim_studioTV2_tilt*"))):
             m = re.search(r"_tilt(\d+\.\d)_", os.path.basename(d) + "_")
             if not m or not os.path.exists(os.path.join(d, "metadata.json")):
                 continue
+            por_angulo[float(m.group(1))] = d
+
+        filas_inc = []
+        for grados, d in sorted(por_angulo.items()):
             r = medir(d, args.desde)
             img = cv2.imread(os.path.join(d, "left.jpg"), cv2.IMREAD_GRAYSCALE)
             if r is None:
                 continue
+            n_lum, px_lum = luminarias_en_cuadro(img)
             filas_inc.append(dict(
-                inclinacion_deg=float(m.group(1)),
+                inclinacion_deg=grados,
                 contraste=round(r["contraste"], 2),
                 ciego_pct=round(r["ciego_pct"], 2),
                 sobre_lampara_pct=round(r["sobre_lampara_pct"], 2),
                 fondo_medio=None if img is None else round(float(img.mean()), 3),
+                camaras=2 if os.path.exists(
+                    os.path.join(d, "right.jpg")) else 1,
+                luminarias_en_cuadro=n_lum,
+                px_quemados=px_lum,
                 captura=os.path.basename(d)))
         if filas_inc:
             escribir(os.path.join(dcsv, "medidas_inclinacion.csv"), filas_inc)
