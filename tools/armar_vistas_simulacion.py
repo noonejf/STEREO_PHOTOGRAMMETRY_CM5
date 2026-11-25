@@ -12,7 +12,7 @@ se quedaria con las cifras y sin una sola imagen. Las medidas sin la imagen
 no se pueden auditar: la pregunta que se le hace a un contraste de 0.6 es
 "a ver", y para eso hace falta ver.
 
-Pesan 1.3 MB las 82 de la esfera, contra 26 MB de los renders crudos, porque
+Pesan 2.7 MB las 164 de la esfera, contra 51 MB de los renders crudos, porque
 van a 1000 px de ancho y calidad 78. **Son solo para mirar.** Ninguna medida
 sale de ellas: llevan la misma curva de gamma 0.42 que las figuras, aplicada
 antes de encoger y no despues, y por tanto dejan de ser proporcionales a la
@@ -62,19 +62,33 @@ def copia(origen: str, destino: str) -> int:
     return os.path.getsize(destino)
 
 
-def nombre_esfera(azimut: float, inclinacion: float) -> str:
-    """El mismo nombre que usa el visor web, para no inventar un segundo."""
-    return f"az{azimut:05.1f}_inc{inclinacion:+06.1f}.jpg"
+def nombre_esfera(azimut: float, inclinacion: float,
+                  lado: str = "left") -> str:
+    """El mismo nombre que usa el visor web, para no inventar un segundo.
+
+    La izquierda se llama como siempre, sin sufijo, porque ese nombre ya esta
+    publicado en el visor HTML y en las copias versionadas de antes. La
+    derecha se agrega con ``_right``, que es el convenio del estudio.
+    """
+    base = f"az{azimut:05.1f}_inc{inclinacion:+06.1f}"
+    return f"{base}.jpg" if lado == "left" else f"{base}_{lado}.jpg"
 
 
 def hacer_esfera(variante="SOL") -> int:
+    """La esfera, con las dos camaras: las 82 direcciones tienen las dos.
+
+    Las 16 del anillo, que son la fila de inclinacion cero y se renderizaron
+    aparte, ya venian con el par. Si alguna faltara, ``copia`` devuelve cero
+    y el panel esconde ese lado en vez de dibujar un hueco.
+    """
     total = n = 0
     for (az, inc), carpeta in sorted(recoger(variante).items()):
-        escritos = copia(os.path.join(carpeta, "left.jpg"),
-                         os.path.join(ESFERA, "vistas",
-                                      nombre_esfera(az, inc)))
-        total += escritos
-        n += bool(escritos)
+        for lado in ("left", "right"):
+            escritos = copia(os.path.join(carpeta, f"{lado}.jpg"),
+                             os.path.join(ESFERA, "vistas",
+                                          nombre_esfera(az, inc, lado)))
+            total += escritos
+            n += bool(escritos)
     print(f"esfera: {n} vistas, {total / 1e6:.1f} MB")
     return total
 

@@ -270,10 +270,11 @@ def par_esfera(d: "Direccion") -> Par:
     crudo = par_crudo(d.carpeta)
     if crudo:
         return crudo
-    nombre = f"az{d.azimut:05.1f}_inc{d.inclinacion:+06.1f}.jpg"
-    return Par(_si_esta(os.path.join(ROOT, "SIMULATION", "experimentos",
-                                     "sol_esfera", "vistas", nombre)),
-               None, True)
+    base = os.path.join(ROOT, "SIMULATION", "experimentos", "sol_esfera",
+                        "vistas", f"az{d.azimut:05.1f}_inc{d.inclinacion:+06.1f}")
+    # Las 82 direcciones tienen las dos camaras. Si una faltara, ``_si_esta``
+    # devuelve None y el panel esconde ese lado en vez de dejar un hueco.
+    return Par(_si_esta(f"{base}.jpg"), _si_esta(f"{base}_right.jpg"), True)
 
 
 def par_estudio(variante: str, carpeta: str) -> Par:
