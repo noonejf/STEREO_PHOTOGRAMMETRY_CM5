@@ -85,6 +85,18 @@ GAMMA = 0.42
 #: pixeles, el gesto fue un clic y selecciona; por encima giro la vista.
 UMBRAL_ARRASTRE = 4
 
+#: La vista no puede pasar por detras del par estereo, y esto es lo que lo
+#: impide. El vector "derecha de la pantalla" del visor es
+#: ``(f_y, -f_x, 0)`` normalizado, asi que su componente en X vale
+#: ``sin(yaw)``: positiva entre 0 y 180 grados, negativa fuera. Con el yaw
+#: fuera de ese rango el mundo se dibuja **espejado respecto de la foto**:
+#: Cam_R sale a la izquierda, Cam_L a la derecha, y el sol de un azimut
+#: dado aparece del lado contrario al que ilumina en la imagen. Se llega
+#: ahi con dos arrastres y desde ahi el diagrama entero miente, asi que el
+#: yaw se recorta y el usuario nunca cruza. Quedan 172 grados de giro libre
+#: mas la inclinacion entera, de sobra para situar una direccion.
+YAW_MIN, YAW_MAX = 4.0, 176.0
+
 
 # ─────────────────────────────────────────────────────── la escena medida
 
@@ -314,7 +326,7 @@ class VistaOrbital(QWidget):
         "3/4": (122.0, -24.0),
         "Desde las camaras": (90.0, 0.0),
         "Planta": (90.0, -86.0),
-        "Costado": (180.0, 0.0),
+        "Costado": (176.0, 0.0),
     }
 
     def __init__(self, parent=None):
@@ -657,9 +669,13 @@ class VistaOrbital(QWidget):
         pintor.setFont(fuente)
         pintor.setPen(QPen(QColor(TEXT_DIM)))
         pintor.drawText(
-            8, self.height() - 8,
+            8, self.height() - 20,
             "Arrastra para girar LA VISTA. El sol se elige con un clic en un "
             "punto o con la rejilla.")
+        pintor.drawText(
+            8, self.height() - 8,
+            "La vista no cruza por detras del par: la L siempre a la "
+            "izquierda.")
 
     def _valor(self, d: Direccion) -> float:
         return getattr(d, self.metrica)
@@ -702,7 +718,8 @@ class VistaOrbital(QWidget):
             self._movido = True
             self.setCursor(Qt.ClosedHandCursor)
             self.vista_libre.emit()
-        self.yaw += (ev.x() - self._p0.x()) * 0.45
+        self.yaw = max(YAW_MIN, min(YAW_MAX,
+                                   self.yaw + (ev.x() - self._p0.x()) * 0.45))
         self.pitch = max(-86.0, min(86.0,
                                     self.pitch + (ev.y() - self._p0.y()) * 0.35))
         self._p0 = ev.pos()
