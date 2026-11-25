@@ -43,6 +43,52 @@ re-rendered: same variant, same settings. Reusing it has one advantage over
 repeating it, which is that the zero row of the sphere agrees with the
 previously published table \emph{exactly} rather than merely closely.
 
+\section{What the Sun in these renders is, and what it is not}
+\label{sec:sun-what}
+
+Four of its properties are the orbital ones and are not adjustable. The
+source is a Blender Sun, so the rays are \textbf{parallel} and there is no
+$1/r^2$ falloff, which is the one physical difference between this chapter
+and the studio of Chapter \ref{chap:simulation}. Its colour is a
+\textbf{5772~K} blackbody, the Sun's effective temperature. Its angular
+diameter is \textbf{0.526\textdegree}, the real figure seen from Earth
+orbit, and it is what makes the shadow edges as hard as they are in space.
+The world emits \textbf{nothing}: Blender ships a grey world that acts as
+uniform ambient light arriving from every direction, which is the one thing
+space does not have, and leaving it on would quietly fill the shadowed side
+of the cord.
+
+The fifth property, the \textbf{scale}, is deliberately not the orbital one
+and this has to be said plainly. These renders were \textbf{not} made at
+AM0. The Sun is set to 36.89~W/m\textsuperscript{2}, which is
+\textbf{3600~lx} at the cord, and 3600~lx is requirement R5, the same
+illuminance the studio row of Chapter \ref{chap:simulation} is solved to
+deliver. AM0 is 1361~W/m\textsuperscript{2}, about 132\,800~lx, a factor of
+37 higher. Every capture's metadata records both figures, as
+\texttt{irradiance\_w\_m2} and \texttt{irradiance\_am0\_w\_m2}.
+
+\textbf{The choice does not change a single pixel, and that is exact rather
+than approximate.} The exposure is solved from the same target illuminance
+that sets the Sun. The rendered radiance is proportional to $E/K$, with $K$
+the luminous efficacy, and the exposure multiplier is $\pi K / E$ by
+construction (\texttt{exposure\_for} in
+\texttt{SIMULATION/build\_tv2\_studio.py}), so the product is $\pi$ and the
+illuminance cancels out of the image. Rendering the same geometry at AM0
+with its own exposure returns the same frame. What is being reported here
+is therefore the contrast of the cord \textbf{at a common 3600~lx working
+point}, which is precisely what makes it comparable with the studio.
+
+Two things it consequently does not answer, and neither is a defect of the
+sweep so much as a boundary of it. It says nothing about \textbf{sensor
+saturation or absolute signal-to-noise at AM0}, because the absolute signal
+level was normalised away; answering that needs the sensor model, not the
+renderer. And the \textbf{starfield is an artifact of the chosen scale}: its
+emission is fixed rather than scaled with the Sun, and its strength was
+tuned to put a single star just above the floor at this exposure, so at an
+AM0 exposure the stars would simply disappear. They contribute 1\% of a
+frame mean of 0.26 levels and nothing measurable on the cord, so no number
+in this chapter depends on them.
+
 \section{The azimuth decides how much tether is seen; the inclination
          decides only how brightly}
 
@@ -192,6 +238,14 @@ fraction of the traced path that carries any contrast at all is itself the
 alarm.
 
 \section{How to read these numbers}
+
+Before the rules: the 82 directions can be browsed rather than read. The
+application's \textbf{Simulation} page, tab \emph{Sol: la esfera}, draws each
+direction on the scene it was rendered in, next to the cord and the stereo
+pair, and shows the frame and the four figures for whichever one is picked.
+It reads the same CSV this chapter's tables come from and recomputes
+nothing, so the two cannot disagree. It needs no camera and no Blender.
+
 
 \textbf{Contrast} is in 8-bit levels above the local background, averaged
 from 5~m onward and not from the start of the tether. The cord begins at the
