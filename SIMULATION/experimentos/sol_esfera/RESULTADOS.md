@@ -1,9 +1,9 @@
 # La esfera de direcciones del sol sobre un cable tendido
 
-Medido el 24 de noviembre de 2026. Amplia el barrido de azimut de
-`../sol_orbita/RESULTADOS.md`, que recorria un circulo maximo, a la rejilla
-completa: **16 azimutes por 5 inclinaciones mas los dos polos, 82
-direcciones**. Lo pidio el profesor en la reunion del 21, y tenia razon en
+Medido el 24 de noviembre de 2026, con los dos polos completados el 25.
+Amplia el barrido de azimut de `../sol_orbita/RESULTADOS.md`, que recorria un
+circulo maximo, a la rejilla completa: **16 azimutes por 7 inclinaciones, 112
+direcciones**, cada una con las dos camaras. Lo pidio el profesor en la reunion del 21, y tenia razon en
 pedirlo aunque la respuesta sea que el azimut es el eje que manda.
 
 Sin cuarto, un objeto Sun de Blender, IMX477 con el 8 mm, cable ondulado de
@@ -29,32 +29,32 @@ Promediando el eje contrario:
 
 | inclinacion | contraste medio | cable ciego | direcciones con el cable entero |
 |---:|---:|---:|---:|
-| -89 (el sol detras de las camaras) | 26.0 | 11.7 % | 0 de 1 |
+| -89 (el sol detras de las camaras) | 25.9 | 10.0 % | 0 de 16 |
 | -60 | 39.6 | 21.3 % | 2 de 16 |
 | -30 | 49.9 | 18.5 % | 3 de 16 |
 | **0** | **51.7** | **18.3 %** | 3 de 16 |
 | +30 | 45.4 | 19.6 % | 3 de 16 |
 | +60 | 29.1 | 25.4 % | 1 de 16 |
-| +89 (el sol al final del cable) | 0.6 | 82.1 % | 0 de 1 |
+| +89 (el sol al final del cable) | 0.6 | 81.7 % | 0 de 16 |
 
 | azimut | contraste medio | cable ciego | direcciones con el cable entero |
 |---:|---:|---:|---:|
 | 0.0 | 36.1 | 16.4 % | 3 de 7 |
-| **22.5** | 51.7 | **0.0 %** | **5 de 5** |
-| **45.0** | 56.1 | **0.6 %** | **4 de 5** |
-| 67.5 | **58.2** | 3.7 % | 0 de 5 |
-| 90.0 | 57.2 | 11.8 % | 0 de 5 |
-| 112.5 | 54.8 | 19.4 % | 0 de 5 |
-| 135.0 | 50.9 | 27.9 % | 0 de 5 |
-| 157.5 | 45.5 | 35.2 % | 0 de 5 |
-| 180.0 | 39.6 | 38.4 % | 0 de 5 |
-| 202.5 | 35.6 | 28.5 % | 0 de 5 |
-| 225.0 | 31.9 | 22.5 % | 0 de 5 |
-| 247.5 | 29.2 | 16.4 % | 0 de 5 |
-| 270.0 | 28.2 | 20.2 % | 0 de 5 |
-| 292.5 | 31.1 | 25.9 % | 0 de 5 |
-| 315.0 | 35.1 | **42.1 %** | 0 de 5 |
-| 337.5 | 40.3 | 33.1 % | 0 de 5 |
+| **22.5** | 40.8 | **13.3 %** | **5 de 7** |
+| **45.0** | 44.0 | 13.5 % | **4 de 7** |
+| 67.5 | **45.5** | 15.6 % | 0 de 7 |
+| 90.0 | 44.8 | 21.1 % | 0 de 7 |
+| 112.5 | 43.1 | 26.6 % | 0 de 7 |
+| 135.0 | 40.2 | 32.7 % | 0 de 7 |
+| 157.5 | 36.3 | 38.0 % | 0 de 7 |
+| 180.0 | 32.0 | 40.3 % | 0 de 7 |
+| 202.5 | 29.1 | 33.3 % | 0 de 7 |
+| 225.0 | 26.4 | 29.1 % | 0 de 7 |
+| 247.5 | 24.5 | 24.9 % | 0 de 7 |
+| 270.0 | 23.8 | 27.8 % | 0 de 7 |
+| 292.5 | 25.9 | 31.9 % | 0 de 7 |
+| 315.0 | 28.7 | 43.6 % | 0 de 7 |
+| 337.5 | 32.5 | 37.1 % | 0 de 7 |
 
 **Mirar `fig_esfera_mapa.png` ahorra leer las dos tablas.** El mapa de cable
 ciego sale a **rayas verticales**: cada columna es casi constante de arriba
@@ -68,25 +68,40 @@ unas encima de otras.
 
 **Lo que esto significa para el barrido anterior:** el anillo ya contestaba la
 pregunta que importa. La esfera no lo desmiente, lo confirma, y ahora eso esta
-medido en vez de supuesto. Doce de las 82 direcciones dejan el cable entero
-visible, el 15 %, y las doce caen en azimut 22.5 y 45 con cualquier inclinacion
-entre -60 y +60.
+medido en vez de supuesto. Doce direcciones dejan el cable entero visible y
+las doce caen en azimut 22.5 y 45 con cualquier inclinacion entre -60 y +60.
+Doce de 112 es el 11 %, pero ese porcentaje dice como se muestreo la esfera y
+no como es la esfera: la rejilla le da al polo las mismas 16 casillas que al
+ecuador cubriendo mucho menos angulo solido, asi que completar los polos baja
+la fraccion sin que ninguna direccion haya cambiado. Lo que no depende del
+muestreo es que ninguna de las doce esta en un polo.
 
 ## Los dos polos no son simetricos, y esa asimetria es el resultado mas util
 
 A inclinacion +-89 el haz corre casi paralelo al cable y el azimut deja de
-significar nada. Las dos direcciones son fisicamente opuestas y dan cosas
-opuestas:
+significar nada. **Eso era una suposicion apoyada en un render por polo hasta
+el 25 de noviembre de 2026**, cuando se renderizaron los 16 azimutes en los
+dos. Medido: a -89 el contraste va de 24.8 a 27.0 niveles sobre los dieciseis,
+un 8 % de dispersion, contra 65 a 80 % en cualquier otra inclinacion. A +89 la
+dispersion es del 47 %, pero de cifras entre 0.5 y 0.7 niveles, o sea ruido
+sobre nada. En el caso rasante manda la inclinacion y el azimut no existe.
+
+Las dos direcciones son fisicamente opuestas y dan cosas opuestas:
 
 | polo | de donde viene el sol | contraste | cable ciego |
 |---|---|---:|---:|
-| **-89** | detras de las camaras, el haz se aleja | **26.0** | 11.7 % |
-| **+89** | del extremo lejano, el haz viene hacia la camara | **0.6** | **82.1 %** |
+| **-89** | detras de las camaras, el haz se aleja | **25.9** | 10.0 % |
+| **+89** | del extremo lejano, el haz viene hacia la camara | **0.6** | **81.7 %** |
+
+Las dos filas promedian sus dieciseis azimutes. Los rangos: a -89, contraste
+de 24.8 a 27.0 y ciego de 8.4 a 11.7 %; a +89, contraste de 0.5 a 0.7 y ciego
+de 79.0 a 83.9 %.
 
 Con el sol a la espalda de las camaras el cable sigue siendo medible: 26
-niveles de contraste y solo el 12 % ciego, peor que el mejor caso pero
-utilizable. Con el sol al final del cable, a contraluz, **se pierde el 82 % del
-cable** y lo que queda marca medio nivel.
+niveles de contraste y un 10 % ciego, peor que el mejor caso pero utilizable, y
+eso vale en los dieciseis azimutes. Con el sol al final del cable, a
+contraluz, **se pierde entre el 79 y el 84 % del cable** y lo que queda marca
+medio nivel, tambien en los dieciseis.
 
 Es el caso que hay que poder reconocer en vuelo, porque no se elige: si la
 geometria orbital pone el sol detras del tether visto desde las camaras, la
@@ -98,7 +113,7 @@ medicion no es mala, es imposible, y conviene saberlo antes y no despues.
 |---|---:|---:|---:|---:|
 | mejor | 67.5 | 0 | 69.8 | 1.7 % |
 | mejor con el cable entero | 22.5 | 0 | 62.5 | 0.0 % |
-| peor | 0 | +89 | 0.6 | 82.1 % |
+| peor | 247.5 | +89 | 0.5 | 83.5 % |
 | peor que no es un polo | 247.5 | +60 | 16.7 | 23.6 % |
 
 Que el maximo de contraste (67.5) no coincida con el maximo de cable visible
@@ -142,8 +157,11 @@ explicitamente los nombres con `_inc`.
 | | |
 |---|---|
 | 1 | La misma esfera con el IMX296 y su 6 mm. En el anillo dio la mitad del contraste, 24.3 contra 50.0, y diez puntos mas de cable ciego |
-| 2 | Renderizar el polo -89 con varios azimutes, para confirmar que ahi el azimut de verdad no importa en vez de suponerlo de un solo render |
-| 3 | Pasar las direcciones del borde por la pipeline completa, no solo por el medidor: contraste no es lo mismo que mascara segmentable |
+| 2 | Pasar las direcciones del borde por la pipeline completa, no solo por el medidor: contraste no es lo mismo que mascara segmentable |
+
+Un tercer pendiente estuvo aqui hasta el 25 de noviembre de 2026, pidiendo los
+polos con varios azimutes. Se renderizaron los dieciseis de cada uno y la
+respuesta esta arriba.
 
 
 **Para mirar esto sin leer codigo:** la pagina **Simulation** de
@@ -173,7 +191,9 @@ blender --background --python SIMULATION/render_studio_iterations.py -- \
 # los polos. OJO: --sun-tilt con signo igual, separado por espacio argparse
 # lee el -60 como si fuera una opcion y el barrido no corre
 blender --background --python SIMULATION/render_studio_iterations.py -- \
-        --variant SOL --sun-orbit 0 --sun-tilt=-89,89 --samples 24 --scale 100
+        --variant SOL --both --samples 24 --scale 100 \
+        --sun-orbit=0,22.5,45,67.5,90,112.5,135,157.5,180,202.5,225,247.5,270,292.5,315,337.5 \
+        --sun-tilt=-89,89
 
 python tools/medir_esfera.py --csv SIMULATION/experimentos/sol_esfera/medidas.csv
 python tools/fig_esfera.py
@@ -188,7 +208,7 @@ python tools/armar_visor.py --dest <carpeta>
 
 | | |
 |---|---|
-| `medidas.csv` | las 82 direcciones, con la captura de cada una |
+| `medidas.csv` | las 112 direcciones, con la captura de cada una |
 | `fig_esfera_mapa.png` | contraste y cable ciego sobre la rejilla |
 | `fig_esfera_perfiles.png` | una curva por inclinacion |
 | `fig_renders_polos.png` | los dos polos y el caso perpendicular, vistos |

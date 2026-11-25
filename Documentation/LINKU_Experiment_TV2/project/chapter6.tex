@@ -16,8 +16,11 @@ circle is not a sphere.
 \textbf{Status.} Simulated, like Chapter \ref{chap:simulation}. A Blender Sun
 object, no room, the IMX477 with the 8~mm, a wavy 24.5~m cord, 24 samples at
 full sensor resolution. The tether and the stereo pair do not move; what
-turns is the beam. \textbf{82 directions}: 16 azimuths by 5 inclinations,
-plus the two poles.
+turns is the beam. \textbf{112 directions}: the complete 16 azimuths by 7
+inclinations grid, poles included. The poles were a single azimuth each
+until 25 November 2026; the other 15 of each were rendered then, and closing
+that gap is what Section \ref{sec:sun-poles} now reports as measured rather
+than assumed.
 
 \section{The convention, which has to be stated before any number}
 
@@ -32,7 +35,7 @@ negative, the Sun is behind the cameras.
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.86\textwidth]{Images/sun_sphere_scene.jpg}
-\caption[The sphere of sun directions]{The 82 directions drawn on the scene
+\caption[The sphere of sun directions]{The 112 directions drawn on the scene
 they were rendered in. The tether runs along the axis of the sphere, the
 cameras at the near end. Each marker is one rendered direction.}
 \label{fig:sun-scene}
@@ -101,9 +104,9 @@ mask cannot segment, comes out in \textbf{vertical stripes}: each column is
 nearly constant from top to bottom, which is the statement that the
 inclination does not change how much tether is visible. The upper map adds a
 horizontal gradient, because the inclination does change how brightly it is
-lit. The poles are left off both maps because at $\pm 89$\textdegree\ the
-azimuth means nothing, and drawing a single point as if it were a row would
-claim that only one azimuth was tried at that inclination.}
+lit. The two pole rows are in the map and they are flat, which is the
+result: at $-89$\textdegree\ the contrast reads 25 to 27 levels across all
+sixteen azimuths, and at $+89$\textdegree\ it reads 0 to 1.}
 \label{fig:sun-map}
 \end{figure}
 
@@ -132,13 +135,13 @@ of the tether falls below the segmentation threshold.}
 \textbf{Whole tether visible} \\
  & (levels) & (\%) & \\
 \midrule
-$-89$\textdegree, Sun behind the cameras & 26.0 & 11.7 & 0 of 1 \\
+$-89$\textdegree, Sun behind the cameras & 25.9 & 10.0 & 0 of 16 \\
 $-60$\textdegree & 39.6 & 21.3 & 2 of 16 \\
 $-30$\textdegree & 49.9 & 18.5 & 3 of 16 \\
 \textbf{0\textdegree} & \textbf{51.7} & \textbf{18.3} & 3 of 16 \\
 $+30$\textdegree & 45.4 & 19.6 & 3 of 16 \\
 $+60$\textdegree & 29.1 & 25.4 & 1 of 16 \\
-$+89$\textdegree, Sun at the far end & 0.6 & 82.1 & 0 of 1 \\
+$+89$\textdegree, Sun at the far end & 0.6 & 81.7 & 0 of 16 \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -147,9 +150,10 @@ $+89$\textdegree, Sun at the far end & 0.6 & 82.1 & 0 of 1 \\
 \centering
 \caption[Averages over the azimuth]{Averaging over the inclination, one row
 per azimuth. The two azimuths that keep the whole tether visible are in bold;
-note that they are not the two of highest mean contrast. Azimuth 0 counts out
-of seven rather than five because the two poles were rendered at that
-azimuth, and they drag its mean down.}
+note that they are not the two of highest mean contrast. Every azimuth now
+averages the same seven inclinations, the two poles among them, so the
+columns are comparable with one another; they were not before, when azimuth
+0 was the only one that carried the poles.}
 \label{tab:sun-az}
 \small
 \begin{tabular}{@{}r r r c@{\hskip 1.0cm} r r r c@{}}
@@ -158,23 +162,28 @@ azimuth, and they drag its mean down.}
 \textbf{Az.} & \textbf{Contr.} & \textbf{Blind} & \textbf{Whole} \\
 (\textdegree) & (levels) & (\%) & & (\textdegree) & (levels) & (\%) & \\
 \midrule
-0.0 & 36.1 & 16.4 & 3 of 7 & 180.0 & 39.6 & 38.4 & 0 of 5 \\
-\textbf{22.5} & 51.7 & \textbf{0.0} & \textbf{5 of 5} & 202.5 & 35.6 & 28.5 & 0 of 5 \\
-\textbf{45.0} & 56.1 & \textbf{0.6} & \textbf{4 of 5} & 225.0 & 31.9 & 22.5 & 0 of 5 \\
-67.5 & \textbf{58.2} & 3.7 & 0 of 5 & 247.5 & 29.2 & 16.4 & 0 of 5 \\
-90.0 & 57.2 & 11.8 & 0 of 5 & 270.0 & 28.2 & 20.2 & 0 of 5 \\
-112.5 & 54.8 & 19.4 & 0 of 5 & 292.5 & 31.1 & 25.9 & 0 of 5 \\
-135.0 & 50.9 & 27.9 & 0 of 5 & 315.0 & 35.1 & \textbf{42.1} & 0 of 5 \\
-157.5 & 45.5 & 35.2 & 0 of 5 & 337.5 & 40.3 & 33.1 & 0 of 5 \\
+0.0 & 36.1 & 16.4 & 3 of 7 & 180.0 & 32.0 & 40.3 & 0 of 7 \\
+\textbf{22.5} & 40.8 & \textbf{13.3} & \textbf{5 of 7} & 202.5 & 29.1 & 33.3 & 0 of 7 \\
+\textbf{45.0} & 44.0 & 13.5 & \textbf{4 of 7} & 225.0 & 26.4 & 29.1 & 0 of 7 \\
+67.5 & \textbf{45.5} & 15.6 & 0 of 7 & 247.5 & 24.5 & 24.9 & 0 of 7 \\
+90.0 & 44.8 & 21.1 & 0 of 7 & 270.0 & 23.8 & 27.8 & 0 of 7 \\
+112.5 & 43.1 & 26.6 & 0 of 7 & 292.5 & 25.9 & 31.9 & 0 of 7 \\
+135.0 & 40.2 & 32.7 & 0 of 7 & 315.0 & 28.7 & \textbf{43.6} & 0 of 7 \\
+157.5 & 36.3 & 38.0 & 0 of 7 & 337.5 & 32.5 & 37.1 & 0 of 7 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \FloatBarrier
 
-Twelve of the 82 directions keep the whole tether visible, 15\% of them, and
-all twelve sit at azimuth 22.5 or 45\textdegree\ with any inclination between
-$-60$ and $+60$\textdegree.
+Twelve directions keep the whole tether visible, and all twelve sit at
+azimuth 22.5 or 45\textdegree\ with any inclination between $-60$ and
+$+60$\textdegree. Twelve of 112 is 11\%, but that percentage is a property of
+how the sphere was sampled and not of the sphere: the grid gives a pole the
+same sixteen rows as the equator while it covers a far smaller solid angle,
+so adding the poles lowers the fraction without any direction having
+changed. What does not depend on the sampling is that none of the twelve is
+at a pole, and that every one of them is at a small azimuth.
 
 \textbf{That the contrast maximum and the visibility maximum do not coincide
 is not a contradiction.} At azimuth 67.5\textdegree\ the tether is brighter
@@ -190,14 +199,25 @@ reviewer who asked for it was right to ask.
 
 \section{The two poles are not symmetric, and that is the useful result}
 
-At $\pm 89$\textdegree\ the beam runs nearly parallel to the tether and the
-azimuth stops meaning anything. The two directions are physically opposite
-and they give opposite results.
+\label{sec:sun-poles}
+
+At $\pm 89$\textdegree\ the beam runs nearly parallel to the tether, and the
+azimuth stops meaning anything. That sentence used to be an assumption
+resting on one render per pole; both poles were rendered at all sixteen
+azimuths on 25 November 2026 and it now rests on the measurement.
+\textbf{At $-89$\textdegree\ the contrast spans 24.8 to 27.0 levels over the
+sixteen, a spread of 8\% about its mean, against 65 to 80\% at every other
+inclination.} At $+89$\textdegree\ the spread is 47\%, but of figures between
+0.5 and 0.7 levels: the tether is lost at every azimuth and the spread is
+noise on nothing. So in the grazing case the inclination decides and the
+azimuth does not, which is what the single sample had claimed.
+
+The two directions are physically opposite and they give opposite results.
 
 \begin{table}[htbp]
 \centering
-\caption[The two poles]{The two directions in which the Sun runs along the
-tether.}
+\caption[The two poles]{The two inclinations at which the Sun runs along the
+tether, each averaged over its sixteen azimuths.}
 \label{tab:sun-poles}
 \begin{tabularx}{\textwidth}{@{}l X r r@{}}
 \toprule
@@ -205,10 +225,10 @@ tether.}
 \textbf{Blind} \\
  & & (levels) & (\%) \\
 \midrule
-$-89$\textdegree & Behind the cameras, beam travelling away & \textbf{26.0} &
-  11.7 \\
+$-89$\textdegree & Behind the cameras, beam travelling away & \textbf{25.9} &
+  10.0 \\
 $+89$\textdegree & At the far end, beam travelling towards the camera &
-  \textbf{0.6} & \textbf{82.1} \\
+  \textbf{0.6} & \textbf{81.7} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -225,9 +245,10 @@ most of it, is gone.}
 \end{figure}
 
 With the Sun behind the cameras the tether is still measurable: 26 levels of
-contrast and only 12\% blind, worse than the best case but usable. With the
-Sun at the far end, into the camera, \textbf{82\% of the tether is lost} and
-what remains carries half a level.
+contrast and 10\% blind, worse than the best case but usable, and that holds
+at every azimuth. With the Sun at the far end, into the camera,
+\textbf{between 79 and 84\% of the tether is lost} and what remains carries
+half a level, again at every azimuth.
 
 \textbf{This is the case that has to be recognised in flight, because it is
 not chosen.} If the orbital geometry puts the Sun behind the tether as seen
@@ -239,7 +260,7 @@ alarm.
 
 \section{How to read these numbers}
 
-Before the rules: the 82 directions can be browsed rather than read. The
+Before the rules: the 112 directions can be browsed rather than read. The
 application's \textbf{Simulation} page, tab \emph{Sol: la esfera}, draws each
 direction on the scene it was rendered in, next to the cord and the stereo
 pair, and shows the frame and the four figures for whichever one is picked.
@@ -267,7 +288,10 @@ than copying it. The same function produced the studio figures of Chapter
 
 \begin{table}[htbp]
 \centering
-\caption[Open items from the sphere]{What the sphere does not yet answer.}
+\caption[Open items from the sphere]{What the sphere does not yet answer.
+A third item stood here until 25 November 2026, asking for the poles at
+several azimuths; they were rendered at all sixteen and the answer is in
+Section \ref{sec:sun-poles}.}
 \label{tab:sun-open}
 \begin{tabularx}{\textwidth}{@{}l X@{}}
 \toprule
@@ -275,16 +299,13 @@ than copying it. The same function produced the studio figures of Chapter
 \midrule
 1 & The same sphere with the IMX296 and its 6~mm. On the ring it gave half
     the contrast, 24.3 against 50.0, and ten points more blind tether \\
-2 & Render the $-89$\textdegree\ pole at several azimuths, to confirm that
-    the azimuth really does not matter there instead of assuming it from one
-    render \\
-3 & Put the edge directions through the full pipeline and not only through
+2 & Put the edge directions through the full pipeline and not only through
     the measurement: contrast is not the same thing as a segmentable mask \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-An interactive viewer of all 82 directions, with the render behind each
+An interactive viewer of all 112 directions, with the render behind each
 marker, is published alongside this document; the measurements and the
 figures are reproduced by the commands listed in the
 \texttt{RESULTADOS.md} of the experiment folder, \texttt{sol\_esfera} under

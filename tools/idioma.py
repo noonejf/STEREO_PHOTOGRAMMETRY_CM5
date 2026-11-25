@@ -120,8 +120,8 @@ EN = {
         "nothing: ",
     "inclinacion {inc} da contraste {c} y {z} % ciego":
         "inclination {inc} gives contrast {c} and {z} % blind",
-    "La esfera del sol: 16 azimutes por 5 inclinaciones, IMX477 con el 8 mm":
-        "The sphere of the sun: 16 azimuths by 5 inclinations, IMX477 with "
+    "La esfera del sol: 16 azimutes por 7 inclinaciones, IMX477 con el 8 mm":
+        "The sphere of the sun: 16 azimuths by 7 inclinations, IMX477 with "
         "the 8 mm",
     "cable ciego (%)": "blind tether (%)",
     "azimut (grados)": "azimuth (degrees)",

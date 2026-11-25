@@ -1171,9 +1171,8 @@ class PaginaEsfera(QWidget):
         self.nota = QLabel(
             "Each cell is one rendered sun direction: a column is an azimuth, "
             "a row is an inclination, and the colour is whichever figure is "
-            "chosen above. 82 in all, the 16 azimuths at each of the five "
-            "central inclinations plus a single azimuth at each pole; the "
-            "empty cells of the +89 and -89 rows are not rendered yet.\n\n"
+            "chosen above. The grid is complete: 16 azimuths by 7 "
+            "inclinations, 112 directions, each with both cameras.\n\n"
             "Contrast is the cord's peak above its local background on a "
             "perpendicular cut, in 8-bit levels, averaged over the cord "
             "beyond 5 m only: the cord starts at the lens plane, and its "

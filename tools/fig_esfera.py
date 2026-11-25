@@ -71,11 +71,18 @@ def main():
     I.usar(args.idioma)
 
     filas = leer(os.path.join(ROOT, args.csv))
-    # Los polos se dejan fuera de los mapas: a +-89 grados el azimut no
-    # significa nada, un solo punto no es una fila de la rejilla, y pintarlo
-    # como si lo fuera diria que a esa inclinacion solo se probo un azimut.
-    rej = [f for f in filas if abs(f["inc"]) < 85]
-    polos = [f for f in filas if abs(f["inc"]) >= 85]
+    # **Los polos ya entran en el mapa.** Antes quedaban fuera, y la razon
+    # era buena mientras duro: a +-89 solo se habia renderizado el azimut 0,
+    # y pintar un punto suelto como si fuera una fila de 16 habria dicho que
+    # se probo la fila entera. El 25 de noviembre de 2026 se renderizaron los
+    # 16 azimuts en los dos polos, asi que la fila existe de verdad y lo que
+    # el mapa muestra ahora es el resultado, no una suposicion: a -89 el
+    # contraste va de 24.8 a 27.0 sobre los 16 azimuts, un 8 % de dispersion
+    # contra el 65 a 80 % de cualquier otra inclinacion. O sea, en el caso
+    # rasante manda la inclinacion y el azimut casi no existe, que es
+    # justamente lo que antes se asumia.
+    rej = list(filas)
+    polos = []
     azs = sorted({f["az"] for f in rej})
     incs = sorted({f["inc"] for f in rej})
     dest = os.path.join(ROOT, args.dest)
@@ -121,7 +128,7 @@ def main():
                     z=f"{p['ciego']:.0f}")
                 for p in sorted(polos, key=lambda q: q["inc"])) + "."
     fig.text(0.012, 0.012, pie, fontsize=7.2, color="0.3")
-    fig.suptitle(I.t("La esfera del sol: 16 azimutes por 5 inclinaciones, "
+    fig.suptitle(I.t("La esfera del sol: 16 azimutes por 7 inclinaciones, "
                      "IMX477 con el 8 mm"), fontsize=12)
     fig.tight_layout(rect=(0, 0.055, 1, 0.965))
     p1 = os.path.join(dest, f"fig_esfera_mapa{I.sufijo()}.png")

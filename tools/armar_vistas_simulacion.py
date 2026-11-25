@@ -12,7 +12,7 @@ se quedaria con las cifras y sin una sola imagen. Las medidas sin la imagen
 no se pueden auditar: la pregunta que se le hace a un contraste de 0.6 es
 "a ver", y para eso hace falta ver.
 
-Pesan 2.7 MB las 164 de la esfera, contra 51 MB de los renders crudos, porque
+Pesan 3.7 MB las 224 de la esfera, contra 70 MB de los renders crudos, porque
 van a 1000 px de ancho y calidad 78. **Son solo para mirar.** Ninguna medida
 sale de ellas: llevan la misma curva de gamma 0.42 que las figuras, aplicada
 antes de encoger y no despues, y por tanto dejan de ser proporcionales a la
@@ -75,7 +75,7 @@ def nombre_esfera(azimut: float, inclinacion: float,
 
 
 def hacer_esfera(variante="SOL") -> int:
-    """La esfera, con las dos camaras: las 82 direcciones tienen las dos.
+    """La esfera, con las dos camaras: las 112 direcciones tienen las dos.
 
     Las 16 del anillo, que son la fila de inclinacion cero y se renderizaron
     aparte, ya venian con el par. Si alguna faltara, ``copia`` devuelve cero
