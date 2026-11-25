@@ -97,6 +97,12 @@ UMBRAL_ARRASTRE = 4
 #: mas la inclinacion entera, de sobra para situar una direccion.
 YAW_MIN, YAW_MAX = 4.0, 176.0
 
+#: Cuanto tiene que separar la vista a las dos camaras, en fraccion de la
+#: base, para que valga la pena decir cual es cual. Es ``sin(yaw)``, asi que
+#: 0.5 son las vistas entre 30 y 150 grados de yaw. Fuera de ahi se dibuja
+#: una sola caja ``L+R``.
+SEPARACION_MINIMA = 0.5
+
 
 # ─────────────────────────────────────────────────────── la escena medida
 
@@ -543,13 +549,20 @@ class VistaOrbital(QWidget):
         media = (ESCENA["baseline_mm"] / 1000.0) / 2.0 * escala
         cuerpo = 1.30
 
-        # Cuando la base estereo corre casi a lo largo de la direccion de la
-        # vista, las dos camaras quedan una detras de la otra y la que esta
-        # mas cerca del ojo se dibuja ligeramente hacia un lado por la
-        # perspectiva. El resultado es una L y una R en el orden contrario
-        # al de los paneles, que es exactamente la confusion que esta pagina
-        # existe para no provocar. En ese caso se dibuja una sola caja.
-        if abs(f[0]) > 0.9:
+        # La base estereo corre a lo largo de X, asi que lo que separa a las
+        # dos camaras en pantalla es ``r[0]``, que vale exactamente
+        # ``sin(yaw)``. Por debajo de SEPARACION_MINIMA las dos cajas caen a
+        # pocos pixeles una de otra y cual sale a la izquierda ya no lo
+        # decide la geometria estereo sino la perspectiva, porque la mas
+        # cercana al ojo se proyecta un poco mas afuera. Dibujar una L y una
+        # R ahi es afirmar un orden que no existe, y es lo que hace pensar
+        # que las etiquetas estan cambiadas. Cuando no se puede afirmar, se
+        # dibuja una sola caja.
+        #
+        # El criterio anterior miraba ``f[0]``, que mezcla la inclinacion:
+        # con la vista bajada 35 grados y el cable casi de perfil no
+        # saltaba, y ahi es justamente donde el orden no significa nada.
+        if abs(r[0]) < SEPARACION_MINIMA:
             caras = ((0.0, "L+R"),)
         else:
             caras = ((-1.0, "L"), (+1.0, "R"))
