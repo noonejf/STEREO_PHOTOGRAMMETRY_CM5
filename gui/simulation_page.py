@@ -292,6 +292,9 @@ class VistaOrbital(QWidget):
     """
 
     seleccionada = pyqtSignal(float, float)
+    #: Se emite en cuanto el usuario gira a mano, para que el boton de la
+    #: vista con nombre deje de decir que seguimos en ella.
+    vista_libre = pyqtSignal()
 
     #: Las vistas con nombre, ``(yaw, pitch)`` en grados.
     #:
@@ -514,19 +517,36 @@ class VistaOrbital(QWidget):
         """El par estereo, con la base exagerada para que se vea.
 
         La base real son 100 mm sobre un cable de 24.5 m: a escala es medio
-        pixel. Se dibuja 40 veces mas grande y el rotulo lo dice, porque la
+        pixel. Se dibuja 60 veces mas grande y el rotulo lo dice, porque la
         pregunta que la figura tiene que contestar es cual camara esta a
         que lado, no cuanto miden.
+
+        Las dos cajas miran siempre al ojo: se arman con los vectores de
+        pantalla de la camara del visor y no con los ejes del mundo. Hechas
+        en el plano x-z salian de canto en la planta, como dos rayas, y la
+        letra encima no se leia.
         """
+        f, r, u = cam[0], cam[1], cam[2]
         escala = 60.0
         media = (ESCENA["baseline_mm"] / 1000.0) / 2.0 * escala
         cuerpo = 1.30
-        for signo, nombre in ((-1.0, "L"), (+1.0, "R")):
-            x = signo * media
-            caja = [(x - cuerpo / 2, -cuerpo, -cuerpo / 2),
-                    (x + cuerpo / 2, -cuerpo, -cuerpo / 2),
-                    (x + cuerpo / 2, -cuerpo, +cuerpo / 2),
-                    (x - cuerpo / 2, -cuerpo, +cuerpo / 2)]
+
+        # Cuando la base estereo corre casi a lo largo de la direccion de la
+        # vista, las dos camaras quedan una detras de la otra y la que esta
+        # mas cerca del ojo se dibuja ligeramente hacia un lado por la
+        # perspectiva. El resultado es una L y una R en el orden contrario
+        # al de los paneles, que es exactamente la confusion que esta pagina
+        # existe para no provocar. En ese caso se dibuja una sola caja.
+        if abs(f[0]) > 0.9:
+            caras = ((0.0, "L+R"),)
+        else:
+            caras = ((-1.0, "L"), (+1.0, "R"))
+        for signo, nombre in caras:
+            centro = (signo * media, -cuerpo, 0.0)
+            h = cuerpo / 2
+            caja = [tuple(centro[k] + a * h * r[k] + b * h * u[k]
+                          for k in range(3))
+                    for a, b in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
             poli = QPolygonF()
             ok = True
             for v in caja:
@@ -541,14 +561,15 @@ class VistaOrbital(QWidget):
             pintor.setBrush(QBrush(QColor(34, 211, 238, 55)))
             pintor.drawPolygon(poli)
             pintor.setBrush(Qt.NoBrush)
-            c = self._proyectar((x, -cuerpo, 0.0), cam)
+            c = self._proyectar(centro, cam)
             if c:
                 fuente = QFont()
                 fuente.setPointSize(7)
                 fuente.setBold(True)
                 pintor.setFont(fuente)
                 pintor.setPen(QPen(QColor(ACCENT_CYAN)))
-                pintor.drawText(int(c[0]) - 3, int(c[1]) + 3, nombre)
+                pintor.drawText(int(c[0]) - 4 * len(nombre), int(c[1]) + 3,
+                                nombre)
 
         # El cuadro de la imagen, un metro delante del par. Es la pieza que
         # ata el diagrama al render: lo que cae dentro de este rectangulo
@@ -680,6 +701,7 @@ class VistaOrbital(QWidget):
                 return
             self._movido = True
             self.setCursor(Qt.ClosedHandCursor)
+            self.vista_libre.emit()
         self.yaw += (ev.x() - self._p0.x()) * 0.45
         self.pitch = max(-86.0, min(86.0,
                                     self.pitch + (ev.y() - self._p0.y()) * 0.35))
@@ -876,6 +898,13 @@ class PanelRender(QWidget):
     es el caso en vez de dejar un hueco.
     """
 
+    #: Que camara es cada panel. **El panel de la izquierda es SIEMPRE
+    #: ``left.jpg``**, que es Cam_L, la que esta en x = -50 mm. No depende de
+    #: como este girado el diagrama, y hace falta decirlo porque el diagrama
+    #: se puede girar hasta poner la R a la izquierda.
+    ROTULOS = ("Izquierda   ·   Cam_L, x = -50 mm",
+               "Derecha   ·   Cam_R, x = +50 mm")
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setStyleSheet(f"background-color: {BG_DEEP};")
@@ -886,12 +915,31 @@ class PanelRender(QWidget):
         fila.setSpacing(6)
         self.lbl_izq = QLabel()
         self.lbl_der = QLabel()
-        for lbl in (self.lbl_izq, self.lbl_der):
+        self.cab_izq = QLabel(self.ROTULOS[0])
+        self.cab_der = QLabel(self.ROTULOS[1])
+        self.col_izq = QWidget()
+        self.col_der = QWidget()
+        for col, cab, lbl in ((self.col_izq, self.cab_izq, self.lbl_izq),
+                              (self.col_der, self.cab_der, self.lbl_der)):
+            cab.setAlignment(Qt.AlignCenter)
+            cab.setStyleSheet(
+                f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: bold;"
+                f"letter-spacing: 0.4px; background-color: {BG_PANEL};"
+                f"border: 1px solid {BORDER_SUBTLE}; padding: 3px;")
             lbl.setAlignment(Qt.AlignCenter)
             lbl.setStyleSheet(f"background-color: #000; border: 1px solid "
                               f"{BORDER_SUBTLE};")
-            lbl.setMinimumHeight(180)
-            fila.addWidget(lbl, 1)
+            # Sin esto el QLabel pide del layout el tamano de su pixmap, el
+            # primero en recibir imagen se queda con el ancho y el otro sale
+            # como una tira. El pixmap no debe mandar en el reparto.
+            lbl.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+            lbl.setMinimumSize(1, 1)
+            cv = QVBoxLayout(col)
+            cv.setContentsMargins(0, 0, 0, 0)
+            cv.setSpacing(3)
+            cv.addWidget(cab)
+            cv.addWidget(lbl, 1)
+            fila.addWidget(col, 1)
         v.addLayout(fila, 1)
         self.pie = QLabel()
         self.pie.setWordWrap(True)
@@ -926,7 +974,7 @@ class PanelRender(QWidget):
                     "copia chica. Vuelve a generarla con: python "
                     "tools/armar_vistas_simulacion.py")
         self.pie.setText(nota + ("  " + pie_extra if pie_extra else ""))
-        self.lbl_der.setVisible(bool(par.derecha))
+        self.col_der.setVisible(bool(par.derecha))
         self._reescalar()
 
     def _reescalar(self):
@@ -1011,6 +1059,7 @@ class PaginaEsfera(QWidget):
 
         self.vista = VistaOrbital()
         self.vista.seleccionada.connect(self.seleccionar)
+        self.vista.vista_libre.connect(self._vista_libre)
         col.addWidget(self.vista, 3)
 
         botones = QHBoxLayout()
@@ -1084,6 +1133,24 @@ class PaginaEsfera(QWidget):
 
         self.panel = PanelRender()
         dv.addWidget(self.panel, 1)
+
+        # La pregunta que esta pantalla provoca la primera vez que se mira, y
+        # que no se contesta sola. Va escrita y no en un tooltip.
+        self.aviso = QLabel(
+            "Por que las dos no se parecen cerca del borde, y por que eso no "
+            "es el sol: el cable arranca EN el punto medio de la base "
+            "estereo, y su primer metro pasa a 11 cm de cada lente, donde un "
+            "cordon de 1 mm mide 50 px y satura. A 11 cm, 10 cm de base son "
+            "media paralaje, asi que cada camara ve ese tramo en otro sitio "
+            "del cuadro. Del centro hacia afuera, que es el cable a mas de "
+            "5 m, las dos coinciden: 70.5 contra 80.9 niveles de media en el "
+            "recorte central de 600 px. El contraste se promedia desde 5 m, "
+            "asi que ninguna cifra de arriba usa ese primer metro.")
+        self.aviso.setWordWrap(True)
+        self.aviso.setStyleSheet(
+            f"color: {TEXT_DIM}; font-size: 10px; background: transparent;"
+            f"border-top: 1px solid {BORDER_SUBTLE}; padding-top: 5px;")
+        dv.addWidget(self.aviso)
         raiz.addWidget(derecha, 1)
 
         if self.direcciones:
@@ -1096,6 +1163,21 @@ class PaginaEsfera(QWidget):
                 "Falta SIMULATION/experimentos/sol_esfera/medidas.csv. Se "
                 "genera con: python tools/medir_esfera.py --csv "
                 "SIMULATION/experimentos/sol_esfera/medidas.csv")
+
+    def _vista_libre(self):
+        """Girar a mano apaga el boton de la vista con nombre.
+
+        No es cosmetico. Un boton que sigue diciendo "3/4" sobre una vista
+        que ya no lo es hace que la L y la R del diagrama parezcan
+        intercambiadas respecto de los dos paneles, y eso manda a buscar un
+        error en el nombre de los archivos que no existe.
+        """
+        if self._grupo.checkedButton() is None:
+            return
+        self._grupo.setExclusive(False)
+        for b in self._grupo.buttons():
+            b.setChecked(False)
+        self._grupo.setExclusive(True)
 
     @staticmethod
     def _qss_boton():
