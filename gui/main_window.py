@@ -25,6 +25,7 @@ from gui.calibration_dialog import CalibrationPage
 from gui.processing_dialog import ProcessingPage
 from gui.ai_page import AIPage
 from gui.optics_page import OpticsPage
+from gui.simulation_page import SimulationPage
 from gui.icons import get_icon, icon_pixmap
 from utils.logger import get_logger
 
@@ -311,12 +312,14 @@ class PhotogrammetryDashboard(QMainWindow):
         self.proc_page = ProcessingPage(self.camera_config, self)  # index 2
         self.ai_page   = AIPage(self)                              # index 3
         self.optics_page = OpticsPage(self)                        # index 4
+        self.sim_page  = SimulationPage(self)                      # index 5
 
         self.stack.addWidget(self.dash_page)
         self.stack.addWidget(self.calib_page)
         self.stack.addWidget(self.proc_page)
         self.stack.addWidget(self.ai_page)
         self.stack.addWidget(self.optics_page)
+        self.stack.addWidget(self.sim_page)
 
         body.addWidget(self.stack, 1)
         root.addLayout(body, 1)
@@ -424,6 +427,7 @@ class PhotogrammetryDashboard(QMainWindow):
             ("processing",  "Processing"),
             ("ai",          "AI"),
             ("optics",      "Optics"),
+            ("simulation",  "Simulation"),
         ]
         self._sidebar_buttons = []
         for i, (icon, label) in enumerate(nav_items):

@@ -56,9 +56,29 @@ One PyQt5 window, a collapsible icon rail (56 px closed, 188 px open), a
 | 2 | Processing | `ProcessingPage` | `gui/processing_dialog.py` |
 | 3 | AI | `AIPage` | `gui/ai_page.py` |
 | 4 | Optics | `OpticsPage` | `gui/optics_page.py` |
+| 5 | Simulation | `SimulationPage` | `gui/simulation_page.py` |
 
 The Optics page embeds `calculate_cam/camera_dof_visualizer.py` by reparenting
 that window's central widget, so the optics maths has one implementation.
+
+**Pages 4 and 5 are readers and must stay that way.** The Simulation page
+plots and tabulates what `tools/medir_esfera.py` and `tools/medir_cuarto.py`
+already wrote into the experiment's CSV; it recomputes nothing. A figure on
+screen that disagrees with a deliverable means the CSV is stale, and the fix
+is to re-run the measuring script. It replaced a published HTML artifact,
+which worked but lived in one account: `SIMULATION/experimentos/visor/` is
+still the source of that artifact and is now the second implementation, so
+prefer the page.
+
+Its orbit diagram draws the scene, not just a disc of markers: the cord with
+the wave it has in the render, the stereo pair at the near end with its image
+frame, and a corner gizmo that names what each world axis is **in the
+image**. Dragging turns the view and never the sun, which is said on the
+widget, because the artifact's one control silently did both and that is what
+made it unreadable. Four named views; three of them put the far end of the
+cord to the right of the screen and the eye above the scene, since a positive
+`pitch` puts the eye underneath and the plan view then comes out seen from
+the floor.
 
 **UI conventions.** Icons are SVG paths in `gui/icons.py`, never Unicode
 glyphs: several of the glyphs this app used have no coverage in the fonts
@@ -397,6 +417,13 @@ See `synthetic/README.md`. Four things to know before using it:
 Output lands in `data/synthetic/`, which **is** gitignored, unlike
 `data/captures/`.
 
+`SIMULATION/experimentos/*/vistas/` is the one derived image folder that **is**
+versioned, 1.7 MB of 1000 px copies written by
+`tools/armar_vistas_simulacion.py`. `data/captures/` is ignored, so a clean
+clone and the Raspberry have the measurements and not one image, and a
+measurement nobody can look at cannot be audited. They carry gamma 0.42
+already applied, so the page that reads them must not apply it twice.
+
 Three learned components sit beside the hand-written code. **One of them
 is on by default, and it is the only one that ever won the end-to-end
 measurement.**
@@ -566,7 +593,13 @@ standalone needs the repo root on `sys.path`.
 Both carry a `[SIN USO EN EL FLUJO ACTUAL]` banner in their docstring. If you
 add more dead-but-intentional code, mark it the same way.
 
-**`data/captures/` and `data/calibration/` are versioned** (177 and 1073 files).
+[`ARCHITECTURE.md`](ARCHITECTURE.md) is the same map written for a person
+rather than for Claude: where each folder is, which four reading paths exist
+depending on what you came for, and the five things that trip a newcomer. It
+is in Spanish, like the rest of the internal notes, and it is not loaded into
+a session, so put the long prose there rather than here.
+
+**`data/captures/` and `data/calibration/` are versioned** (180 and 1073 files).
 `.gitignore` tries to exclude `data/captures/`, but the rule was added after the
 files were committed, so it has no effect on them. Decide deliberately before
 adding more.

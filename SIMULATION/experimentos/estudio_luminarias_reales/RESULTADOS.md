@@ -177,6 +177,11 @@ conclusion de aqui depende de cual se elija.
 | 3 | Medir el albedo del molton y el de la madera, que aqui estan asumidos |
 | 4 | Preguntar a Luis por el kit de reflectores de 15 y 30 grados de las STORM |
 
+
+**Para mirar esto sin leer codigo:** la pagina **Simulation** de
+`main.py`, pestana *Estudio TV2*, que lista las variantes con su render
+y sus cifras, leidas de `medidas_familia.csv`.
+
 ## Donde esta esto en el entregable
 
 Todo lo de aqui esta escrito en ingles en el **capitulo 5 del informe de la

@@ -145,6 +145,12 @@ explicitamente los nombres con `_inc`.
 | 2 | Renderizar el polo -89 con varios azimutes, para confirmar que ahi el azimut de verdad no importa en vez de suponerlo de un solo render |
 | 3 | Pasar las direcciones del borde por la pipeline completa, no solo por el medidor: contraste no es lo mismo que mascara segmentable |
 
+
+**Para mirar esto sin leer codigo:** la pagina **Simulation** de
+`main.py`, pestana *Sol: la esfera*. El diagrama 3D situa cada
+direccion respecto del cable y del par estereo, y la rejilla de abajo
+es el mismo mapa de calor, clicable. Lee esta misma CSV.
+
 ## Donde esta esto en el entregable
 
 En ingles, con las tablas y las figuras, es el **capitulo 6 del informe de la

@@ -53,6 +53,12 @@ _BODIES: Dict[str, str] = {
         '<path d="M10 2.5v4M14 2.5v4M10 17.5v4M14 17.5v4'
         'M2.5 10h4M2.5 14h4M17.5 10h4M17.5 14h4"/>'
     ),
+    # Globo con meridiano: la esfera de direcciones de la simulacion
+    "simulation": (
+        '<circle cx="12" cy="12" r="8.5"/>'
+        '<ellipse cx="12" cy="12" rx="3.8" ry="8.5"/>'
+        '<path d="M3.5 12h17M5 7h14M5 17h14"/>'
+    ),
     # Lens aperture: the optics calculator
     "optics": (
         '<circle cx="12" cy="12" r="9"/>'
