@@ -1,0 +1,277 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,english]{babel}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{mdframed}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage[colorlinks=true,urlcolor=linkblue,linkcolor=linkblue]{hyperref}
+
+\definecolor{linkblue}{HTML}{14507A}
+\definecolor{cajafondo}{HTML}{F2F4F7}
+\definecolor{cajaborde}{HTML}{14507A}
+\definecolor{notagris}{HTML}{444444}
+
+% El texto que se copia y se pega en el post va en caja. Lo de fuera de la
+% caja son notas para Jose y no se publica.
+\newmdenv[
+  backgroundcolor=cajafondo,
+  linecolor=cajaborde,
+  linewidth=1.2pt,
+  topline=false, bottomline=false, rightline=false,
+  innerleftmargin=12pt, innerrightmargin=12pt,
+  innertopmargin=10pt, innerbottommargin=10pt,
+  skipabove=10pt, skipbelow=10pt
+]{post}
+
+\newcommand{\nota}[1]{{\color{notagris}\small #1\par}}
+\newcommand{\pie}[1]{\nota{\textbf{Pie de foto sugerido:} #1}}
+
+\title{\vspace{-1.5cm}LINKU camera payload\\[2mm]
+       \large Posts para el ISSP, con sus imagenes}
+\author{}
+\date{26 de noviembre de 2026}
+
+\begin{document}
+\selectlanguage{spanish}
+\maketitle
+\vspace{-1cm}
+
+\section*{Como usar esto}
+
+Cuatro posts, al largo y al tono del que publico Alvaro sobre el star
+tracker: alrededor de 150 palabras, lenguaje llano, una lista de partes, una
+idea tecnica explicada en una frase y un gancho al siguiente. El texto que va
+en el post es el que esta \textbf{dentro de la caja gris}. Todo lo demas son
+notas y no se publica.
+
+\textbf{Dos cosas que hay que arreglar antes de publicar.} El primero dice
+\emph{the second of our three instruments}: cambia el ordinal si el tuyo va
+tercero. Y aqui no se nombra la universidad, el estudio ni los socios, asi que
+agrega lo que el grupo ya haya acordado decir en publico.
+
+\textbf{Lo que estos posts dejan fuera a proposito}, que es la respuesta si
+alguien pregunta por que no hay numeros: ninguna cifra de exactitud, ningun
+puntaje de contraste ni de segmentacion, nada de la calibracion, ni el largo
+del tether, ni la separacion entre satelites, ni la base entre las dos
+camaras, ni numeros de parte, precios, proveedores ni fechas. Queda el
+problema, el enfoque y las partes, que es exactamente lo que el post de
+Alvaro da del suyo.
+
+\textbf{De donde salen las imagenes.} Todas son material propio que ya existe
+en el repositorio, ninguna es un montaje hecho para el post. Debajo de cada
+una esta su origen. Las fotos del cable son capturas reales de la caja
+oscura, a resolucion completa del sensor; los renders del estudio son de la
+simulacion del cuarto y llevan gamma 0.42 aplicada para que el cable se vea
+impreso, que es lo mismo que hace la pagina de simulacion de la aplicacion.
+
+\vspace{3mm}
+\nota{Las figuras las arma \texttt{tools/armar\_figuras\_posts.py}, que no
+inventa ninguna: recorta, escala y superpone material que ya existe. Sale de
+tres sitios, la \texttt{Figure 5.2} del entregable D5, el par \texttt{0012}
+del \texttt{mask\_dataset} con su mascara, y las vistas versionadas del
+estudio. Si cambia alguna, se corre el script y se vuelve a compilar.}
+
+\clearpage
+\section*{Post 1. Que es el instrumento}
+
+\begin{post}
+\selectlanguage{english}
+Hi everyone! Here is the second of our three instruments: the stereo camera
+payload.
+
+Its job is to measure a cable. Two satellites fly joined by a thin tether, and
+somebody has to know what that tether is actually doing up there: how long it
+is, whether it is straight or sagging, how far it reaches away from us. Our
+instrument answers that with two cameras and no contact, which is the only way
+to measure something you cannot touch and must not disturb.
+
+The prototype is a Raspberry Pi Compute Module 5 with two 12 MP camera
+modules, an 8 mm lens on each, and a machined support that holds both cameras
+and the computer as one rigid piece. Rigid matters more than it sounds: the
+whole measurement comes from the small difference between the two images, so
+if the cameras move with respect to each other, the measurement moves with
+them.
+
+Next post: why a cable is the hardest thing you can hand to a stereo camera.
+\selectlanguage{spanish}
+\end{post}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\textwidth]{figures/fig_rig.png}
+\end{figure}
+
+\pie{The support that holds the two cameras. Everything rests on the two of
+them never moving with respect to each other.}
+
+\nota{Es el CAD del soporte, del entregable D5. \textbf{Una foto real del
+soporte armado seria mejor que el CAD} y no la hay en el repositorio: si
+tienes una en el telefono, cambiala. La version con especificaciones
+(\texttt{Figure 5.5}) trae la base de 100 mm y las medidas, asi que no la uso
+aqui.}
+
+\clearpage
+\section*{Post 2. Por que un cable es dificil}
+
+\begin{post}
+\selectlanguage{english}
+Stereo vision measures distance the way your eyes do. Find the same point in
+both images, see how much it shifted between them, and the shift gives you the
+depth. The whole method rests on being able to say \emph{the same point}.
+
+A bare cable will not let you. Slide a few centimetres along it and the image
+does not change: same brightness, same width, same everything. The standard
+algorithms look for a patch of texture to match and find nothing to hold on
+to, so they either fail or quietly return noise. This is well known, and it is
+exactly the case our instrument has to work in.
+
+So we stopped trying to match points and started tracing the cable as a curve.
+We separate it from the background, find its two ends, follow it through the
+places where it crosses in front of itself, and then measure along the curve
+instead of across the image.
+
+Next post: teaching software to find a cable that is a few pixels wide.
+\selectlanguage{spanish}
+\end{post}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_pair_left.jpg}
+  \end{subfigure}\hfill
+  \begin{subfigure}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_pair_right.jpg}
+  \end{subfigure}
+\end{figure}
+
+\vspace{-2mm}
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}{0.33\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_patch_a.jpg}
+  \end{subfigure}\hspace{6mm}
+  \begin{subfigure}{0.33\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_patch_b.jpg}
+  \end{subfigure}
+\end{figure}
+
+\pie{Top: the same cable seen by the left and the right camera. Bottom: two
+pieces of that same image, taken far apart along the cable. Nothing in either
+patch says where along the cable it came from, and that is the whole problem.}
+
+\nota{Las dos de arriba son el par estereo real, izquierda y derecha, de la
+caja oscura. Los dos parches de abajo salen de la foto de la izquierda y sus
+centros estan \textbf{separados 1713 px} a lo largo del cable, elegidos sobre
+la mascara dibujada a mano y descartando los que caen en un cruce. Lo unico
+que los distingue es la direccion en la que corre el cable, y esa no dice en
+que parte del cable estas.}
+
+\clearpage
+\section*{Post 3. Encontrar el cable}
+
+\begin{post}
+\selectlanguage{english}
+Before anything can be measured, the cable has to be separated from
+everything else in the frame, and at the distances we work at it is only a few
+pixels wide. A hand-tuned threshold does this well in the frame you tuned it
+on and badly in the next one.
+
+So we trained a model for it instead. It is not deep learning: it is a
+classical machine learning classifier that looks at each pixel through a
+handful of descriptors, its colour and how much its neighbourhood looks like a
+thin ridge, which is the same kind of detector used to find blood vessels in
+medical images. It runs on a laptop in seconds and needs no GPU.
+
+The interesting part was the training data. Hand-labelled frames of a real
+cable are slow to produce, so we wrote a generator that draws synthetic
+scenes with the cable in a known position, and trained on those plus a few
+real ones.
+
+Next post: how we test any of this on the ground.
+\selectlanguage{spanish}
+\end{post}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{figures/fig_mask_overlay.jpg}
+\end{figure}
+
+\pie{One labelled frame from our training set: the cable marked in orange,
+everything else left out. The dark line crossing the picture is the cable's
+own shadow on the wall, and it is deliberately not marked, because telling
+the cable from its shadow is part of what the model has to learn.}
+
+\nota{Ojo con como se describe: esta mascara esta \textbf{dibujada a mano},
+es la etiqueta con la que se entrena y se puntea, no la salida del modelo.
+Por eso el pie dice \emph{labelled frame} y no \emph{found by the model}. Es
+la misma foto del post 2. La sombra quedandose sin marcar es el mejor detalle
+de la imagen y por eso el pie la nombra: un umbral a secas se la come. La
+linea esta engrosada al superponerla porque, al reducir la foto para
+imprimirla, un cable de medio pixel desapareceria.}
+
+\clearpage
+\section*{Post 4. Probarlo en la oscuridad}
+
+\begin{post}
+\selectlanguage{english}
+In orbit this instrument works in the dark, with the Sun as the only lamp and
+in a direction nobody gets to choose. That is hard to argue about from a desk,
+so we test it in a blacked out television studio, with the cable strung across
+the room and professional film fixtures standing in for the Sun.
+
+One thing we did not expect to spend time on: where to point the lamps. A
+spotlight aimed at a thin cable across many metres lights a bright patch and
+leaves the rest dark, and the direction it comes from decides whether the
+camera sees a lit cable or a silhouette. Rather than find that out on the day,
+we rebuilt the studio in a renderer, with the real fixtures and their real
+beam angles, and tried the arrangements there first.
+
+The session itself is coming. We will report what the instrument measured, and
+where the simulation turned out to be wrong.
+\selectlanguage{spanish}
+\end{post}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_studio_vertical.jpg}
+  \end{subfigure}\hfill
+  \begin{subfigure}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_studio_tilt60.jpg}
+  \end{subfigure}
+\end{figure}
+
+\pie{The same room, the same cable and the same lamps in our simulation, with
+the only difference being where the lamps are aimed. On the right they are
+tilted far enough that they come into the shot themselves, which is a problem
+you would rather find before the session than during it.}
+
+\nota{Los dos son renders de la simulacion del cuarto, camara izquierda, con
+el haz vertical y con el haz inclinado 60 grados. Los puntos blancos de la
+derecha son bocas de luminaria dentro del cuadro. Llevan gamma 0.42, como
+todas las vistas versionadas.}
+
+\clearpage
+\section*{Si hace falta un quinto}
+
+Hay uno bueno y seguro sobre calibracion, y no esta escrito todavia: que el
+error de reproyeccion no es una medida de calidad, sino el residuo que el
+optimizador acaba de minimizar, y que un tablero casi de frente no permite
+recuperar la distancia focal por mucho que se repita la toma. La imagen seria
+el tablero ChArUco, \texttt{charuco\_board\_5x7.png}, que ya esta en la raiz
+del repositorio. Dilo y lo escribo con el mismo formato.
+
+\end{document}

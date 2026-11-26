@@ -1,0 +1,1 @@
+A=(3026,400) B=(3148,2109) separacion=1713 px lado=500 px sobre 0012.jpg

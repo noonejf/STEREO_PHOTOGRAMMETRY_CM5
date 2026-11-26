@@ -14,7 +14,12 @@ whatever the group has already agreed to say in public.
 no accuracy figures and no contrast or segmentation scores, no calibration
 results, no tether length or satellite separation, no baseline between the two
 cameras, no part numbers, prices or suppliers, no dates, and no photograph of
-the support that would give away how the instrument is built. What is left is
+the support that would give away how the instrument is built.
+
+**Con imagenes, en PDF:** `Documentation/Posts_ISSP/pdf/Posts_ISSP.pdf`, que
+trae cada post con la figura que lo acompana y un pie de foto sugerido. Las
+figuras las arma `tools/armar_figuras_posts.py` y se compila con
+`.\compilar.ps1 "Documentation\Posts_ISSP"`. What is left is
 the problem, the approach and the parts, which is what Alvaro's post gives
 about his.
 
