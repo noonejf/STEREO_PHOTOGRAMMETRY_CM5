@@ -617,6 +617,31 @@ VARIANTS = {
         e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
         blend_name="estudio_haz_lejos_de_camaras"),
 
+    # La tercera direccion, que el test de tres vias no cubria: el haz
+    # inclinado DE COSTADO, atravesando el cable en vez de recorrerlo. Con
+    # ``-y`` y ``+y`` la cara iluminada es la que mira al fondo o la que mira
+    # a la camara, y en los dos casos es una cara que el cable, visto casi de
+    # punta, ensena de canto. De costado la luz cae sobre el limbo del
+    # cilindro, que es lo que la camara resuelve de cada tramo. Misma sala,
+    # mismo cable y las mismas cinco luminarias que TV2HAZ0 y TV2HAZLEJOS,
+    # asi que a inclinacion 0 las tres son la misma escena y eso sirve de
+    # control. Inclinar en x corre la fila 3.78 m hacia un costado con la
+    # sala de 20 m de ancho, asi que cabe. Lo que no hay de costado es
+    # prediccion fotometrica: calculadora_luz.perfil_inclinado describe la
+    # fila corrida a lo largo del cable y no de lado, asi que ``prediccion``
+    # sale None y la unica cifra de esta variante es la medida sobre el
+    # render.
+    "TV2HAZLADO": dict(
+        note="El haz inclinado 40 grados DE COSTADO, atravesando el cable. "
+             "Es la direccion que el test de tres vias no midio y la unica "
+             "que ilumina el limbo del cilindro que la camara resuelve.",
+        cord=(0.0, 5.0, 23.0), lamps=(5, 4.5, 5.0, 23.0),
+        fixtures="storm1200x:45:4,ls1200d_pro:45:1", floor="molton",
+        view="axis", cam_offset=5.0, focal=8.0, tilt=(40.0, "+x"),
+        cam_x=0.0, wave=S.WAVE, cord_z=1.5, lamps_visible=True,
+        e_target=S.E_R5_SLOW_LX, e_basis="R5, 3 sensores, 1 deg/s",
+        blend_name="estudio_haz_de_costado"),
+
     "BAJOALTO": dict(
         note="El cable a 1.5 m con la fila donde ya esta colgada, a 7 m. "
              "Es el caso de un estudio con parrilla fija. La distancia "
